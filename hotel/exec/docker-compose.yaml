@@ -1,0 +1,141 @@
+networks:
+  monitoring:
+    name: monitoring
+
+services:
+  otel-collector:
+    container_name: otel-collector
+    image: otel/opentelemetry-collector-contrib:0.108.0
+    command: ["--config=/etc/otel-collector.yaml"]
+    volumes:
+      - ./otel-collector.yaml:/etc/otel-collector.yaml
+    ports:
+      - 4317:4317
+    networks:
+      - monitoring
+  
+  jaeger:
+    container_name: jaeger
+    image: jaegertracing/all-in-one:1.60
+    ports:
+      - 16686:16686
+      - 16685:16685     # For querying traces from jaeger
+    depends_on:
+      - otel-collector
+    networks:
+      - monitoring
+    environment:
+    - COLLECTOR_ZIPKIN_HOST_PORT=9411       # To collect envoy's traces
+
+  memcached-rate:
+    image: memcached:latest
+    hostname: user-memcached
+    environment:
+      - MEMCACHED_CACHE_SIZE=128
+      - MEMCACHED_THREADS=2
+    logging:
+      options:
+        max-size: 50m
+    ports:
+      - "10003:11211"
+    restart: always
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: any
+  
+  memcached-profile:
+    image: memcached:latest
+    hostname: user-memcached
+    environment:
+      - MEMCACHED_CACHE_SIZE=128
+      - MEMCACHED_THREADS=2
+    logging:
+      options:
+        max-size: 50m
+    ports:
+      - "10001:11211"
+    restart: always
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: any
+    
+  memcached-reserve:
+    image: memcached:latest
+    hostname: user-memcached
+    environment:
+      - MEMCACHED_CACHE_SIZE=128
+      - MEMCACHED_THREADS=2
+    logging:
+      options:
+        max-size: 50m
+    ports:
+      - "10002:11211"
+    restart: always
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: any
+  
+  mongodb-geo:
+    image: mongo:5.0
+    hostname: geo-db
+    volumes:
+      - geo:/data/db
+    restart: always
+    ports:
+      - "20004:27017"
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: any
+
+  mongodb-profile:
+    image: mongo:5.0
+    hostname: profile-db
+    volumes:
+      - profile:/data/db
+    restart: always
+    ports:
+      - "20001:27017"
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: any
+
+  mongodb-rate:
+    image: mongo:5.0
+    hostname: rate-db
+    volumes:
+      - rate:/data/db
+    restart: always
+    ports:
+      - "20003:27017"
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: any
+  
+  mongodb-reservation:
+    image: mongo:5.0
+    hostname: reservation-db
+    volumes:
+      - reservation:/data/db
+    restart: always
+    ports:
+      - "20002:27017"
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: any
+
+volumes:
+  geo:
+  profile:
+  rate:
+  recommendation:
+  reservation:
+  user:
+  review:
+  attractions:
