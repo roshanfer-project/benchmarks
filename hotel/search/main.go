@@ -15,14 +15,14 @@ import (
 	"github.com/google/uuid"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/stats/opentelemetry"
 )
 
 var log = utils.GetLogger("search")
-var tracer trace.Tracer
+
+//var tracer trace.Tracer
 
 type Server struct {
 	pb.UnimplementedSearchServer
@@ -32,18 +32,18 @@ type Server struct {
 	uuid       string
 }
 
-func tracingInterceptor(ctx context.Context, req any,
+/* func tracingInterceptor(ctx context.Context, req any,
 	info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
 
 	_, span := tracer.Start(ctx, info.FullMethod)
 	defer span.End()
 	return handler(ctx, req)
 
-}
+} */
 
 func configOTL(ctx context.Context, serviceName string) (grpc.ServerOption, []func(context.Context) error, bool) {
 	if shutdownList, ok := oteltool.InitializeOTel(ctx, serviceName, false); ok {
-		tracer = otel.GetTracerProvider().Tracer(serviceName + "-tracer")
+		//tracer = otel.GetTracerProvider().Tracer(serviceName + "-tracer")
 		//meter = otel.GetMeterProvider().Meter(serviceName + "-meter")
 		return opentelemetry.ServerOption(opentelemetry.Options{
 			MetricsOptions: opentelemetry.MetricsOptions{MeterProvider: otel.GetMeterProvider()}}), shutdownList, true
@@ -63,7 +63,7 @@ func (s *Server) Run() error {
 		grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
 			PermitWithoutStream: true,
 		}),
-		grpc.UnaryInterceptor(tracingInterceptor),
+		//grpc.UnaryInterceptor(tracingInterceptor),
 	}
 
 	ctx := context.Background()
