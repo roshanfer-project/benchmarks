@@ -8,7 +8,7 @@ services:
     ports:
       - 3000:3000
       - 4000:4000
-    command: ["envoy", "-c", "/etc/envoy/envoy.yaml", "--log-level", "debug", "--concurrency", "1"]
+    command: ["envoy", "-c", "/etc/envoy/envoy.yaml", "--log-level", "info", "--concurrency", "1", "--disable-hot-restart"]
     cpuset: "6"
 
 
@@ -21,7 +21,7 @@ services:
     ports:
       - 3005:3005
       - 4005:4005
-    command: ["envoy", "-c", "/etc/envoy/envoy.yaml", "--log-level", "debug", "--concurrency", "1"]
+    command: ["envoy", "-c", "/etc/envoy/envoy.yaml", "--log-level", "info", "--concurrency", "1", "--disable-hot-restart"]
     cpuset: "3"
 
   profile-envoy:
@@ -33,7 +33,7 @@ services:
     ports:
       - 3001:3001
       - 4001:4001
-    command: ["envoy", "-c", "/etc/envoy/envoy.yaml", "--log-level", "info", "--concurrency", "1"]
+    command: ["envoy", "-c", "/etc/envoy/envoy.yaml", "--log-level", "info", "--concurrency", "1", "--disable-hot-restart"]
     cpuset: "4"
 
   reservation-envoy:
@@ -45,7 +45,7 @@ services:
     ports:
       - 3002:3002
       - 4002:4002
-    command: ["envoy", "-c", "/etc/envoy/envoy.yaml", "--log-level", "info", "--concurrency", "1"]
+    command: ["envoy", "-c", "/etc/envoy/envoy.yaml", "--log-level", "info", "--concurrency", "1", "--disable-hot-restart"]
     cpuset: "5"
 
   rate-envoy:
@@ -57,7 +57,7 @@ services:
     ports:
       - 3003:3003
       - 4003:4003
-    command: ["envoy", "-c", "/etc/envoy/envoy.yaml", "--log-level", "info", "--concurrency", "1"]
+    command: ["envoy", "-c", "/etc/envoy/envoy.yaml", "--log-level", "info", "--concurrency", "1", "--disable-hot-restart"]
     cpuset: "2"
 
   geo-envoy:
@@ -69,5 +69,5 @@ services:
     ports:
       - 3004:3004
       - 4004:4004
-    command: ["envoy", "-c", "/etc/envoy/envoy.yaml", "--log-level", "info", "--concurrency", "1"]
+    command: ["envoy", "-c", "/etc/envoy/envoy.yaml", "--log-level", "info", "--concurrency", "1", "--disable-hot-restart"]
     cpuset: "1"

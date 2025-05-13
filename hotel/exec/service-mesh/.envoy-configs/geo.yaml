@@ -2,6 +2,12 @@ node:
   id: frontend
   cluster: local
 
+stats_config:
+  stats_matcher:
+    reject_all: true
+  
+stats_flush_interval: 30s
+
 admin:                       # (optional but handy)
   access_log_path: /tmp/envoy_admin.log
   address:
@@ -21,7 +27,7 @@ static_resources:
         typed_config:
           "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
           stat_prefix: envoy
-#          generate_request_id: true
+          generate_request_id: false
           use_remote_address: true
           http_filters:
           - name: envoy.filters.http.router
