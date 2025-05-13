@@ -23,25 +23,30 @@ func main() {
 		//Duration string `arg:"required"`
 		//Rate     string `arg:"required"`
 		Sidecar bool `arg:"--sidecar,-s" help:"Run sidecar"`
-		Ppm     bool `arg:"--ppm,-p" help:"Run sidecar with PPM"`
+		//Ppm     bool `arg:"--ppm,-p" help:"Run sidecar with PPM"`
+		Envoy bool `arg:"--envoy,-e" help:"Run with Envoy"`
 	}
 
 	arg.MustParse(&args)
 	wg = &sync.WaitGroup{}
 	fmt.Printf("args: %+v\n", args)
 
-	serviceList := [][]string{
-		{"geo", "1"},
-		{"rate", "3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20"},
-		{"search", "26,27,28,29,30"},
-		{"profile", "20,21,22,23,24,25"},
-		{"reservation", "31,32,33,34,35,36,37,38,38,40,46"},
-		{"frontend", "41,42,43,44,45"},
-	}
+	/* serviceList := [][]string{
+		{"geo", "7", ""},
+		{"rate", "10-20", ""},
+		{"search", "21-25", ""},
+		{"profile", "26-31", ""},
+		{"reservation", "32-42", ""},
+		{"frontend", "43-48", ""},
+	} */
 
-	if args.Ppm && !args.Sidecar {
-		fmt.Println("PPM can only be used with sidecar")
-		os.Exit(1)
+	serviceList := [][]string{
+		{"geo", "11", "1"},
+		{"rate", "13", "2"},
+		{"search", "15", "3"},
+		{"profile", "17", "4"},
+		{"reservation", "19", "5"},
+		{"frontend", "21", "6"},
 	}
 
 	// listen for SIGINT (Ctrl-C)
@@ -62,10 +67,21 @@ func main() {
 
 	time.Sleep(time.Second * 2)
 
-	// run the services
-	run_servicees("./.env", serviceList)
+	// compile sidecar
+	if args.Sidecar {
+		compile_sidecar(false)
+	}
 
-	time.Sleep(time.Minute * 10)
+	// run the services
+	var env string
+	if args.Sidecar {
+		env = "./.env.sidecar"
+	} else {
+		env = "./.env"
+	}
+	run_servicees(env, serviceList, args.Sidecar, args.Envoy)
+
+	time.Sleep(time.Minute * 100)
 
 	cancel()
 	wg.Wait()
@@ -74,14 +90,18 @@ func main() {
 func run_docker_compose() {
 	folder := "."
 	dir := get_cwd() + "/" + folder
-	c := exec.CommandContext(ctx, "sudo", "docker-compose", "-f", "docker-compose.yaml", "up", "-d")
+	c := exec.CommandContext(ctx, "docker", "compose", "-f", "docker-compose.yaml", "up", "-d")
 	no_env_run(c, dir, false, "docker-compose")
 }
 
-func run_servicees(env string, serviceList [][]string) {
+func run_servicees(env string, serviceList [][]string, sidecar bool, envoy bool) {
+	sidecar_dir := get_cwd() + "/service-mesh"
 	for _, tuple := range serviceList {
 		name := tuple[0]
 		cpuset := tuple[1]
+		//sidecar_cpuset := tuple[2]
+
+		fmt.Println("/////////////////////////", name, "/////////////////////////")
 
 		// build the service
 		folder := fmt.Sprintf("../%s", name)
@@ -99,7 +119,41 @@ func run_servicees(env string, serviceList [][]string) {
 			//c = exec.CommandContext(ctx, fmt.Sprintf("./%s.o", name))
 			env_run(c, dir, env)
 		}(name)
+
+		// run the sidecar
+		if sidecar {
+			if !envoy {
+				c = exec.CommandContext(ctx, "docker", "compose", "run", "-d", "-T", "-P",
+					"--name", fmt.Sprintf("%s-sidecar", name), fmt.Sprintf("%s-sidecar", name))
+				c.Dir = sidecar_dir
+				no_env_run(c, sidecar_dir, false, "docker-compose")
+			} else {
+				c = exec.CommandContext(ctx, "docker", "compose", "-f", "envoy-compose.yaml", "run", "-d", "-T", "-P",
+					"--name", fmt.Sprintf("%s-envoy", name), fmt.Sprintf("%s-envoy", name))
+				c.Dir = sidecar_dir
+				no_env_run(c, sidecar_dir, false, "envoy-compose")
+			}
+		}
+
+		time.Sleep(time.Millisecond * 100)
 	}
+}
+
+func compile_sidecar(profile bool) {
+	dir := "/home/farzad/files/ppm/sidecar"
+	fmt.Printf("Compiling sidecar in %s\n", dir)
+	var build_type string
+	if profile {
+		build_type = "Debug"
+	} else {
+		build_type = "Release"
+	}
+
+	c := exec.Command("/bin/bash", dir+"/build.sh", build_type)
+	no_env_run(c, dir, false, "sidecar")
+
+	c = exec.Command("docker", "compose", "build")
+	no_env_run(c, dir, false, "docker-compose")
 }
 
 func read_env(name string) []string {
@@ -122,9 +176,9 @@ func read_env(name string) []string {
 	}
 
 	// log the environment variables
-	for _, env := range envs {
+	/* for _, env := range envs {
 		fmt.Println("Environment variable:", env)
-	}
+	} */
 	return envs
 }
 

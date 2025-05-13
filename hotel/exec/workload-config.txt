@@ -1,3 +1,9 @@
+## Important: In general, you need a connection for every 100 RPS (This has been tested up until 1200 RPS)
+
 Less than 4K RPS: t=1, c=100
 RPS=5k: t=1, c=300
 RPS=6k: t=2, c=400
+
+
+With sidecar tests:
+1. All services and sidecars with one core. 1K RPS (t=1, c=50). P95: 11.5ms

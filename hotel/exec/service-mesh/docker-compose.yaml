@@ -1,0 +1,103 @@
+services:
+
+  frontend-sidecar:
+    image: sidecar-sidecar:latest
+    container_name: frontend-sidecar
+    restart: no
+    environment:
+      - GLOG_logtostderr=1
+#      - GLOG_v=1
+    volumes:
+      - ./.configs/frontend.yaml:/config.yaml
+      - /usr/local/lib:/usr/local/lib:ro
+      - /lib/x86_64-linux-gnu:/lib/x86_64-linux-gnu:ro
+    ports:
+      - "4000:4000" # egress_listener_port
+      - "3000:3000"   # ingress_listener_port
+    privileged: true
+    cpuset: "6"
+  
+  profile-sidecar:
+    image: sidecar-sidecar:latest
+    container_name: profile-sidecar
+    restart: no
+    environment:
+      - GLOG_logtostderr=1
+#      - GLOG_v=1
+    volumes:
+      - ./.configs/profile.yaml:/config.yaml
+      - /usr/local/lib:/usr/local/lib:ro
+      - /lib/x86_64-linux-gnu:/lib/x86_64-linux-gnu:ro
+    ports:
+      - "4001:4001" # egress_listener_port
+      - "3001:3001"   # ingress_listener_port
+    privileged: true
+    cpuset: "4"
+  
+  reservation-sidecar:
+    image: sidecar-sidecar:latest
+    container_name: reservation-sidecar
+    restart: no
+    environment:
+      - GLOG_logtostderr=1
+#      - GLOG_v=1
+    volumes:
+      - ./.configs/reservation.yaml:/config.yaml
+      - /usr/local/lib:/usr/local/lib:ro
+      - /lib/x86_64-linux-gnu:/lib/x86_64-linux-gnu:ro
+    ports:
+      - "4002:4002" # egress_listener_port
+      - "3002:3002"   # ingress_listener_port
+    privileged: true
+    cpuset: "5"
+  
+  search-sidecar:
+    image: sidecar-sidecar:latest
+    container_name: search-sidecar
+    restart: no
+    environment:
+      - GLOG_logtostderr=1
+#      - GLOG_v=1
+    volumes:
+      - ./.configs/search.yaml:/config.yaml
+      - /usr/local/lib:/usr/local/lib:ro
+      - /lib/x86_64-linux-gnu:/lib/x86_64-linux-gnu:ro
+    ports:
+      - "4005:4005" # egress_listener_port
+      - "3005:3005"   # ingress_listener_port
+    privileged: true
+    cpuset: "3"
+  
+  geo-sidecar:
+    image: sidecar-sidecar:latest
+    container_name: geo-sidecar
+    restart: no
+    environment:
+      - GLOG_logtostderr=1
+#      - GLOG_v=1
+    volumes:
+      - ./.configs/geo.yaml:/config.yaml
+      - /usr/local/lib:/usr/local/lib:ro
+      - /lib/x86_64-linux-gnu:/lib/x86_64-linux-gnu:ro
+    ports:
+      - "4004:4004" # egress_listener_port
+      - "3004:3004"   # ingress_listener_port
+    privileged: true
+    cpuset: "1"
+  
+  rate-sidecar:
+    image: sidecar-sidecar:latest
+    container_name: rate-sidecar
+    restart: no
+    environment:
+      - GLOG_logtostderr=1
+#      - GLOG_v=1
+    volumes:
+      - ./.configs/rate.yaml:/config.yaml
+      - /usr/local/lib:/usr/local/lib:ro
+      - /lib/x86_64-linux-gnu:/lib/x86_64-linux-gnu:ro
+    ports:
+      - "4003:4003" # egress_listener_port
+      - "3003:3003"   # ingress_listener_port
+    privileged: true
+    cpuset: "2"

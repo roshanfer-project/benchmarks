@@ -1,0 +1,23 @@
+routing:
+  - service: search.Search
+    upstream:
+      host: search-sidecar
+      port: 3005
+  - service: profile.Profile
+    upstream:
+      host: profile-sidecar
+      port: 3001
+  - service: reservation.Reservation
+    upstream:
+      host: reservation-sidecar
+      port: 3002
+ring_size: 1000
+buffer_count: 1000
+buffer_size: 50000
+egress_listener_port: 4000
+ingress_listener_port: 3000
+ingress_upstream_host: 172.17.0.1
+ingress_upstream_port: 2000
+disable_ingress: True
+ppm_limit: 10
+name: frontend

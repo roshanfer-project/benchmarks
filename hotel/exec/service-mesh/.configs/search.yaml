@@ -1,0 +1,18 @@
+routing:
+  - service: geo.Geo
+    upstream:
+      host: geo-sidecar
+      port: 3004
+  - service: rate.Rate
+    upstream:
+      host: rate-sidecar
+      port: 3003
+ring_size: 1000
+buffer_count: 1000
+buffer_size: 50000
+egress_listener_port: 4005
+ingress_listener_port: 3005
+ingress_upstream_host: 172.17.0.1
+ingress_upstream_port: 2005
+ppm_limit: 10
+name: search
