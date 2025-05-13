@@ -54,10 +54,22 @@ func (s *Server) Run() error {
 	}
 
 	log.Info("Initializing gRPC clients...")
-	conn := hotel.GetConn(utils.GetEnvVar("SearchAddr", true))
+	var searchEnv string
+	if utils.GetEnvVar("sidecar", false) == "true" {
+		searchEnv = "FrontendEgress"
+	} else {
+		searchEnv = "SearchAddr"
+	}
+	conn := hotel.GetConn(utils.GetEnvVar(searchEnv, true))
 	s.searchClient = search.NewSearchClient(conn)
 
-	conn = hotel.GetConn(utils.GetEnvVar("ProfileAddr", true))
+	var profileEnv string
+	if utils.GetEnvVar("sidecar", false) == "true" {
+		profileEnv = "FrontendEgress"
+	} else {
+		profileEnv = "ProfileAddr"
+	}
+	conn = hotel.GetConn(utils.GetEnvVar(profileEnv, true))
 	s.profileClient = profile.NewProfileClient(conn)
 
 	/* if err := s.initRecommendationClient("srv-recommendation"); err != nil {
@@ -68,7 +80,13 @@ func (s *Server) Run() error {
 		return err
 	} */
 
-	conn = hotel.GetConn(utils.GetEnvVar("ReservationAddr", true))
+	var reservationEnv string
+	if utils.GetEnvVar("sidecar", false) == "true" {
+		reservationEnv = "FrontendEgress"
+	} else {
+		reservationEnv = "ReservationAddr"
+	}
+	conn = hotel.GetConn(utils.GetEnvVar(reservationEnv, true))
 	s.reservationClient = reservation.NewReservationClient(conn)
 
 	/* if err := s.initReviewClient("srv-review"); err != nil {

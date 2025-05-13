@@ -92,10 +92,23 @@ func (s *Server) Run() error {
 	if err := s.initRateClient("srv-rate"); err != nil {
 		return err
 	} */
-	conn := hotel.GetConn(utils.GetEnvVar("GeoAddr", true))
+
+	var geoEnv string
+	if utils.GetEnvVar("sidecar", false) == "true" {
+		geoEnv = "SearchEgress"
+	} else {
+		geoEnv = "GeoAddr"
+	}
+	conn := hotel.GetConn(utils.GetEnvVar(geoEnv, true))
 	s.geoClient = geo.NewGeoClient(conn)
 
-	conn = hotel.GetConn(utils.GetEnvVar("RateAddr", true))
+	var rateEnv string
+	if utils.GetEnvVar("sidecar", false) == "true" {
+		rateEnv = "SearchEgress"
+	} else {
+		rateEnv = "RateAddr"
+	}
+	conn = hotel.GetConn(utils.GetEnvVar(rateEnv, true))
 	s.rateClient = rate.NewRateClient(conn)
 
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", utils.StrToInt(utils.GetEnvVar("SearchPort", true))))

@@ -55,7 +55,7 @@ func initTracerProvider(ctx context.Context, res *resource.Resource,
 
 	var sampler sdktrace.Sampler
 	if frontend {
-		sampler = sdktrace.ParentBased(sdktrace.TraceIDRatioBased(0.01))
+		sampler = sdktrace.ParentBased(sdktrace.TraceIDRatioBased(utils.StrToFloat64(utils.GetEnvVar("SAMPLE_RATE", true))))
 	} else {
 		sampler = sdktrace.ParentBased(
 			sdktrace.NeverSample(),
