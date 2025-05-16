@@ -24,7 +24,8 @@ func main() {
 		//Rate     string `arg:"required"`
 		Sidecar bool `arg:"--sidecar,-s" help:"Run sidecar"`
 		//Ppm     bool `arg:"--ppm,-p" help:"Run sidecar with PPM"`
-		Envoy bool `arg:"--envoy,-e" help:"Run with Envoy"`
+		Envoy   bool `arg:"--envoy,-e" help:"Run with Envoy"`
+		Profile bool `arg:"--profile" help:"Profile sidecars"`
 	}
 
 	arg.MustParse(&args)
@@ -69,7 +70,7 @@ func main() {
 
 	// compile sidecar
 	if args.Sidecar {
-		compile_sidecar(false)
+		compile_sidecar(args.Profile)
 	}
 
 	// run the services
@@ -79,7 +80,7 @@ func main() {
 	} else {
 		env = "./.env"
 	}
-	run_servicees(env, serviceList, args.Sidecar, args.Envoy)
+	run_servicees(env, serviceList, args.Sidecar, args.Envoy, args.Profile)
 
 	time.Sleep(time.Minute * 100)
 
@@ -94,7 +95,7 @@ func run_docker_compose() {
 	no_env_run(c, dir, false, "docker-compose")
 }
 
-func run_servicees(env string, serviceList [][]string, sidecar bool, envoy bool) {
+func run_servicees(env string, serviceList [][]string, sidecar, envoy, profile bool) {
 	sidecar_dir := get_cwd() + "/service-mesh"
 	for _, tuple := range serviceList {
 		name := tuple[0]
@@ -127,6 +128,13 @@ func run_servicees(env string, serviceList [][]string, sidecar bool, envoy bool)
 					"--name", fmt.Sprintf("%s-sidecar", name), fmt.Sprintf("%s-sidecar", name))
 				c.Dir = sidecar_dir
 				no_env_run(c, sidecar_dir, false, "docker-compose")
+
+				if profile && name == "search" {
+					c_prof := exec.Command("/bin/bash", get_cwd()+"/profile.sh", fmt.Sprintf("%s-sidecar", name))
+					c_prof.Stdout = os.Stdout
+					c_prof.Stderr = os.Stderr
+					c_prof.Start()
+				}
 			} else {
 				c = exec.CommandContext(ctx, "docker", "compose", "-f", "envoy-compose.yaml", "run", "-d", "-T", "-P",
 					"--name", fmt.Sprintf("%s-envoy", name), fmt.Sprintf("%s-envoy", name))
