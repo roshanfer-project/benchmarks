@@ -9,11 +9,11 @@ routing:
       port: 3003
 ring_size: 1000
 buffer_count: 1000
-buffer_size: 100000
+buffer_size: 200000
 egress_listener_port: 4005
 ingress_listener_port: 3005
 ingress_upstream_host: 172.17.0.1
 ingress_upstream_port: 2005
 ppm_limit: 1000
-report_latency: True
+#report_latency: True
 name: search
