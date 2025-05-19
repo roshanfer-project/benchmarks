@@ -187,7 +187,7 @@ func (s *Server) searchHandler(w http.ResponseWriter, r *http.Request) {
 		RoomNumber:   1,
 	})
 	if err != nil {
-		log.Error("SearchHandler CheckAvailability failed")
+		log.Error("SearchHandler CheckAvailability failed " + err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -201,7 +201,7 @@ func (s *Server) searchHandler(w http.ResponseWriter, r *http.Request) {
 		Locale:   locale,
 	})
 	if err != nil {
-		log.Error("SearchHandler GetProfiles failed")
+		log.Error("SearchHandler GetProfiles failed " + err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
