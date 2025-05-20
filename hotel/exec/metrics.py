@@ -3,12 +3,15 @@
 import numpy as np
 import argparse
 from datetime import datetime
+import json
+import os
 
 def main():
     parser = argparse.ArgumentParser(prog="metrics")
     parser.add_argument("--file", type=str, required=True)
     parser.add_argument("--window", type=float, default=0,
                         help="Window size in seconds for rate over time plot (e.g., 0.1 for 100ms)")
+    parser.add_argument("--no-print", action="store_true", help="Disable printing of additional output")
     args = parser.parse_args()
 
     metrics = {}
@@ -35,53 +38,38 @@ def main():
                 metrics[service_name][metric_name][conn_type][rpc_path]["values"].append(int(value))
                 #metrics[service_name][metric_name][conn_type][rpc_path]["timestamps"].append(timestamp)
     
+    export = {}
     for service_name, data in metrics.items():
+        export[service_name] = {}
         print(rf"/////////////////////////////////////////////  {service_name}  \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\")
         for metric_name, content in data.items():
+            export[service_name][metric_name] = {}
             for conn_type, rpc_data in content.items():
+                export[service_name][metric_name][conn_type] = {}
                 for rpc_path, rpc_content in rpc_data.items():
-                    print_info(rpc_content["values"], rpc_content["timestamps"], f"{metric_name}  {conn_type}  {rpc_path}", rate_window=args.window)
+                    name = f"{metric_name}  {conn_type}  {rpc_path}"
+                    if not args.no_print:
+                        print(f"###########   {name}   ###########")
+                    res = percentiles(rpc_content["values"], [50, 95], no_print=args.no_print)
+                    export[service_name][metric_name][conn_type][rpc_path] = res
+                    #print_info(rpc_content["values"], rpc_content["timestamps"], rate_window=args.window)
 
-def print_info(data, timestamps, name, bins=10, bar_char='█', width=40, rate_window=0):
-    print(f"###########   {name}   ###########")
+    if not os.path.exists("metrics.json"):
+        with open("metrics.json", "w") as tmp_file:
+            tmp_file.write("{}")
 
-    p50 = np.percentile(data, 50)
-    p95 = np.percentile(data, 95)
-    p99 = np.percentile(data, 99)
-    print(f"Count: {len(data)}")
-    print(f"50th: {p50:.2f} us")
-    print(f"95th: {p95:.2f} us")
-    print(f"99th: {p99:.2f} us")
+    with open("metrics.json", "r+") as json_file:
+        content = json_file.read()
+        if content:
+            json_dict = json.loads(content)
+        else:
+            json_dict = {}
+        json_dict[service_name] = export[service_name]
+        json_file.seek(0)
+        json.dump(json_dict, json_file)
+        json_file.truncate()
 
-    # Calculate overall rate using the timestamps
-    """ dt_list = [datetime.strptime(ts, "%H:%M:%S.%f") for ts in timestamps]
-    start_time = min(dt_list)
-    end_time = max(dt_list)
-    duration = (end_time - start_time).total_seconds()
-    if duration > 0:
-        rate = len(timestamps) / duration
-    else:
-        rate = len(timestamps)
-    print(f"Rate: {rate:.2f} events per second") """
-
-    # Plot rate over time (relative to the beginning) if a window size is provided
-    """ if rate_window > 0:
-        print("\nRate over time (relative to beginning):")
-        # Compute time offsets from start_time (in seconds)
-        time_offsets = np.array([(dt - start_time).total_seconds() for dt in dt_list])
-        # Create bins based on the specified window
-        bins_arr = np.arange(0, duration + rate_window, rate_window)
-        counts, _ = np.histogram(time_offsets, bins=bins_arr)
-        window_rates = counts / rate_window
-        max_rate_window = max(window_rates) if len(window_rates) > 0 else 1
-        for i in range(len(window_rates)):
-            win_start = bins_arr[i]
-            win_end = bins_arr[i+1]
-            rate_val = window_rates[i]
-            bar_len = int((rate_val / max_rate_window) * width)
-            bar = bar_char * bar_len
-            print(f"{win_start:6.2f}-{win_end:6.2f} s: {bar} ({rate_val:.2f} events/s)") """
-
+def print_info(data, timestamps, bins=10, bar_char='█', width=40, rate_window=0):
     # Print latency histogram as text output
     hist, bin_edges = np.histogram(data, bins=bins)
     max_count = max(hist)
@@ -92,6 +80,17 @@ def print_info(data, timestamps, name, bins=10, bar_char='█', width=40, rate_w
         bar = bar_char * bar_len
         bin_range = f"{int(bin_edges[i])}-{int(bin_edges[i+1])}".rjust(10)
         print(f"{bin_range}: {bar} ({count})")
+
+def percentiles(data, percentiles, no_print=False):
+    """Calculate the specified percentiles of the data."""
+    result = {}
+    if not no_print:
+        print(f"Count: {len(data)}")
+    for p in percentiles:
+        result[p] = f"{np.percentile(data, p):.2f}"
+        if not no_print:
+            print(f"{p}th: {result[p]}")
+    return result
 
 if __name__ == "__main__":
     main()
