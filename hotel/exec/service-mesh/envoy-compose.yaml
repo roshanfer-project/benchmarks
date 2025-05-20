@@ -71,3 +71,15 @@ services:
       - 4004:4004
     command: ["envoy", "-c", "/etc/envoy/envoy.yaml", "--log-level", "info", "--concurrency", "1", "--disable-hot-restart"]
     cpuset: "1"
+
+  user-envoy:
+    container_name: user-envoy
+    image: envoyproxy/envoy:v1.32-latest
+    volumes:
+      - ./.envoy-configs/user.yaml:/etc/envoy/envoy.yaml
+    restart: no
+    ports:
+      - 3006:3006
+      - 4006:4006
+    command: ["envoy", "-c", "/etc/envoy/envoy.yaml", "--log-level", "info", "--concurrency", "1", "--disable-hot-restart"]
+    cpuset: "7"

@@ -9,6 +9,7 @@ import (
 	profile "hotel/profile/proto"
 	reservation "hotel/reservation/proto"
 	search "hotel/search/proto"
+	user "hotel/user/proto"
 	"hotel/utils"
 	"io/fs"
 	"net/http"
@@ -27,7 +28,7 @@ type Server struct {
 	searchClient  search.SearchClient
 	profileClient profile.ProfileClient
 	//recommendationClient recommendation.RecommendationClient
-	//userClient           user.UserClient
+	userClient user.UserClient
 	//reviewClient         review.ReviewClient
 	//attractionsClient    attractions.AttractionsClient
 	reservationClient reservation.ReservationClient
@@ -74,11 +75,15 @@ func (s *Server) Run() error {
 
 	/* if err := s.initRecommendationClient("srv-recommendation"); err != nil {
 		return err
-	}
-
-	if err := s.initUserClient("srv-user"); err != nil {
-		return err
 	} */
+	var userEnv string
+	if utils.GetEnvVar("sidecar", false) == "true" {
+		userEnv = "FrontendEgress"
+	} else {
+		userEnv = "UserAddr"
+	}
+	conn = hotel.GetConn(utils.GetEnvVar(userEnv, true))
+	s.userClient = user.NewUserClient(conn)
 
 	var reservationEnv string
 	if utils.GetEnvVar("sidecar", false) == "true" {
@@ -114,8 +119,8 @@ func (s *Server) Run() error {
 	mux.Handle("/review", http.HandlerFunc(s.reviewHandler))
 	mux.Handle("/restaurants", http.HandlerFunc(s.restaurantHandler))
 	mux.Handle("/museums", http.HandlerFunc(s.museumHandler))
-	mux.Handle("/cinema", http.HandlerFunc(s.cinemaHandler))
-	mux.Handle("/reservation", http.HandlerFunc(s.reservationHandler)) */
+	mux.Handle("/cinema", http.HandlerFunc(s.cinemaHandler)) */
+	mux.Handle("/reservation", http.HandlerFunc(s.reservationHandler))
 
 	log.Info("frontend starts serving")
 
@@ -211,6 +216,83 @@ func (s *Server) searchHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(geoJSONResponse(profileResp.Hotels))
 }
 
+func (s *Server) reservationHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	ctx := r.Context()
+
+	inDate, outDate := r.URL.Query().Get("inDate"), r.URL.Query().Get("outDate")
+	if inDate == "" || outDate == "" {
+		http.Error(w, "Please specify inDate/outDate params", http.StatusBadRequest)
+		return
+	}
+
+	if !checkDataFormat(inDate) || !checkDataFormat(outDate) {
+		http.Error(w, "Please check inDate/outDate format (YYYY-MM-DD)", http.StatusBadRequest)
+		return
+	}
+
+	hotelId := r.URL.Query().Get("hotelId")
+	if hotelId == "" {
+		http.Error(w, "Please specify hotelId params", http.StatusBadRequest)
+		return
+	}
+
+	customerName := r.URL.Query().Get("customerName")
+	if customerName == "" {
+		http.Error(w, "Please specify customerName params", http.StatusBadRequest)
+		return
+	}
+
+	username, password := r.URL.Query().Get("username"), r.URL.Query().Get("password")
+	if username == "" || password == "" {
+		http.Error(w, "Please specify username and password", http.StatusBadRequest)
+		return
+	}
+
+	numberOfRoom := 0
+	num := r.URL.Query().Get("number")
+	if num != "" {
+		numberOfRoom, _ = strconv.Atoi(num)
+	}
+
+	// Check username and password
+	recResp, err := s.userClient.CheckUser(ctx, &user.Request{
+		Username: username,
+		Password: password,
+	})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	str := "Reserve successfully!"
+	if !recResp.Correct {
+		str = "Failed. Please check your username and password. "
+	}
+
+	// Make reservation
+	resResp, err := s.reservationClient.MakeReservation(ctx, &reservation.Request{
+		CustomerName: customerName,
+		HotelId:      []string{hotelId},
+		InDate:       inDate,
+		OutDate:      outDate,
+		RoomNumber:   int32(numberOfRoom),
+	})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if len(resResp.HotelId) == 0 {
+		str = "Failed. Already reserved. "
+	}
+
+	res := map[string]interface{}{
+		"message": str,
+	}
+
+	json.NewEncoder(w).Encode(res)
+}
+
 // return a geoJSON response that allows google map to plot points directly on map
 // https://developers.google.com/maps/documentation/javascript/datalayer#sample_geojson
 func geoJSONResponse(hs []*profile.Hotel) map[string]interface{} {
@@ -246,4 +328,22 @@ func main() {
 		log.Error("Failed to start server", "error", err)
 	}
 	log.Info("Server stopped")
+}
+
+func checkDataFormat(date string) bool {
+	if len(date) != 10 {
+		return false
+	}
+	for i := 0; i < 10; i++ {
+		if i == 4 || i == 7 {
+			if date[i] != '-' {
+				return false
+			}
+		} else {
+			if date[i] < '0' || date[i] > '9' {
+				return false
+			}
+		}
+	}
+	return true
 }

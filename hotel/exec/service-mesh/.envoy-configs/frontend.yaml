@@ -78,7 +78,12 @@ static_resources:
                   prefix: "/reservation.Reservation"
                 route:
                   cluster: reservation-service
-                  timeout: 100s              
+                  timeout: 100s
+              - match:
+                  prefix: "/user.User"
+                route:
+                  cluster: user-service
+                  timeout: 100s           
           http2_protocol_options: {}
 
   clusters:
@@ -139,4 +144,19 @@ static_resources:
               socket_address:
                 address: reservation-envoy
                 port_value: 3002
+    http2_protocol_options: {}
+
+  - name: user-service
+    connect_timeout: 2s
+    type: STRICT_DNS
+    lb_policy: ROUND_ROBIN
+    load_assignment:
+      cluster_name: user-service
+      endpoints:
+      - lb_endpoints:
+        - endpoint:
+            address:
+              socket_address:
+                address: user-envoy
+                port_value: 3006
     http2_protocol_options: {}

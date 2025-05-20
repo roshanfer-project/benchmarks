@@ -42,6 +42,7 @@ func main() {
 	} */
 
 	serviceList := [][]string{
+		{"user", "9", "0"},
 		{"geo", "11", "1"},
 		{"rate", "13", "2"},
 		{"search", "15", "3"},

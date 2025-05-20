@@ -11,6 +11,10 @@ routing:
     upstream:
       host: reservation-sidecar
       port: 3002
+  - service: user.User
+    upstream:
+      host: user-sidecar
+      port: 3006
 ring_size: 1000
 buffer_count: 1000
 buffer_size: 80000
