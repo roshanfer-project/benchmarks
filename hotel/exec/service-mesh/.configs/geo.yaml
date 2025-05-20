@@ -5,6 +5,6 @@ egress_listener_port: 4004
 ingress_listener_port: 3004
 ingress_upstream_host: 172.17.0.1
 ingress_upstream_port: 2004
-ppm_limit: 1000
-#report_latency: True
+ppm_limit: 2
+report_latency: True
 name: geo
