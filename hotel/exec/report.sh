@@ -7,7 +7,7 @@ fi
 mkdir ".log"
 cd ".log"
 
-names=("geo" "rate" "profile" "reservation" "search" "frontend")
+names=("user" "geo" "rate" "profile" "reservation" "search" "frontend")
 
 for name in "${names[@]}"; do
     c_name="${name}-sidecar"
