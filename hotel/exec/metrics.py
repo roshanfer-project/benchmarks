@@ -54,20 +54,20 @@ def main():
                     export[service_name][metric_name][conn_type][rpc_path] = res
                     #print_info(rpc_content["values"], rpc_content["timestamps"], rate_window=args.window)
 
-    if not os.path.exists("metrics.json"):
-        with open("metrics.json", "w") as tmp_file:
-            tmp_file.write("{}")
+        if not os.path.exists("metrics.json"):
+            with open("metrics.json", "w") as tmp_file:
+                tmp_file.write("{}")
 
-    with open("metrics.json", "r+") as json_file:
-        content = json_file.read()
-        if content:
-            json_dict = json.loads(content)
-        else:
-            json_dict = {}
-        json_dict[service_name] = export[service_name]
-        json_file.seek(0)
-        json.dump(json_dict, json_file)
-        json_file.truncate()
+        with open("metrics.json", "r+") as json_file:
+            content = json_file.read()
+            if content:
+                json_dict = json.loads(content)
+            else:
+                json_dict = {}
+            json_dict[service_name] = export[service_name]
+            json_file.seek(0)
+            json.dump(json_dict, json_file)
+            json_file.truncate()
 
 def print_info(data, timestamps, bins=10, bar_char='█', width=40, rate_window=0):
     # Print latency histogram as text output
