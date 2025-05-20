@@ -18,7 +18,7 @@ def main():
         for line in lines:
             try:
                 # template: M# <sidecar name> <metric name> <connection type> <service>:<method> <value>
-                _, timestamp, _, tag, service_name, metric_name, conn_type, rpc_path, value = line.strip().split(" ")
+                _, timestamp, _, _, tag, service_name, metric_name, conn_type, rpc_path, value = line.strip().split(" ")
             except ValueError:
                 continue
 
@@ -33,7 +33,7 @@ def main():
                     metrics[service_name][metric_name][conn_type][rpc_path] = {"values": [], "timestamps": []}
 
                 metrics[service_name][metric_name][conn_type][rpc_path]["values"].append(int(value))
-                metrics[service_name][metric_name][conn_type][rpc_path]["timestamps"].append(timestamp)
+                #metrics[service_name][metric_name][conn_type][rpc_path]["timestamps"].append(timestamp)
     
     for service_name, data in metrics.items():
         print(rf"/////////////////////////////////////////////  {service_name}  \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\")
@@ -54,7 +54,7 @@ def print_info(data, timestamps, name, bins=10, bar_char='█', width=40, rate_w
     print(f"99th: {p99:.2f} us")
 
     # Calculate overall rate using the timestamps
-    dt_list = [datetime.strptime(ts, "%H:%M:%S.%f") for ts in timestamps]
+    """ dt_list = [datetime.strptime(ts, "%H:%M:%S.%f") for ts in timestamps]
     start_time = min(dt_list)
     end_time = max(dt_list)
     duration = (end_time - start_time).total_seconds()
@@ -62,10 +62,10 @@ def print_info(data, timestamps, name, bins=10, bar_char='█', width=40, rate_w
         rate = len(timestamps) / duration
     else:
         rate = len(timestamps)
-    print(f"Rate: {rate:.2f} events per second")
+    print(f"Rate: {rate:.2f} events per second") """
 
     # Plot rate over time (relative to the beginning) if a window size is provided
-    if rate_window > 0:
+    """ if rate_window > 0:
         print("\nRate over time (relative to beginning):")
         # Compute time offsets from start_time (in seconds)
         time_offsets = np.array([(dt - start_time).total_seconds() for dt in dt_list])
@@ -80,7 +80,7 @@ def print_info(data, timestamps, name, bins=10, bar_char='█', width=40, rate_w
             rate_val = window_rates[i]
             bar_len = int((rate_val / max_rate_window) * width)
             bar = bar_char * bar_len
-            print(f"{win_start:6.2f}-{win_end:6.2f} s: {bar} ({rate_val:.2f} events/s)")
+            print(f"{win_start:6.2f}-{win_end:6.2f} s: {bar} ({rate_val:.2f} events/s)") """
 
     # Print latency histogram as text output
     hist, bin_edges = np.histogram(data, bins=bins)
