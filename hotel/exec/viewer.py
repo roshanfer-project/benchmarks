@@ -129,6 +129,24 @@ def build_tree(
 
     return root
 
+def build_config_summary():
+    """Read yaml config files under the service-mesh/.configs directory and in each file, extract the ppm_limit.
+    Note that the name of the service is the name of the file without the .yaml extension.
+    """
+
+    config_dir = os.path.join(os.path.dirname(__file__), "service-mesh", ".configs")
+    config_files = [f for f in os.listdir(config_dir) if f.endswith(".yaml")]
+    config_summary = {}
+    for config_file in config_files:
+        service_name = os.path.splitext(config_file)[0]
+        with open(os.path.join(config_dir, config_file), "r") as f:
+            for line in f:
+                if "ppm_limit" in line:
+                    ppm_limit = line.split(":")[1].strip()
+                    config_summary[service_name] = ppm_limit
+                    break
+    return config_summary
+
 
 def main() -> None:
     args = parse_args()
@@ -148,6 +166,14 @@ def main() -> None:
             console.print(f"[yellow]Warning:[/] unknown metrics requested – {', '.join(unknown)}")
     tree = build_tree(data, os.path.basename(args.file), metric_filter)
 
+    
+
+    config_summary = build_config_summary()
+    config_tree = Tree("PPM Limits:", guide_style="bright_black")
+    for service, ppm_limit in config_summary.items():
+        config_tree.add(f"[service]{service}[/]: [value]{ppm_limit}[/]")
+    
+    console.print(config_tree)
     console.print(tree)
 
 
