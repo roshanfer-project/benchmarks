@@ -213,7 +213,17 @@ func (s *Server) searchHandler(w http.ResponseWriter, r *http.Request) {
 
 	log.Debug("searchHandler gets profileResp")
 
-	json.NewEncoder(w).Encode(geoJSONResponse(profileResp.Hotels))
+	// generate the geoJSON response
+	response := geoJSONResponse(profileResp.Hotels)
+	responseBytes, err := json.Marshal(response)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// disable chunked encoding by setting Content-Length header
+	w.Header().Set("Content-Length", strconv.Itoa(len(responseBytes)))
+	w.Write(responseBytes)
 }
 
 func (s *Server) reservationHandler(w http.ResponseWriter, r *http.Request) {
@@ -290,7 +300,14 @@ func (s *Server) reservationHandler(w http.ResponseWriter, r *http.Request) {
 		"message": str,
 	}
 
-	json.NewEncoder(w).Encode(res)
+	responseBytes, err := json.Marshal(res)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Length", strconv.Itoa(len(responseBytes)))
+	w.Write(responseBytes)
 }
 
 // return a geoJSON response that allows google map to plot points directly on map
