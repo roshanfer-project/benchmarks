@@ -90,6 +90,7 @@ def percentiles(data, percentiles, no_print=False):
         result[p] = f"{np.percentile(data, p):.2f}"
         if not no_print:
             print(f"{p}th: {result[p]}")
+    result["count"] = f"{len(data)}"
     return result
 
 if __name__ == "__main__":
