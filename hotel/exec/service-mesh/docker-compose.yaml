@@ -6,7 +6,7 @@ services:
     restart: no
     environment:
       - GLOG_logtostderr=1
-#      - GLOG_v=1
+#      - GLOG_v=2
     volumes:
       - ./.configs/frontend.yaml:/config.yaml
       - /usr/local/lib:/usr/local/lib:ro

@@ -22,7 +22,7 @@ egress_listener_port: 4000
 ingress_listener_port: 3000
 ingress_upstream_host: 172.17.0.1
 ingress_upstream_port: 2000
-disable_ingress: True
-ppm_limit: 4
+is_ingress: True
+ppm_limit: 10
 report_latency: True
 name: frontend
