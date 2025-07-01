@@ -149,7 +149,7 @@ func run_servicees(env string, serviceList [][]string, sidecar, envoy, profile b
 }
 
 func compile_sidecar(profile bool) {
-	dir := "/home/farzad/files/ppm/sidecar"
+	dir := get_cwd() + "/../../../sidecar"
 	fmt.Printf("Compiling sidecar in %s\n", dir)
 	var build_type string
 	if profile {
