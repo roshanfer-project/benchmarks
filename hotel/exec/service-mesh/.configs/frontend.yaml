@@ -15,8 +15,8 @@ routing:
     upstream:
       host: user-sidecar
       port: 3006
-ring_size: 1000
-buffer_count: 1000
+ring_size: 6000
+buffer_count: 2000
 buffer_size: 80000
 egress_listener_port: 4000
 ingress_listener_port: 3000
