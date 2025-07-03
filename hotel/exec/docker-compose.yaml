@@ -14,6 +14,18 @@ services:
     networks:
       - monitoring
   
+  prometheus:
+    container_name: prometheus
+    image: prom/prometheus:v2.55.1
+    volumes:
+      - ./prometheus.yaml:/etc/prometheus/prometheus.yml
+    ports:
+      - 9091:9090
+    depends_on:
+      - otel-collector
+    networks:
+      - monitoring
+  
   jaeger:
     container_name: jaeger
     image: jaegertracing/all-in-one:1.60
