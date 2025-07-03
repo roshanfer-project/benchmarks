@@ -11,13 +11,15 @@ export const options = {
   discardResponseBodies: true,
   scenarios: {
     contacts: {
-      executor: 'constant-arrival-rate',
+      executor: 'ramping-arrival-rate',
 
-      // How long the test lasts
-      duration: '10s',
+      startRate: 1200,
 
-      // How many iterations per timeUnit
-      rate: 2500,
+      stages: [
+        { target: 1200, duration: '5s' },
+        { target: 2400, duration: '0s' },
+        { target: 2400, duration: '5s' }
+      ],
 
       // Start `rate` iterations per second
       timeUnit: '1s',
