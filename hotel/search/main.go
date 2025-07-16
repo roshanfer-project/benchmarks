@@ -6,6 +6,7 @@ import (
 	"hotel"
 	geo "hotel/geo/proto"
 	oteltool "hotel/otel_tool"
+	rajomoninit "hotel/rajomon_init"
 	rate "hotel/rate/proto"
 	pb "hotel/search/proto"
 	"hotel/utils"
@@ -13,14 +14,18 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/pennsail/rajomon"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.opentelemetry.io/otel"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/keepalive"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/stats/opentelemetry"
 )
 
-var log = utils.GetLogger("search")
+const serviceName = "search"
+
+var log = utils.GetLogger(serviceName)
 
 //var tracer trace.Tracer
 
@@ -30,6 +35,17 @@ type Server struct {
 	geoClient  geo.GeoClient
 	rateClient rate.RateClient
 	uuid       string
+}
+
+func ContextPropagationInterceptor() grpc.UnaryServerInterceptor {
+	return func(ctx context.Context, req interface{},
+		_ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+
+		if in, ok := metadata.FromIncomingContext(ctx); ok {
+			ctx = metadata.NewOutgoingContext(ctx, in)
+		}
+		return handler(ctx, req)
+	}
 }
 
 /* func tracingInterceptor(ctx context.Context, req any,
@@ -66,8 +82,17 @@ func (s *Server) Run() error {
 		//grpc.UnaryInterceptor(tracingInterceptor),
 	}
 
+	var priceTable *rajomon.PriceTable = nil
+	if utils.GetEnvVar("rajomon", false) == "true" {
+		log.Info("rajomon is enabled, configuring rajomon interceptor")
+		priceTable = rajomoninit.GetPriceTable(serviceName, false)
+		opts = append(opts, grpc.ChainUnaryInterceptor(
+			ContextPropagationInterceptor(),
+			priceTable.UnaryInterceptor))
+	}
+
 	ctx := context.Background()
-	if _, shutdownList, ok := configOTL(ctx, "search"); ok {
+	if _, shutdownList, ok := configOTL(ctx, serviceName); ok {
 		opts = append(opts, grpc.StatsHandler(otelgrpc.NewServerHandler()))
 
 		for _, f := range shutdownList {
@@ -99,7 +124,11 @@ func (s *Server) Run() error {
 	} else {
 		geoEnv = "GeoAddr"
 	}
-	conn := hotel.GetConn(utils.GetEnvVar(geoEnv, true))
+	options := []grpc.DialOption{}
+	if priceTable != nil {
+		options = append(options, grpc.WithUnaryInterceptor(priceTable.UnaryInterceptorClient))
+	}
+	conn := hotel.GetConn(utils.GetEnvVar(geoEnv, true), options...)
 	s.geoClient = geo.NewGeoClient(conn)
 
 	var rateEnv string
@@ -108,7 +137,7 @@ func (s *Server) Run() error {
 	} else {
 		rateEnv = "RateAddr"
 	}
-	conn = hotel.GetConn(utils.GetEnvVar(rateEnv, true))
+	conn = hotel.GetConn(utils.GetEnvVar(rateEnv, true), options...)
 	s.rateClient = rate.NewRateClient(conn)
 
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", utils.StrToInt(utils.GetEnvVar("SearchPort", true))))

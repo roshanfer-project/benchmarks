@@ -1,8 +1,8 @@
 syntax = "proto3";
 
-package profile;
+package protobuf;
 
-option go_package = "github.com/delimitrou/DeathStarBench/tree/master/hotelReservation/services/profile";
+option go_package = "hotel/protobuf";
 
 service Profile {
   rpc GetProfiles(Request) returns (Result);

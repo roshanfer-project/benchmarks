@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"hotel"
-	profile "hotel/profile/proto"
+	profile "hotel/protobuf"
 	reservation "hotel/reservation/proto"
 	search "hotel/search/proto"
 	user "hotel/user/proto"
@@ -34,7 +34,9 @@ type Server struct {
 	reservationClient reservation.ReservationClient
 }
 
-var log = utils.GetLogger("frontend")
+const serviceName = "frontend"
+
+var log = utils.GetLogger(serviceName)
 var tracer trace.Tracer
 
 // tracingMiddleware wraps an http.Handler and starts a trace span for each request.
@@ -106,8 +108,8 @@ func (s *Server) Run() error {
 
 	// Configure OTL
 	ctx := context.Background()
-	hotel.ConfigOTL(ctx, "frontend", true)
-	tracer = otel.GetTracerProvider().Tracer("frontend-tracer")
+	hotel.ConfigOTL(ctx, serviceName, true)
+	tracer = otel.GetTracerProvider().Tracer(serviceName + "-tracer")
 
 	//log.Trace().Msg("frontend before mux")
 	//mux := tracing.NewServeMux(s.Tracer)

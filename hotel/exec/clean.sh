@@ -3,13 +3,13 @@
 sudo docker compose down -v
 
 # List of process names to check and act upon if found
-names=("user" "geo" "rate" "profile" "reservation" "search" "frontend")
+names=("user" "geo" "rate" "profile" "reservation" "search" "frontend" "frontend-grpc" "rajomon-client")
 
 for name in "${names[@]}"; do
     name_full="${name}.o"
-    if pgrep "$name_full" > /dev/null; then
+    if pgrep -f "$name_full" > /dev/null; then
         echo "Process '$name_full' exists. killing..."
-        pkill -9 "$name_full"
+        pkill -f -9 "$name_full"
     else
         echo "Process '$name_full' not running."
     fi

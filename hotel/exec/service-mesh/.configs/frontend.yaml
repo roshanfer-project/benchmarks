@@ -3,7 +3,7 @@ routing:
     upstream:
       host: search-sidecar
       port: 3005
-  - service: profile.Profile
+  - service: protobuf.Profile
     upstream:
       host: profile-sidecar
       port: 3001
