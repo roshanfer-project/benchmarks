@@ -26,6 +26,7 @@ func main() {
 		//Ppm     bool `arg:"--ppm,-p" help:"Run sidecar with PPM"`
 		Envoy   bool `arg:"--envoy,-e" help:"Run with Envoy"`
 		Profile bool `arg:"--profile" help:"Profile sidecars"`
+		Rajomon bool `arg:"--rajomon" help:"Run with Rajomon"`
 	}
 
 	arg.MustParse(&args)
@@ -48,7 +49,13 @@ func main() {
 		{"search", "15", "3"},
 		{"profile", "17", "4"},
 		{"reservation", "19", "5"},
-		{"frontend", "21", "6"},
+	}
+
+	if !args.Rajomon {
+		serviceList = append(serviceList, []string{"frontend", "21", "6"})
+	} else {
+		serviceList = append(serviceList, []string{"frontend-grpc", "21", "6"})
+		serviceList = append(serviceList, []string{"rajomon-client", "23,25", "7"})
 	}
 
 	// listen for SIGINT (Ctrl-C)
@@ -78,6 +85,8 @@ func main() {
 	var env string
 	if args.Sidecar {
 		env = "./.env.sidecar"
+	} else if args.Rajomon {
+		env = "./.env.rajomon"
 	} else {
 		env = "./.env"
 	}

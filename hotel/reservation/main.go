@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	oteltool "hotel/otel_tool"
+	rajomoninit "hotel/rajomon_init"
 	pb "hotel/reservation/proto"
 	"hotel/utils"
 	"net"
@@ -14,6 +15,7 @@ import (
 
 	"github.com/bradfitz/gomemcache/memcache"
 	"github.com/google/uuid"
+	"github.com/pennsail/rajomon"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -26,7 +28,9 @@ import (
 	"google.golang.org/grpc/stats/opentelemetry"
 )
 
-var log = utils.GetLogger("reservation")
+const serviceName = "reservation"
+
+var log = utils.GetLogger(serviceName)
 var tracer trace.Tracer
 
 type Server struct {
@@ -36,15 +40,6 @@ type Server struct {
 
 	MongoClient *mongo.Client
 	MemcClient  *memcache.Client
-}
-
-func tracingInterceptor(ctx context.Context, req any,
-	info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
-
-	_, span := tracer.Start(ctx, info.FullMethod)
-	defer span.End()
-	return handler(ctx, req)
-
 }
 
 func configOTL(ctx context.Context, serviceName string) (grpc.ServerOption, []func(context.Context) error, bool) {
@@ -73,8 +68,15 @@ func (s *Server) Run() error {
 		//grpc.UnaryInterceptor(tracingInterceptor),
 	}
 
+	var priceTable *rajomon.PriceTable = nil
+	if utils.GetEnvVar("rajomon", false) == "true" {
+		log.Info("rajomon is enabled, configuring rajomon interceptor")
+		priceTable = rajomoninit.GetPriceTable(serviceName, false)
+		opts = append(opts, grpc.UnaryInterceptor(priceTable.UnaryInterceptor))
+	}
+
 	ctx := context.Background()
-	if _, shutdownList, ok := configOTL(ctx, "reservation"); ok {
+	if _, shutdownList, ok := configOTL(ctx, serviceName); ok {
 		opts = append(opts, grpc.StatsHandler(otelgrpc.NewServerHandler()))
 
 		for _, f := range shutdownList {

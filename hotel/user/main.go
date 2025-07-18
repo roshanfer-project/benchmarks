@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"fmt"
+	rajomoninit "hotel/rajomon_init"
 	"hotel/utils"
 	"net"
 	"strconv"
@@ -14,6 +15,7 @@ import (
 	oteltool "hotel/otel_tool"
 
 	"github.com/google/uuid"
+	"github.com/pennsail/rajomon"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -24,7 +26,9 @@ import (
 	"google.golang.org/grpc/stats/opentelemetry"
 )
 
-var log = utils.GetLogger("user")
+const serviceName = "user"
+
+var log = utils.GetLogger(serviceName)
 
 //var tracer trace.Tracer
 
@@ -64,8 +68,15 @@ func (s *Server) Run() error {
 		}),
 	}
 
+	var priceTable *rajomon.PriceTable = nil
+	if utils.GetEnvVar("rajomon", false) == "true" {
+		log.Info("rajomon is enabled, configuring rajomon interceptor")
+		priceTable = rajomoninit.GetPriceTable(serviceName, false)
+		opts = append(opts, grpc.UnaryInterceptor(priceTable.UnaryInterceptor))
+	}
+
 	ctx := context.Background()
-	if _, shutdownList, ok := configOTL(ctx, "user"); ok {
+	if _, shutdownList, ok := configOTL(ctx, serviceName); ok {
 		opts = append(opts, grpc.StatsHandler(otelgrpc.NewServerHandler()))
 
 		for _, f := range shutdownList {

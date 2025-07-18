@@ -1,0 +1,23 @@
+applications:
+- callgraph:
+    frontend-grpc:
+    - user
+    - reservation
+    reservation: []
+    user: []
+  entrypoint: frontend-grpc
+  interface: reserve-hotel
+- callgraph:
+    frontend-grpc:
+    - search
+    - reservation
+    - profile
+    profile: []
+    rate: []
+    reservation: []
+    geo: []
+    search:
+    - rate
+    - geo
+  entrypoint: frontend-grpc
+  interface: search-hotel

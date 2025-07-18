@@ -36,12 +36,30 @@ func ConfigOTL(ctx context.Context, clientName string, frontend bool) []func(con
 	}
 }
 
-func GetConn(serverAddr string) *grpc.ClientConn {
+func GetConn(serverAddr string, ops ...grpc.DialOption) *grpc.ClientConn {
 	// basic dial options
 	options := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithStatsHandler(otelgrpc.NewClientHandler()), // this is for tracing and metrics
+		grpc.WithStatsHandler(otelgrpc.NewClientHandler()), // this is for tracing and metrics,
 	}
+
+	options = append(options, ops...)
+
+	conn, err := grpc.NewClient(serverAddr, options...)
+	if err != nil {
+		panic("did not connect: " + err.Error())
+	}
+	return conn
+}
+
+func GetRajomonClient(serverAddr string, interceptor grpc.DialOption) *grpc.ClientConn {
+	// basic dial options
+	options := []grpc.DialOption{
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithStatsHandler(otelgrpc.NewClientHandler()), // this is for tracing and metrics,
+		interceptor,
+	}
+
 	conn, err := grpc.NewClient(serverAddr, options...)
 	if err != nil {
 		panic("did not connect: " + err.Error())
