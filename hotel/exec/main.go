@@ -58,6 +58,10 @@ func main() {
 		serviceList = append(serviceList, []string{"rajomon-client", "23,25", "7"})
 	}
 
+	if args.Sidecar {
+		serviceList = append(serviceList, []string{"ingress", "_", "_"})
+	}
+
 	// listen for SIGINT (Ctrl-C)
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, os.Interrupt)
@@ -113,28 +117,29 @@ func run_servicees(env string, serviceList [][]string, sidecar, envoy, profile b
 		//sidecar_cpuset := tuple[2]
 
 		fmt.Println("/////////////////////////", name, "/////////////////////////")
+		if name != "ingress" {
+			// build the service
+			folder := fmt.Sprintf("../%s", name)
+			dir := get_cwd() + "/" + folder
+			c := exec.CommandContext(ctx, "go", "build", "-o", fmt.Sprintf("%s.o", name), ".")
+			c.Dir = dir
+			no_env_run(c, dir, false, name)
 
-		// build the service
-		folder := fmt.Sprintf("../%s", name)
-		dir := get_cwd() + "/" + folder
-		c := exec.CommandContext(ctx, "go", "build", "-o", fmt.Sprintf("%s.o", name), ".")
-		c.Dir = dir
-		no_env_run(c, dir, false, name)
-
-		// run the service
-		wg.Add(1)
-		go func(name string) {
-			defer wg.Done()
-			fmt.Printf("Running %s\n", name)
-			c = exec.CommandContext(ctx, "taskset", "-c", cpuset, fmt.Sprintf("./%s.o", name))
-			//c = exec.CommandContext(ctx, fmt.Sprintf("./%s.o", name))
-			env_run(c, dir, env)
-		}(name)
+			// run the service
+			wg.Add(1)
+			go func(name string) {
+				defer wg.Done()
+				fmt.Printf("Running %s\n", name)
+				c = exec.CommandContext(ctx, "taskset", "-c", cpuset, fmt.Sprintf("./%s.o", name))
+				//c = exec.CommandContext(ctx, fmt.Sprintf("./%s.o", name))
+				env_run(c, dir, env)
+			}(name)
+		}
 
 		// run the sidecar
-		if sidecar {
-			if !envoy {
-				c = exec.CommandContext(ctx, "docker", "compose", "run", "-d", "-T", "-P",
+		if sidecar || envoy {
+			if sidecar {
+				c := exec.CommandContext(ctx, "docker", "compose", "run", "-d", "-T", "-P",
 					"--name", fmt.Sprintf("%s-sidecar", name), fmt.Sprintf("%s-sidecar", name))
 				c.Dir = sidecar_dir
 				no_env_run(c, sidecar_dir, false, "docker-compose")
@@ -146,7 +151,7 @@ func run_servicees(env string, serviceList [][]string, sidecar, envoy, profile b
 					c_prof.Start()
 				}
 			} else {
-				c = exec.CommandContext(ctx, "docker", "compose", "-f", "envoy-compose.yaml", "run", "-d", "-T", "-P",
+				c := exec.CommandContext(ctx, "docker", "compose", "-f", "envoy-compose.yaml", "run", "-d", "-T", "-P",
 					"--name", fmt.Sprintf("%s-envoy", name), fmt.Sprintf("%s-envoy", name))
 				c.Dir = sidecar_dir
 				no_env_run(c, sidecar_dir, false, "envoy-compose")

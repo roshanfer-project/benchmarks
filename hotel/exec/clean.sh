@@ -3,7 +3,7 @@
 sudo docker compose down -v
 
 # List of process names to check and act upon if found
-names=("user" "geo" "rate" "profile" "reservation" "search" "frontend" "frontend-grpc" "rajomon-client")
+names=("user" "geo" "rate" "profile" "reservation" "search" "frontend" "ingress" "frontend-grpc" "rajomon-client")
 
 for name in "${names[@]}"; do
     name_full="${name}.o"

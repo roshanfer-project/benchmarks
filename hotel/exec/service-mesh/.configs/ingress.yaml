@@ -1,0 +1,21 @@
+routing:
+  - service: hotels
+    upstream:
+      host: frontend-sidecar
+      port: 3007
+  - service: reservation
+    upstream:
+      host: frontend-sidecar
+      port: 3007
+ring_size: 6000
+buffer_count: 2000
+buffer_size: 80000
+egress_listener_port: 3000
+ingress_listener_port: 4000
+ingress_upstream_host: 172.17.0.1
+ingress_upstream_port: 2000
+is_ingress: True
+is_frontend: False
+ppm_limit: 11
+report_latency: True
+name: ingress
