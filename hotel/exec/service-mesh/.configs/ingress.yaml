@@ -16,6 +16,6 @@ ingress_upstream_host: 172.17.0.1
 ingress_upstream_port: 2000
 is_ingress: True
 is_frontend: False
-ppm_limit: 11
+ppm_limit: 10
 report_latency: True
 name: ingress
