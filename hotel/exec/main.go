@@ -27,6 +27,7 @@ func main() {
 		Envoy   bool `arg:"--envoy,-e" help:"Run with Envoy"`
 		Profile bool `arg:"--profile" help:"Profile sidecars"`
 		Rajomon bool `arg:"--rajomon" help:"Run with Rajomon"`
+		Dagor   bool `arg:"--dagor" help:"Run with Dagor"`
 	}
 
 	arg.MustParse(&args)
@@ -51,7 +52,7 @@ func main() {
 		{"reservation", "19", "5"},
 	}
 
-	if !args.Rajomon {
+	if args.Sidecar || args.Envoy {
 		serviceList = append(serviceList, []string{"frontend", "21", "6"})
 	} else {
 		serviceList = append(serviceList, []string{"frontend-grpc", "21", "6"})
@@ -91,6 +92,8 @@ func main() {
 		env = "./.env.sidecar"
 	} else if args.Rajomon {
 		env = "./.env.rajomon"
+	} else if args.Dagor {
+		env = "./.env.dagor"
 	} else {
 		env = "./.env"
 	}

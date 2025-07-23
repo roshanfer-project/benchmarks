@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"hotel"
+	dagorinit "hotel/dagor_init"
 	oteltool "hotel/otel_tool"
 	pb "hotel/protobuf"
 	rajomoninit "hotel/rajomon_init"
@@ -13,6 +14,8 @@ import (
 	"hotel/utils"
 	"net"
 	"time"
+
+	"hotel/dagor"
 
 	"github.com/pennsail/rajomon"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
@@ -82,6 +85,15 @@ func (s *Server) Run() error {
 			priceTable.UnaryInterceptor))
 	}
 
+	var dagorNode *dagor.Dagor
+	if utils.GetEnvVar("dagor", false) == "true" {
+		log.Info("dagor is enabled, configuring dagor interceptor")
+		dagorNode = dagorinit.GetDagorNode(serviceName, true, false)
+		opts = append(opts, grpc.ChainUnaryInterceptor(
+			ContextPropagationInterceptor(),
+			dagorNode.UnaryInterceptorServer))
+	}
+
 	ctx := context.Background()
 	if _, shutdownList, ok := configOTL(ctx, serviceName); ok {
 		opts = append(opts, grpc.StatsHandler(otelgrpc.NewServerHandler()))
@@ -112,6 +124,9 @@ func (s *Server) Run() error {
 	if priceTable != nil {
 		log.Debug("Using rajomon interceptor for search client")
 		options = append(options, grpc.WithUnaryInterceptor(priceTable.UnaryInterceptorClient))
+	} else if dagorNode != nil {
+		log.Debug("Using dagor interceptor for search client")
+		options = append(options, grpc.WithUnaryInterceptor(dagorNode.UnaryInterceptorClient))
 	}
 	conn := hotel.GetConn(utils.GetEnvVar(searchEnv, true), options...)
 	s.searchClient = search.NewSearchClient(conn)

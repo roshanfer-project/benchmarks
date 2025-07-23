@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	dagorinit "hotel/dagor_init"
 	oteltool "hotel/otel_tool"
 	rajomoninit "hotel/rajomon_init"
 	pb "hotel/rate/proto"
@@ -14,6 +15,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"hotel/dagor"
 
 	"github.com/bradfitz/gomemcache/memcache"
 	"github.com/google/uuid"
@@ -75,6 +78,13 @@ func (s *Server) Run() error {
 		log.Info("rajomon is enabled, configuring rajomon interceptor")
 		priceTable = rajomoninit.GetPriceTable(serviceName, false)
 		opts = append(opts, grpc.UnaryInterceptor(priceTable.UnaryInterceptor))
+	}
+
+	var dagorNode *dagor.Dagor = nil
+	if utils.GetEnvVar("dagor", false) == "true" {
+		log.Info("dagor is enabled, configuring dagor interceptor")
+		dagorNode = dagorinit.GetDagorNode(serviceName, false, false)
+		opts = append(opts, grpc.UnaryInterceptor(dagorNode.UnaryInterceptorServer))
 	}
 
 	ctx := context.Background()

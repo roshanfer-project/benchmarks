@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 	"fmt"
+	dagorinit "hotel/dagor_init"
 	oteltool "hotel/otel_tool"
+	rajomoninit "hotel/rajomon_init"
 	"net"
 	"strconv"
 	"time"
@@ -20,11 +22,16 @@ import (
 	pb "hotel/geo/proto"
 	"hotel/utils"
 
+	"hotel/dagor"
+
 	"github.com/google/uuid"
 	"github.com/hailocab/go-geoindex"
+	"github.com/pennsail/rajomon"
 )
 
-var log = utils.GetLogger("geo")
+const serviceName = "geo"
+
+var log = utils.GetLogger(serviceName)
 
 //var tracer trace.Tracer
 
@@ -96,6 +103,20 @@ func (s *Server) Run() error {
 		log.Info("Successfully initialized OpenTelemetry")
 	} else {
 		log.Error("Failed to initialize OpenTelemetry")
+	}
+
+	var priceTable *rajomon.PriceTable = nil
+	if utils.GetEnvVar("rajomon", false) == "true" {
+		log.Info("rajomon is enabled, configuring rajomon interceptor")
+		priceTable = rajomoninit.GetPriceTable(serviceName, false)
+		opts = append(opts, grpc.UnaryInterceptor(priceTable.UnaryInterceptor))
+	}
+
+	var dagorNode *dagor.Dagor = nil
+	if utils.GetEnvVar("dagor", false) == "true" {
+		log.Info("dagor is enabled, configuring dagor interceptor")
+		dagorNode = dagorinit.GetDagorNode(serviceName, false, false)
+		opts = append(opts, grpc.UnaryInterceptor(dagorNode.UnaryInterceptorServer))
 	}
 
 	srv := grpc.NewServer(opts...)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"hotel"
+	dagorinit "hotel/dagor_init"
 	rajomoninit "hotel/rajomon_init"
 	"hotel/utils"
 	"net"
@@ -82,10 +83,20 @@ func (s *Server) Run() error {
 
 	log.Info("Initializing gRPC clients...")
 
-	priceTable := rajomoninit.GetPriceTable(serviceName, true)
-
 	frontendEnv := utils.GetEnvVar("FrontendGRPCAddr", true)
-	conn := hotel.GetRajomonClient(frontendEnv, grpc.WithUnaryInterceptor(priceTable.UnaryInterceptorEnduser))
+	var conn *grpc.ClientConn
+
+	if utils.GetEnvVar("rajomon", false) == "true" {
+		log.Info("Rajomon is enabled, initializing Rajomon client...")
+		priceTable := rajomoninit.GetPriceTable(serviceName, true)
+		conn = hotel.GetRajomonClient(frontendEnv, grpc.WithUnaryInterceptor(priceTable.UnaryInterceptorEnduser))
+	} else if utils.GetEnvVar("dagor", false) == "true" {
+		log.Info("Dagor is enabled, initializing Dagor client...")
+		dagorNode := dagorinit.GetDagorNode(serviceName, false, true)
+		conn = hotel.GetConn(frontendEnv, grpc.WithUnaryInterceptor(dagorNode.UnaryInterceptorClient))
+	} else {
+		panic("Either Rajomon or Dagor must be enabled")
+	}
 	s.frontendClient = pb.NewFrontendServiceClient(conn)
 
 	log.Info("Successful")
