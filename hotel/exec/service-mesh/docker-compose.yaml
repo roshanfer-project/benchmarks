@@ -6,7 +6,8 @@ services:
     restart: no
     environment:
       - GLOG_logtostderr=1
-#      - GLOG_v=2
+#      - GLOG_v=1
+#      - GLOG_vmodule=state=1
     volumes:
       - ./.configs/ingress.yaml:/config.yaml
       - /usr/local/lib:/usr/local/lib:ro
@@ -23,7 +24,8 @@ services:
     restart: no
     environment:
       - GLOG_logtostderr=1
-#      - GLOG_v=2
+#      - GLOG_v=1
+#      - GLOG_vmodule=state=1
     volumes:
       - ./.configs/frontend.yaml:/config.yaml
       - /usr/local/lib:/usr/local/lib:ro
@@ -75,6 +77,7 @@ services:
     environment:
       - GLOG_logtostderr=1
 #      - GLOG_v=1
+#      - GLOG_vmodule=state=1
     volumes:
       - ./.configs/search.yaml:/config.yaml
       - /usr/local/lib:/usr/local/lib:ro

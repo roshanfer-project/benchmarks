@@ -70,7 +70,7 @@ static_resources:
                   cluster: search-service
                   timeout: 100s
               - match:
-                  prefix: "/profile.Profile"
+                  prefix: "/protobuf.Profile"
                 route:
                   cluster: profile-service
                   timeout: 100s

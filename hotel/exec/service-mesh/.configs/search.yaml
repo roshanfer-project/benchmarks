@@ -1,12 +1,18 @@
 routing:
-  - service: geo.Geo
+  - service: geo.Geo/Nearby
     upstream:
       host: geo-sidecar
       port: 3004
-  - service: rate.Rate
+  - service: rate.Rate/GetRates
     upstream:
       host: rate-sidecar
       port: 3003
+mapping:
+  search.Search/Nearby:
+    downstreams:
+      - geo.Geo/Nearby
+      - rate.Rate/GetRates
+    min_max_concurrency: 2
 ring_size: 1000
 buffer_count: 1000
 buffer_size: 200000
@@ -14,6 +20,6 @@ egress_listener_port: 4005
 ingress_listener_port: 3005
 ingress_upstream_host: 172.17.0.1
 ingress_upstream_port: 2005
-ppm_limit: 4
+ppm_limit: 2
 report_latency: True
 name: search

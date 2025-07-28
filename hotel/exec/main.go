@@ -52,11 +52,11 @@ func main() {
 		{"reservation", "19", "5"},
 	}
 
-	if args.Sidecar || args.Envoy {
-		serviceList = append(serviceList, []string{"frontend", "21", "6"})
-	} else {
+	if args.Rajomon || args.Dagor {
 		serviceList = append(serviceList, []string{"frontend-grpc", "21", "6"})
 		serviceList = append(serviceList, []string{"rajomon-client", "23,25", "7"})
+	} else {
+		serviceList = append(serviceList, []string{"frontend", "21", "6"})
 	}
 
 	if args.Sidecar {
@@ -94,6 +94,8 @@ func main() {
 		env = "./.env.rajomon"
 	} else if args.Dagor {
 		env = "./.env.dagor"
+	} else if args.Envoy {
+		env = "./.env.envoy"
 	} else {
 		env = "./.env"
 	}

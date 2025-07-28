@@ -1,3 +1,5 @@
+mapping:
+  user.User/CheckUser:
 ring_size: 1000
 buffer_count: 1000
 buffer_size: 50000

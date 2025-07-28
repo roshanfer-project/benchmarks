@@ -1,3 +1,5 @@
+mapping:
+  geo.Geo/Nearby:
 ring_size: 1000
 buffer_count: 1000
 buffer_size: 50000
