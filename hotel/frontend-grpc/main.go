@@ -20,6 +20,8 @@ import (
 	"github.com/pennsail/rajomon"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/metadata"
@@ -48,6 +50,43 @@ func ContextPropagationInterceptor() grpc.UnaryServerInterceptor {
 			ctx = metadata.NewOutgoingContext(ctx, in)
 		}
 		return handler(ctx, req)
+	}
+}
+
+var failedRPCCounter int64
+var inReq map[string]int64
+var outReq map[string]int64
+var maxQueue map[string]int64
+
+var maxQueueGuage metric.Int64Gauge
+
+func CountersInterceptor() grpc.UnaryServerInterceptor {
+	return func(ctx context.Context, req interface{},
+		_ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+		// get metadata from context
+		md, ok := metadata.FromIncomingContext(ctx)
+		if !ok {
+			log.Error("metadata not found in context")
+			return nil, fmt.Errorf("metadata not found in context")
+		}
+		method := md.Get("method")
+		if len(method) == 0 || len(method) > 1 {
+			log.Error("method not found in metadata", "metadata", md)
+			return nil, fmt.Errorf("method not found in metadata")
+		}
+		inReq[method[0]]++
+		if (inReq[method[0]] - outReq[method[0]]) > maxQueue[method[0]] {
+			maxQueue[method[0]] = inReq[method[0]] - outReq[method[0]]
+			maxQueueGuage.Record(ctx, maxQueue[method[0]], metric.WithAttributes(
+				attribute.String("method", method[0]),
+			))
+		}
+		resp, err := handler(ctx, req)
+		if err != nil {
+			failedRPCCounter++
+		}
+		outReq[method[0]]++
+		return resp, err
 	}
 }
 
@@ -81,6 +120,7 @@ func (s *Server) Run() error {
 		log.Info("rajomon is enabled, configuring rajomon interceptor")
 		priceTable = rajomoninit.GetPriceTable(serviceName, false)
 		opts = append(opts, grpc.ChainUnaryInterceptor(
+			CountersInterceptor(),
 			ContextPropagationInterceptor(),
 			priceTable.UnaryInterceptor))
 	}
@@ -90,6 +130,7 @@ func (s *Server) Run() error {
 		log.Info("dagor is enabled, configuring dagor interceptor")
 		dagorNode = dagorinit.GetDagorNode(serviceName, true, false)
 		opts = append(opts, grpc.ChainUnaryInterceptor(
+			CountersInterceptor(),
 			ContextPropagationInterceptor(),
 			dagorNode.UnaryInterceptorServer))
 	}
@@ -309,6 +350,25 @@ func geoJSONResponse(hs []*pb.Hotel) map[string]interface{} {
 }
 
 func main() {
+	failedRPCCounter = 0
+	inReq = make(map[string]int64)
+	outReq = make(map[string]int64)
+	maxQueue = make(map[string]int64)
+	var ok error
+	maxQueueGuage, ok = otel.GetMeterProvider().Meter(serviceName).Int64Gauge("max_queue",
+		metric.WithDescription("Maximum queue length for each RPC method"))
+	if ok != nil {
+		log.Error("Failed to create max_queue gauge")
+		panic("Failed to create max_queue gauge")
+	}
+	// start a go routine to print failed RPC count every 10 seconds
+	go func() {
+		ticker := time.NewTicker(10 * time.Second)
+		for range ticker.C {
+			log.Info(fmt.Sprintf("Failed RPC count: %d", failedRPCCounter))
+			log.Info("Counter update", "max queue", maxQueue)
+		}
+	}()
 	src := &Server{}
 	if err := src.Run(); err != nil {
 		log.Error("Failed to run server: " + err.Error())

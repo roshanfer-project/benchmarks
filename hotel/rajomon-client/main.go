@@ -44,6 +44,19 @@ func configOTL(ctx context.Context, serviceName string) (grpc.ServerOption, []fu
 
 }
 
+var failedRPCCounter int64
+
+func FailRPCCounterInterceptor() grpc.UnaryServerInterceptor {
+	return func(ctx context.Context, req interface{},
+		_ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+		resp, err := handler(ctx, req)
+		if err != nil {
+			failedRPCCounter++
+		}
+		return resp, err
+	}
+}
+
 func (s *Server) Run() error {
 
 	log.Info("Initializing gRPC server...")
@@ -73,6 +86,8 @@ func (s *Server) Run() error {
 	} else {
 		log.Error("Failed to initialize OpenTelemetry")
 	}
+
+	opts = append(opts, grpc.UnaryInterceptor(FailRPCCounterInterceptor()))
 
 	srv := grpc.NewServer(opts...)
 	pb.RegisterRajomonClientServer(srv, s)
@@ -110,6 +125,14 @@ func (s *Server) Run() error {
 }
 
 func main() {
+	failedRPCCounter = 0
+	// start a go routine to print failed RPC count every 10 seconds
+	go func() {
+		ticker := time.NewTicker(10 * time.Second)
+		for range ticker.C {
+			log.Info(fmt.Sprintf("Failed RPC count: %d", failedRPCCounter))
+		}
+	}()
 	src := &Server{}
 	if err := src.Run(); err != nil {
 		log.Error("Failed to run server: " + err.Error())

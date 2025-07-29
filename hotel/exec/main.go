@@ -28,6 +28,7 @@ func main() {
 		Profile bool `arg:"--profile" help:"Profile sidecars"`
 		Rajomon bool `arg:"--rajomon" help:"Run with Rajomon"`
 		Dagor   bool `arg:"--dagor" help:"Run with Dagor"`
+		Seconds int  `arg:"-t,--seconds" default:"0" help:"Duration in seconds to run the benchmark"`
 	}
 
 	arg.MustParse(&args)
@@ -54,7 +55,7 @@ func main() {
 
 	if args.Rajomon || args.Dagor {
 		serviceList = append(serviceList, []string{"frontend-grpc", "21", "6"})
-		serviceList = append(serviceList, []string{"rajomon-client", "23,25", "7"})
+		serviceList = append(serviceList, []string{"rajomon-client", "23-25", "7"})
 	} else {
 		serviceList = append(serviceList, []string{"frontend", "21", "6"})
 	}
@@ -101,7 +102,11 @@ func main() {
 	}
 	run_servicees(env, serviceList, args.Sidecar, args.Envoy, args.Profile)
 
-	time.Sleep(time.Minute * 100)
+	if args.Seconds > 0 {
+		time.Sleep(time.Second * time.Duration(args.Seconds))
+	} else {
+		time.Sleep(time.Minute * 100)
+	}
 
 	cancel()
 	wg.Wait()

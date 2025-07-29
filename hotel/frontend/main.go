@@ -16,7 +16,9 @@ import (
 	"strconv"
 
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
+	"google.golang.org/grpc/metadata"
 )
 
 var (
@@ -39,7 +41,14 @@ const serviceName = "frontend"
 var log = utils.GetLogger(serviceName)
 var tracer trace.Tracer
 
-// tracingMiddleware wraps an http.Handler and starts a trace span for each request.
+var inReq map[string]int64
+var outReq map[string]int64
+var maxQueue map[string]int64
+
+var maxQueueGuage metric.Int64Gauge
+
+var standardMethods map[string]string
+
 func tracingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx, span := tracer.Start(r.Context(), r.Method+" "+r.URL.Path)
@@ -47,6 +56,23 @@ func tracingMiddleware(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
+
+// tracingMiddleware wraps an http.Handler and starts a trace span for each request.
+/* func tracingMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx, span := tracer.Start(r.Context(), r.Method+" "+r.URL.Path)
+		// extract first part of the path as method name
+		method := r.URL.Path[1:]
+		defer span.End()
+		inReq[method]++
+		if (inReq[method] - outReq[method]) > maxQueue[method] {
+			maxQueue[method] = inReq[method] - outReq[method]
+			maxQueueGuage.Record(ctx, maxQueue[method], metric.WithAttributes(attribute.String("method", standardMethods[method])))
+		}
+		next.ServeHTTP(w, r.WithContext(ctx))
+		outReq[method]++
+	})
+} */
 
 func (s *Server) Run() error {
 
@@ -122,7 +148,7 @@ func (s *Server) Run() error {
 	mux.Handle("/restaurants", http.HandlerFunc(s.restaurantHandler))
 	mux.Handle("/museums", http.HandlerFunc(s.museumHandler))
 	mux.Handle("/cinema", http.HandlerFunc(s.cinemaHandler)) */
-	mux.Handle("/reservation", http.HandlerFunc(s.reservationHandler))
+	mux.Handle("/reservation", tracingMiddleware(http.HandlerFunc(s.reservationHandler)))
 
 	log.Info("frontend starts serving")
 
@@ -138,6 +164,8 @@ func (s *Server) Run() error {
 func (s *Server) searchHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	ctx := r.Context()
+	// add method to context
+	ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("method", "search-hotel"))
 
 	log.Debug("starts searchHandler")
 
@@ -231,6 +259,8 @@ func (s *Server) searchHandler(w http.ResponseWriter, r *http.Request) {
 func (s *Server) reservationHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	ctx := r.Context()
+	// add method to context
+	ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("method", "reserve-hotel"))
 
 	inDate, outDate := r.URL.Query().Get("inDate"), r.URL.Query().Get("outDate")
 	if inDate == "" || outDate == "" {
@@ -342,6 +372,19 @@ func geoJSONResponse(hs []*profile.Hotel) map[string]interface{} {
 }
 
 func main() {
+	standardMethods = make(map[string]string)
+	standardMethods["hotels"] = "search-hotel"
+	standardMethods["reservation"] = "reserve-hotel"
+	inReq = make(map[string]int64)
+	outReq = make(map[string]int64)
+	maxQueue = make(map[string]int64)
+	var ok error
+	maxQueueGuage, ok = otel.GetMeterProvider().Meter(serviceName).Int64Gauge("max_queue",
+		metric.WithDescription("Maximum queue length for each RPC method"))
+	if ok != nil {
+		log.Error("Failed to create max_queue gauge")
+		panic("Failed to create max_queue gauge")
+	}
 	s := &Server{}
 	if err := s.Run(); err != nil {
 		log.Error("Failed to start server", "error", err)
