@@ -20,6 +20,6 @@ egress_listener_port: 4005
 ingress_listener_port: 3005
 ingress_upstream_host: 172.17.0.1
 ingress_upstream_port: 2005
-ppm_limit: 2
+ppm_limit: 3
 report_latency: True
 name: search
