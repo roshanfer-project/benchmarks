@@ -5,6 +5,7 @@ services:
     container_name: ingress-sidecar
     restart: no
     environment:
+      - PROC_NAME=ingress-sidecar
       - GLOG_logtostderr=1
 #      - GLOG_v=1
 #      - GLOG_vmodule=state=1
@@ -23,6 +24,7 @@ services:
     container_name: frontend-sidecar
     restart: no
     environment:
+      - PROC_NAME=frontend-sidecar
       - GLOG_logtostderr=1
 #      - GLOG_v=1
 #      - GLOG_vmodule=state=1
@@ -36,11 +38,31 @@ services:
     privileged: true
     cpuset: "22,23"
   
+  frontend-2-sidecar:
+    image: sidecar-sidecar:latest
+    container_name: frontend-2-sidecar
+    restart: no
+    environment:
+      - PROC_NAME=frontend-2-sidecar
+      - GLOG_logtostderr=1
+#      - GLOG_v=1
+#      - GLOG_vmodule=state=1
+    volumes:
+      - ./.configs/frontend-2.yaml:/config.yaml
+      - /usr/local/lib:/usr/local/lib:ro
+      - /lib/x86_64-linux-gnu:/lib/x86_64-linux-gnu:ro
+    ports:
+      - "4008:4008" # egress_listener_port
+      - "3008:3008"   # ingress_listener_port
+    privileged: true
+    cpuset: "38,39"
+  
   profile-sidecar:
     image: sidecar-sidecar:latest
     container_name: profile-sidecar
     restart: no
     environment:
+      - PROC_NAME=profile-sidecar
       - GLOG_logtostderr=1
 #      - GLOG_v=1
     volumes:
@@ -58,6 +80,7 @@ services:
     container_name: reservation-sidecar
     restart: no
     environment:
+      - PROC_NAME=reservation-sidecar
       - GLOG_logtostderr=1
 #      - GLOG_v=1
     volumes:
@@ -75,6 +98,7 @@ services:
     container_name: search-sidecar
     restart: no
     environment:
+      - PROC_NAME=search-sidecar
       - GLOG_logtostderr=1
 #      - GLOG_v=1
 #      - GLOG_vmodule=state=1
@@ -93,6 +117,7 @@ services:
     container_name: geo-sidecar
     restart: no
     environment:
+      - PROC_NAME=geo-sidecar
       - GLOG_logtostderr=1
 #      - GLOG_v=1
     volumes:
@@ -110,6 +135,7 @@ services:
     container_name: rate-sidecar
     restart: no
     environment:
+      - PROC_NAME=rate-sidecar
       - GLOG_logtostderr=1
 #      - GLOG_v=1
     volumes:
@@ -127,6 +153,7 @@ services:
     container_name: user-sidecar
     restart: no
     environment:
+      - PROC_NAME=user-sidecar
       - GLOG_logtostderr=1
 #      - GLOG_v=1
     volumes:
