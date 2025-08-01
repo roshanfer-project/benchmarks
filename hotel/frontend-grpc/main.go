@@ -13,6 +13,8 @@ import (
 	user "hotel/user/proto"
 	"hotel/utils"
 	"net"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"hotel/dagor"
@@ -53,12 +55,90 @@ func ContextPropagationInterceptor() grpc.UnaryServerInterceptor {
 	}
 }
 
-var failedRPCCounter int64
-var inReq map[string]int64
-var outReq map[string]int64
-var maxQueue map[string]int64
+type CounterState struct {
+	failedRPCCounter   atomic.Int64
+	acceptedRPCCounter atomic.Int64
+	inReq              sync.Map
+	outReq             sync.Map
+	maxQueue           sync.Map
+}
+
+func (s *CounterState) IncrementInReq(method string) {
+	count, _ := s.inReq.LoadOrStore(method, int64(0))
+	s.inReq.Store(method, count.(int64)+1)
+}
+
+func (s *CounterState) IncrementOutReq(method string) {
+	count, _ := s.outReq.LoadOrStore(method, int64(0))
+	s.outReq.Store(method, count.(int64)+1)
+}
+
+func (s *CounterState) IncrementMaxQueue(method string, value int64) {
+	count, _ := s.maxQueue.LoadOrStore(method, int64(0))
+	if value > count.(int64) {
+		s.maxQueue.Store(method, value)
+	}
+}
+
+func (s *CounterState) GetMaxQueue(method string) int64 {
+	count, ok := s.maxQueue.Load(method)
+	if !ok {
+		return 0
+	}
+	return count.(int64)
+}
+
+func (s *CounterState) GetFailedRPCCounter() int64 {
+	return s.failedRPCCounter.Load()
+}
+
+func (s *CounterState) IncrementFailedRPCCounter() {
+	s.failedRPCCounter.Add(1)
+}
+
+func (s *CounterState) GetInReq(method string) int64 {
+	count, ok := s.inReq.Load(method)
+	if !ok {
+		return 0
+	}
+	return count.(int64)
+}
+
+func (s *CounterState) GetOutReq(method string) int64 {
+	count, ok := s.outReq.Load(method)
+	if !ok {
+		return 0
+	}
+	return count.(int64)
+}
 
 var maxQueueGuage metric.Int64Gauge
+var failedRPCCounterGauge metric.Int64Counter
+var acceptedRPCCounterGauge metric.Int64Counter
+var counters = &CounterState{}
+
+func AcceptedRPCInterceptor() grpc.UnaryServerInterceptor {
+	return func(ctx context.Context, req interface{},
+		_ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+		// get metadata from context
+		md, ok := metadata.FromIncomingContext(ctx)
+		if !ok {
+			log.Error("metadata not found in context")
+			return nil, fmt.Errorf("metadata not found in context")
+		}
+		method := md.Get("method")
+		if len(method) == 0 || len(method) > 1 {
+			log.Error("method not found in metadata", "metadata", md)
+			return nil, fmt.Errorf("method not found in metadata")
+		}
+
+		counters.acceptedRPCCounter.Add(1)
+		acceptedRPCCounterGauge.Add(ctx, 1, metric.WithAttributes(
+			attribute.String("method", method[0]),
+		))
+		return handler(ctx, req)
+	}
+}
 
 func CountersInterceptor() grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{},
@@ -74,18 +154,23 @@ func CountersInterceptor() grpc.UnaryServerInterceptor {
 			log.Error("method not found in metadata", "metadata", md)
 			return nil, fmt.Errorf("method not found in metadata")
 		}
-		inReq[method[0]]++
-		if (inReq[method[0]] - outReq[method[0]]) > maxQueue[method[0]] {
-			maxQueue[method[0]] = inReq[method[0]] - outReq[method[0]]
-			maxQueueGuage.Record(ctx, maxQueue[method[0]], metric.WithAttributes(
+
+		counters.IncrementInReq(method[0])
+		queueSize := counters.GetInReq(method[0]) - counters.GetOutReq(method[0])
+		if queueSize > counters.GetMaxQueue(method[0]) {
+			counters.IncrementMaxQueue(method[0], queueSize)
+			maxQueueGuage.Record(ctx, queueSize, metric.WithAttributes(
 				attribute.String("method", method[0]),
 			))
 		}
 		resp, err := handler(ctx, req)
 		if err != nil {
-			failedRPCCounter++
+			counters.IncrementFailedRPCCounter()
+			failedRPCCounterGauge.Add(ctx, 1, metric.WithAttributes(
+				attribute.String("method", method[0]),
+			))
 		}
-		outReq[method[0]]++
+		counters.IncrementOutReq(method[0])
 		return resp, err
 	}
 }
@@ -122,7 +207,8 @@ func (s *Server) Run() error {
 		opts = append(opts, grpc.ChainUnaryInterceptor(
 			CountersInterceptor(),
 			ContextPropagationInterceptor(),
-			priceTable.UnaryInterceptor))
+			priceTable.UnaryInterceptor,
+			AcceptedRPCInterceptor()))
 	}
 
 	var dagorNode *dagor.Dagor
@@ -329,7 +415,7 @@ func geoJSONResponse(hs []*pb.Hotel) map[string]interface{} {
 		fs = append(fs, map[string]interface{}{
 			"type": "Feature",
 			"id":   h.Id,
-			"properties": map[string]string{
+			/* "properties": map[string]string{
 				"name":         h.Name,
 				"phone_number": h.PhoneNumber,
 			},
@@ -339,7 +425,7 @@ func geoJSONResponse(hs []*pb.Hotel) map[string]interface{} {
 					h.Address.Lon,
 					h.Address.Lat,
 				},
-			},
+			}, */
 		})
 	}
 
@@ -350,10 +436,6 @@ func geoJSONResponse(hs []*pb.Hotel) map[string]interface{} {
 }
 
 func main() {
-	failedRPCCounter = 0
-	inReq = make(map[string]int64)
-	outReq = make(map[string]int64)
-	maxQueue = make(map[string]int64)
 	var ok error
 	maxQueueGuage, ok = otel.GetMeterProvider().Meter(serviceName).Int64Gauge("max_queue",
 		metric.WithDescription("Maximum queue length for each RPC method"))
@@ -361,14 +443,18 @@ func main() {
 		log.Error("Failed to create max_queue gauge")
 		panic("Failed to create max_queue gauge")
 	}
-	// start a go routine to print failed RPC count every 10 seconds
-	go func() {
-		ticker := time.NewTicker(10 * time.Second)
-		for range ticker.C {
-			log.Info(fmt.Sprintf("Failed RPC count: %d", failedRPCCounter))
-			log.Info("Counter update", "max queue", maxQueue)
-		}
-	}()
+	failedRPCCounterGauge, ok = otel.GetMeterProvider().Meter(serviceName).Int64Counter("failed_rpc",
+		metric.WithDescription("Total number of failed RPC calls"))
+	if ok != nil {
+		log.Error("Failed to create failed_rpc counter")
+		panic("Failed to create failed_rpc counter")
+	}
+	acceptedRPCCounterGauge, ok = otel.GetMeterProvider().Meter(serviceName).Int64Counter("accepted_rpc",
+		metric.WithDescription("Total number of accepted RPC calls"))
+	if ok != nil {
+		log.Error("Failed to create accepted_rpc counter")
+		panic("Failed to create accepted_rpc counter")
+	}
 	src := &Server{}
 	if err := src.Run(); err != nil {
 		log.Error("Failed to run server: " + err.Error())

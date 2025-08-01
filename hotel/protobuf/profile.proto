@@ -19,11 +19,6 @@ message Result {
 
 message Hotel {
   string id = 1;
-  string name = 2;
-  string phoneNumber = 3;
-  string description = 4;
-  Address address = 5;
-  repeated Image images = 6;
 }
 
 message Address {

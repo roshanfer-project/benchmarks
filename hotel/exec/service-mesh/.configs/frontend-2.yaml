@@ -34,12 +34,12 @@ mapping:
 ring_size: 6000
 buffer_count: 2000
 buffer_size: 80000
-egress_listener_port: 4007
-ingress_listener_port: 3007
+egress_listener_port: 4008
+ingress_listener_port: 3008
 ingress_upstream_host: 172.17.0.1
-ingress_upstream_port: 2007
+ingress_upstream_port: 2008
 is_ingress: False
 is_frontend: True
 ppm_limit: 5
 report_latency: False
-name: frontend
+name: frontend-2

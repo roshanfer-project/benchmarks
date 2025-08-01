@@ -91,7 +91,7 @@ func initMeterProvider(ctx context.Context, res *resource.Resource,
 
 	meterProvider := sdkmetric.NewMeterProvider(
 		sdkmetric.WithReader(sdkmetric.NewPeriodicReader(metricExporter,
-			sdkmetric.WithInterval(5*time.Second))),
+			sdkmetric.WithInterval(100*time.Millisecond))),
 		sdkmetric.WithResource(res),
 	)
 	otel.SetMeterProvider(meterProvider)
@@ -120,12 +120,15 @@ func InitializeOTel(ctx context.Context, serviceName string, frontend bool) ([]f
 		logger.Error(err)
 		return nil, false
 	}
-	/* shutdownMeterProvider, err := initMeterProvider(ctx, res, otel_conn)
-	if err != nil {
-		logger.Error(err)
-		return nil, false
+	if ((utils.GetEnvVar("sidecar", false) == "true") && (utils.GetEnvVar("queuing_export", false) == "true")) ||
+		(utils.GetEnvVar("rajomon", false) == "true") || (utils.GetEnvVar("dagor", false) == "true") {
+		shutdownMeterProvider, err := initMeterProvider(ctx, res, otel_conn)
+		if err != nil {
+			logger.Error(err)
+			return nil, false
+		}
+		shutdownList = append(shutdownList, shutdownMeterProvider)
 	}
-	shutdownList = append(shutdownList, shutdownMeterProvider) */
 
 	shutdownTracerProvider, err := initTracerProvider(ctx, res, otel_conn, frontend)
 	if err != nil {

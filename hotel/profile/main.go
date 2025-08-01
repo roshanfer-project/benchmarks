@@ -12,6 +12,7 @@ import (
 	"net"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"hotel/dagor"
@@ -59,12 +60,90 @@ func configOTL(ctx context.Context, serviceName string, frontend bool) (grpc.Ser
 
 }
 
-var failedRPCCounter int64
-var inReq map[string]int64
-var outReq map[string]int64
-var maxQueue map[string]int64
+type CounterState struct {
+	failedRPCCounter   atomic.Int64
+	acceptedRPCCounter atomic.Int64
+	inReq              sync.Map
+	outReq             sync.Map
+	maxQueue           sync.Map
+}
+
+func (s *CounterState) IncrementInReq(method string) {
+	count, _ := s.inReq.LoadOrStore(method, int64(0))
+	s.inReq.Store(method, count.(int64)+1)
+}
+
+func (s *CounterState) IncrementOutReq(method string) {
+	count, _ := s.outReq.LoadOrStore(method, int64(0))
+	s.outReq.Store(method, count.(int64)+1)
+}
+
+func (s *CounterState) IncrementMaxQueue(method string, value int64) {
+	count, _ := s.maxQueue.LoadOrStore(method, int64(0))
+	if value > count.(int64) {
+		s.maxQueue.Store(method, value)
+	}
+}
+
+func (s *CounterState) GetMaxQueue(method string) int64 {
+	count, ok := s.maxQueue.Load(method)
+	if !ok {
+		return 0
+	}
+	return count.(int64)
+}
+
+func (s *CounterState) GetFailedRPCCounter() int64 {
+	return s.failedRPCCounter.Load()
+}
+
+func (s *CounterState) IncrementFailedRPCCounter() {
+	s.failedRPCCounter.Add(1)
+}
+
+func (s *CounterState) GetInReq(method string) int64 {
+	count, ok := s.inReq.Load(method)
+	if !ok {
+		return 0
+	}
+	return count.(int64)
+}
+
+func (s *CounterState) GetOutReq(method string) int64 {
+	count, ok := s.outReq.Load(method)
+	if !ok {
+		return 0
+	}
+	return count.(int64)
+}
 
 var maxQueueGuage metric.Int64Gauge
+var failedRPCCounterGauge metric.Int64Counter
+var acceptedRPCCounterGauge metric.Int64Counter
+var counters = &CounterState{}
+
+func AcceptedRPCInterceptor() grpc.UnaryServerInterceptor {
+	return func(ctx context.Context, req interface{},
+		_ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+		// get metadata from context
+		md, ok := metadata.FromIncomingContext(ctx)
+		if !ok {
+			log.Error("metadata not found in context")
+			return nil, fmt.Errorf("metadata not found in context")
+		}
+		method := md.Get("method")
+		if len(method) == 0 || len(method) > 1 {
+			log.Error("method not found in metadata", "metadata", md)
+			return nil, fmt.Errorf("method not found in metadata")
+		}
+
+		counters.acceptedRPCCounter.Add(1)
+		acceptedRPCCounterGauge.Add(ctx, 1, metric.WithAttributes(
+			attribute.String("method", method[0]),
+		))
+		return handler(ctx, req)
+	}
+}
 
 func CountersInterceptor() grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{},
@@ -80,18 +159,23 @@ func CountersInterceptor() grpc.UnaryServerInterceptor {
 			log.Error("method not found in metadata", "metadata", md)
 			return nil, fmt.Errorf("method not found in metadata")
 		}
-		inReq[method[0]]++
-		if (inReq[method[0]] - outReq[method[0]]) > maxQueue[method[0]] {
-			maxQueue[method[0]] = inReq[method[0]] - outReq[method[0]]
-			maxQueueGuage.Record(ctx, maxQueue[method[0]], metric.WithAttributes(
+
+		counters.IncrementInReq(method[0])
+		queueSize := counters.GetInReq(method[0]) - counters.GetOutReq(method[0])
+		if queueSize > counters.GetMaxQueue(method[0]) {
+			counters.IncrementMaxQueue(method[0], queueSize)
+			maxQueueGuage.Record(ctx, queueSize, metric.WithAttributes(
 				attribute.String("method", method[0]),
 			))
 		}
 		resp, err := handler(ctx, req)
 		if err != nil {
-			failedRPCCounter++
+			counters.IncrementFailedRPCCounter()
+			failedRPCCounterGauge.Add(ctx, 1, metric.WithAttributes(
+				attribute.String("method", method[0]),
+			))
 		}
-		outReq[method[0]]++
+		counters.IncrementOutReq(method[0])
 		return resp, err
 	}
 }
@@ -119,7 +203,8 @@ func (s *Server) Run() error {
 		//opts = append(opts, grpc.UnaryInterceptor(priceTable.UnaryInterceptor))
 		opts = append(opts, grpc.ChainUnaryInterceptor(
 			CountersInterceptor(),
-			priceTable.UnaryInterceptor))
+			priceTable.UnaryInterceptor,
+			AcceptedRPCInterceptor()))
 	}
 
 	var dagorNode *dagor.Dagor = nil
@@ -132,9 +217,9 @@ func (s *Server) Run() error {
 			dagorNode.UnaryInterceptorServer))
 	}
 
-	/* if utils.GetEnvVar("sidecar", false) == "true" {
+	if (utils.GetEnvVar("sidecar", false) == "true") && (utils.GetEnvVar("queuing_export", false) == "true") {
 		opts = append(opts, grpc.UnaryInterceptor(CountersInterceptor()))
-	} */
+	}
 
 	ctx := context.Background()
 	if _, shutdownList, ok := configOTL(ctx, serviceName, false); ok {
@@ -246,10 +331,6 @@ func (s *Server) GetProfiles(ctx context.Context, req *pb.Request) (*pb.Result, 
 
 func main() {
 	log.Info("Reading config...")
-	failedRPCCounter = 0
-	inReq = make(map[string]int64)
-	outReq = make(map[string]int64)
-	maxQueue = make(map[string]int64)
 	var ok error
 	maxQueueGuage, ok = otel.GetMeterProvider().Meter(serviceName).Int64Gauge("max_queue",
 		metric.WithDescription("Maximum queue length for each RPC method"))
@@ -257,7 +338,18 @@ func main() {
 		log.Error("Failed to create max_queue gauge")
 		panic("Failed to create max_queue gauge")
 	}
-
+	failedRPCCounterGauge, ok = otel.GetMeterProvider().Meter(serviceName).Int64Counter("failed_rpc",
+		metric.WithDescription("Total number of failed RPC calls"))
+	if ok != nil {
+		log.Error("Failed to create failed_rpc counter")
+		panic("Failed to create failed_rpc counter")
+	}
+	acceptedRPCCounterGauge, ok = otel.GetMeterProvider().Meter(serviceName).Int64Counter("accepted_rpc",
+		metric.WithDescription("Total number of accepted RPC calls"))
+	if ok != nil {
+		log.Error("Failed to create accepted_rpc counter")
+		panic("Failed to create accepted_rpc counter")
+	}
 	log.Info("Initializing DB connection...")
 	mongoClient, mongoClose := initializeDatabase(utils.GetEnvVar("ProfileMongoAddress", true))
 	defer mongoClose()
@@ -277,11 +369,7 @@ func main() {
 }
 
 type Hotel struct {
-	Id          string   `bson:"id"`
-	Name        string   `bson:"name"`
-	PhoneNumber string   `bson:"phoneNumber"`
-	Description string   `bson:"description"`
-	Address     *Address `bson:"address"`
+	Id string `bson:"id"`
 }
 
 type Address struct {
@@ -301,126 +389,31 @@ func initializeDatabase(url string) (*mongo.Client, func()) {
 	newProfiles := []interface{}{
 		Hotel{
 			"1",
-			"Clift Hotel",
-			"(415) 775-4700",
-			"A 6-minute walk from Union Square and 4 minutes from a Muni Metro station, this luxury hotel designed by Philippe Starck features an artsy furniture collection in the lobby, including work by Salvador Dali.",
-			&Address{
-				"495",
-				"Geary St",
-				"San Francisco",
-				"CA",
-				"United States",
-				"94102",
-				37.7867,
-				-122.4112,
-			},
 		},
 		Hotel{
 			"2",
-			"W San Francisco",
-			"(415) 777-5300",
-			"Less than a block from the Yerba Buena Center for the Arts, this trendy hotel is a 12-minute walk from Union Square.",
-			&Address{
-				"181",
-				"3rd St",
-				"San Francisco",
-				"CA",
-				"United States",
-				"94103",
-				37.7854,
-				-122.4005,
-			},
 		},
 		Hotel{
 			"3",
-			"Hotel Zetta",
-			"(415) 543-8555",
-			"A 3-minute walk from the Powell Street cable-car turnaround and BART rail station, this hip hotel 9 minutes from Union Square combines high-tech lodging with artsy touches.",
-			&Address{
-				"55",
-				"5th St",
-				"San Francisco",
-				"CA",
-				"United States",
-				"94103",
-				37.7834,
-				-122.4071,
-			},
 		},
 		Hotel{
 			"4",
-			"Hotel Vitale",
-			"(415) 278-3700",
-			"This waterfront hotel with Bay Bridge views is 3 blocks from the Financial District and a 4-minute walk from the Ferry Building.",
-			&Address{
-				"8",
-				"Mission St",
-				"San Francisco",
-				"CA",
-				"United States",
-				"94105",
-				37.7936,
-				-122.3930,
-			},
 		},
 		Hotel{
 			"5",
-			"Phoenix Hotel",
-			"(415) 776-1380",
-			"Located in the Tenderloin neighborhood, a 10-minute walk from a BART rail station, this retro motor lodge has hosted many rock musicians and other celebrities since the 1950s. It’s a 4-minute walk from the historic Great American Music Hall nightclub.",
-			&Address{
-				"601",
-				"Eddy St",
-				"San Francisco",
-				"CA",
-				"United States",
-				"94109",
-				37.7831,
-				-122.4181,
-			},
 		},
 		Hotel{
 			"6",
-			"St. Regis San Francisco",
-			"(415) 284-4000",
-			"St. Regis Museum Tower is a 42-story, 484 ft skyscraper in the South of Market district of San Francisco, California, adjacent to Yerba Buena Gardens, Moscone Center, PacBell Building and the San Francisco Museum of Modern Art.",
-			&Address{
-				"125",
-				"3rd St",
-				"San Francisco",
-				"CA",
-				"United States",
-				"94109",
-				37.7863,
-				-122.4015,
-			},
 		},
 	}
 
-	for i := 7; i <= 80; i++ {
+	for i := 7; i <= 50; i++ {
 		hotelID := strconv.Itoa(i)
-		phoneNumber := fmt.Sprintf("(415) 284-40%s", hotelID)
-
-		lat := 37.7835 + float32(i)/500.0*3
-		lon := -122.41 + float32(i)/500.0*4
 
 		newProfiles = append(
 			newProfiles,
 			Hotel{
 				hotelID,
-				"St. Regis San Francisco",
-				phoneNumber,
-				"St. Regis Museum Tower is a 42-story, 484 ft skyscraper in the South of Market district of San Francisco, California, adjacent to Yerba Buena Gardens, Moscone Center, PacBell Building and the San Francisco Museum of Modern Art.",
-				&Address{
-					"125",
-					"3rd St",
-					"San Francisco",
-					"CA",
-					"United States",
-					"94109",
-					lat,
-					lon,
-				},
 			},
 		)
 	}

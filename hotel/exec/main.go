@@ -45,19 +45,22 @@ func main() {
 	} */
 
 	serviceList := [][]string{
-		{"user", "9", "0"},
+		{"user", "9,10", "0"},
 		{"geo", "11", "1"},
 		{"rate", "13", "2"},
-		{"search", "15", "3"},
-		{"profile", "17", "4"},
-		{"reservation", "19", "5"},
+		{"search", "15,16", "3"},
+		{"profile", "17,18", "4"},
+		{"reservation", "19,20", "5"},
 	}
 
 	if args.Rajomon || args.Dagor {
-		serviceList = append(serviceList, []string{"frontend-grpc", "21", "6"})
+		serviceList = append(serviceList, []string{"frontend-grpc", "21,22", "6"})
 		serviceList = append(serviceList, []string{"rajomon-client", "23-25", "7"})
 	} else {
-		serviceList = append(serviceList, []string{"frontend", "21", "6"})
+		serviceList = append(serviceList, []string{"frontend", "21,22,40", "6"})
+		if args.Sidecar {
+			serviceList = append(serviceList, []string{"frontend-2", "41,42,43", "6"})
+		}
 	}
 
 	if args.Sidecar {

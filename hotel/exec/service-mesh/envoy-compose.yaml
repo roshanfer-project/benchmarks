@@ -8,8 +8,8 @@ services:
     ports:
       - 3000:3000
       - 4000:4000
-    command: ["envoy", "-c", "/etc/envoy/envoy.yaml", "--log-level", "info", "--concurrency", "1", "--disable-hot-restart"]
-    cpuset: "6"
+    command: ["envoy", "-c", "/etc/envoy/envoy.yaml", "--log-level", "info", "--concurrency", "2", "--disable-hot-restart"]
+    cpuset: "6,22"
 
 
   search-envoy:
@@ -21,8 +21,8 @@ services:
     ports:
       - 3005:3005
       - 4005:4005
-    command: ["envoy", "-c", "/etc/envoy/envoy.yaml", "--log-level", "info", "--concurrency", "1", "--disable-hot-restart"]
-    cpuset: "3"
+    command: ["envoy", "-c", "/etc/envoy/envoy.yaml", "--log-level", "info", "--concurrency", "2", "--disable-hot-restart"]
+    cpuset: "3,28"
 
   profile-envoy:
     container_name: profile-envoy
@@ -45,8 +45,8 @@ services:
     ports:
       - 3002:3002
       - 4002:4002
-    command: ["envoy", "-c", "/etc/envoy/envoy.yaml", "--log-level", "info", "--concurrency", "1", "--disable-hot-restart"]
-    cpuset: "5"
+    command: ["envoy", "-c", "/etc/envoy/envoy.yaml", "--log-level", "info", "--concurrency", "2", "--disable-hot-restart"]
+    cpuset: "5,27"
 
   rate-envoy:
     container_name: rate-envoy

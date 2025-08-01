@@ -6,9 +6,9 @@ routing:
     limit: 3
   - service: reservation
     upstream:
-      host: frontend-sidecar
-      port: 3007
-    limit: 2
+      host: frontend-2-sidecar
+      port: 3008
+    limit: 3
 mapping:
   hotels:
     downstreams:
@@ -28,5 +28,5 @@ ingress_upstream_port: 2000
 is_ingress: True
 is_frontend: False
 ppm_limit: 2
-report_latency: True
+report_latency: False
 name: ingress

@@ -39,7 +39,7 @@ type Server struct {
 	reservationClient reservation.ReservationClient
 }
 
-const serviceName = "frontend"
+const serviceName = "frontend-2"
 
 var log = utils.GetLogger(serviceName)
 var tracer trace.Tracer
@@ -147,7 +147,7 @@ func (s *Server) Run() error {
 	log.Info("Initializing gRPC clients...")
 	var searchEnv string
 	if utils.GetEnvVar("sidecar", false) == "true" {
-		searchEnv = "FrontendEgress"
+		searchEnv = "Frontend2Egress"
 	} else {
 		searchEnv = "SearchAddr"
 	}
@@ -156,7 +156,7 @@ func (s *Server) Run() error {
 
 	var profileEnv string
 	if utils.GetEnvVar("sidecar", false) == "true" {
-		profileEnv = "FrontendEgress"
+		profileEnv = "Frontend2Egress"
 	} else {
 		profileEnv = "ProfileAddr"
 	}
@@ -168,7 +168,7 @@ func (s *Server) Run() error {
 	} */
 	var userEnv string
 	if utils.GetEnvVar("sidecar", false) == "true" {
-		userEnv = "FrontendEgress"
+		userEnv = "Frontend2Egress"
 	} else {
 		userEnv = "UserAddr"
 	}
@@ -177,7 +177,7 @@ func (s *Server) Run() error {
 
 	var reservationEnv string
 	if utils.GetEnvVar("sidecar", false) == "true" {
-		reservationEnv = "FrontendEgress"
+		reservationEnv = "Frontend2Egress"
 	} else {
 		reservationEnv = "ReservationAddr"
 	}
@@ -215,7 +215,7 @@ func (s *Server) Run() error {
 	log.Info("frontend starts serving")
 
 	srv := &http.Server{
-		Addr:    fmt.Sprintf(":%d", utils.StrToInt(utils.GetEnvVar("FrontendPort", true))),
+		Addr:    fmt.Sprintf(":%d", utils.StrToInt(utils.GetEnvVar("Frontend2Port", true))),
 		Handler: mux,
 	}
 
