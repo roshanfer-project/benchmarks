@@ -30,7 +30,7 @@ mapping:
     downstreams:
       - user.User/CheckUser
       - reservation.Reservation/MakeReservation
-    min_max_concurrency: 3
+    min_max_concurrency: 4
 ring_size: 6000
 buffer_count: 2000
 buffer_size: 80000
@@ -40,6 +40,6 @@ ingress_upstream_host: 172.17.0.1
 ingress_upstream_port: 2008
 is_ingress: False
 is_frontend: True
-ppm_limit: 5
+ppm_limit: 7
 report_latency: False
 name: frontend-2

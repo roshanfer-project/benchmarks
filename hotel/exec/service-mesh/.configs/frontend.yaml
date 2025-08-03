@@ -40,6 +40,6 @@ ingress_upstream_host: 172.17.0.1
 ingress_upstream_port: 2007
 is_ingress: False
 is_frontend: True
-ppm_limit: 5
+ppm_limit: 7
 report_latency: False
 name: frontend

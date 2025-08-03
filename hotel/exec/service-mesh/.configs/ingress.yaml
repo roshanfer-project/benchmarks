@@ -8,7 +8,7 @@ routing:
     upstream:
       host: frontend-2-sidecar
       port: 3008
-    limit: 3
+    limit: 4
 mapping:
   hotels:
     downstreams:
