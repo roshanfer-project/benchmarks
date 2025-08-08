@@ -8,16 +8,17 @@ services:
       - PROC_NAME=ingress-sidecar
       - GLOG_logtostderr=1
 #      - GLOG_v=1
-#      - GLOG_vmodule=state=1
+#      - GLOG_vmodule=ingress=1
     volumes:
       - ./.configs/ingress.yaml:/config.yaml
       - /usr/local/lib:/usr/local/lib:ro
       - /lib/x86_64-linux-gnu:/lib/x86_64-linux-gnu:ro
     ports:
       - "4000:4000" # egress_listener_port
-      - "3000:3000"   # ingress_listener_port
+      - "3000:3000"   # hotels listen_port
+      - "3009:3009"   # reservation listen_port
     privileged: true
-    cpuset: "36,37"
+    cpuset: "36,37,40"
 
   frontend-sidecar:
     image: sidecar-sidecar:latest
@@ -27,7 +28,7 @@ services:
       - PROC_NAME=frontend-sidecar
       - GLOG_logtostderr=1
 #      - GLOG_v=1
-#      - GLOG_vmodule=state=1
+#      - GLOG_vmodule=stats=2
     volumes:
       - ./.configs/frontend.yaml:/config.yaml
       - /usr/local/lib:/usr/local/lib:ro
@@ -138,6 +139,7 @@ services:
       - PROC_NAME=rate-sidecar
       - GLOG_logtostderr=1
 #      - GLOG_v=1
+#      - GLOG_vmodule=stats=2
     volumes:
       - ./.configs/rate.yaml:/config.yaml
       - /usr/local/lib:/usr/local/lib:ro

@@ -51,6 +51,7 @@ type Server struct {
 
 	index *geoindex.ClusteringIndex
 	uuid  string
+	mutex sync.Mutex // Add mutex for thread-safe access to the index
 
 	MongoClient *mongo.Client
 }
@@ -290,9 +291,10 @@ func (s *Server) Nearby(ctx context.Context, req *pb.Request) (*pb.Result, error
 func (s *Server) getNearbyPoints(_ context.Context, lat, lon float64) []geoindex.Point {
 	log.Debug(fmt.Sprintf("In geo getNearbyPoints, lat = %f, lon = %f", lat, lon))
 
-	/* // For the specific request coordinates, return hotel "1" which has exact match
-	if lat == 37.7867 && lon == -122.4112 {
-		return &point{Pid: "1", Plat: 37.7867, Plon: -122.4112}
+	//return []geoindex.Point{&point{Pid: "1", Plat: 37.7867, Plon: -122.4112}}
+	// For the specific request coordinates, return hotel "1" which has exact match
+	/* if lat == 37.7867 && lon == -122.4112 {
+		return []geoindex.Point{&point{Pid: "1", Plat: 37.7867, Plon: -122.4112}}
 	} */
 
 	center := &geoindex.GeoPoint{
@@ -301,6 +303,8 @@ func (s *Server) getNearbyPoints(_ context.Context, lat, lon float64) []geoindex
 		Plon: lon,
 	}
 
+	// Use read lock for thread-safe access to the geo index
+	s.mutex.Lock()
 	points := s.index.KNearest(
 		center,
 		maxSearchResults,
@@ -308,6 +312,8 @@ func (s *Server) getNearbyPoints(_ context.Context, lat, lon float64) []geoindex
 			return true
 		},
 	)
+	s.mutex.Unlock()
+
 	return points
 
 	/* if len(points) > 0 {
@@ -378,6 +384,7 @@ func main() {
 
 	srv := &Server{
 		MongoClient: mongoClient,
+		mutex:       sync.Mutex{},
 	}
 
 	log.Info("Starting server...")

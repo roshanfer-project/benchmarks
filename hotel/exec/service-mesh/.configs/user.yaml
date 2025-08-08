@@ -1,12 +1,14 @@
 mapping:
   user.User/CheckUser:
+    limit: 2
 ring_size: 1000
 buffer_count: 1000
 buffer_size: 50000
+num_threads: 1
 egress_listener_port: 4006
 ingress_listener_port: 3006
 ingress_upstream_host: 172.17.0.1
 ingress_upstream_port: 2006
-ppm_limit: 3
-report_latency: False
+ppm_limit: 2
+report_latency: True
 name: user

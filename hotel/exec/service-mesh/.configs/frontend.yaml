@@ -1,21 +1,21 @@
 routing:
-  - service: search.Search/Nearby
+  search.Search/Nearby:
     upstream:
       host: search-sidecar
       port: 3005
-  - service: protobuf.Profile/GetProfiles
+  protobuf.Profile/GetProfiles:
     upstream:
       host: profile-sidecar
       port: 3001
-  - service: reservation.Reservation/MakeReservation
+  reservation.Reservation/MakeReservation:
     upstream:
       host: reservation-sidecar
       port: 3002
-  - service: reservation.Reservation/CheckAvailability
+  reservation.Reservation/CheckAvailability:
     upstream:
       host: reservation-sidecar
       port: 3002
-  - service: user.User/CheckUser
+  user.User/CheckUser:
     upstream:
       host: user-sidecar
       port: 3006
@@ -25,21 +25,24 @@ mapping:
       - search.Search/Nearby
       - protobuf.Profile/GetProfiles
       - reservation.Reservation/CheckAvailability
-    min_max_concurrency: 7
+    min_max_concurrency: 20
+    limit: 24
   reservation:
     downstreams:
       - user.User/CheckUser
       - reservation.Reservation/MakeReservation
     min_max_concurrency: 3
+    limit: 11
 ring_size: 6000
 buffer_count: 2000
 buffer_size: 80000
+num_threads: 2
 egress_listener_port: 4007
 ingress_listener_port: 3007
 ingress_upstream_host: 172.17.0.1
 ingress_upstream_port: 2007
 is_ingress: False
 is_frontend: True
-ppm_limit: 7
-report_latency: False
+ppm_limit: 33
+report_latency: True
 name: frontend
