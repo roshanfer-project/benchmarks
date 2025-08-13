@@ -25,7 +25,7 @@ var rajomonOptions = map[string]interface{}{
 	"priceUpdateRate": 3 * time.Millisecond,
 	//"guidePrice":       int64(-1),
 	"priceStrategy":    "linear",
-	"latencyThreshold": 2500 * time.Microsecond,
+	"latencyThreshold": 1000 * time.Microsecond,
 	"priceStep":        int64(15),
 	"priceAggregation": "maximal",
 	"recordPrice":      false,
