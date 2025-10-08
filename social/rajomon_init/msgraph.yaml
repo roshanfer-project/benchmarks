@@ -1,0 +1,30 @@
+applications:
+- callgraph:
+    nginx-grpc:
+    - compose
+    compose: 
+    - posts
+    - user
+    - home
+    user: []
+    home: 
+    - graph
+    graph: []
+  entrypoint: nginx-grpc
+  interface: compose-post
+- callgraph:
+    nginx-grpc:
+    - user
+    user:
+    - posts
+    posts: []
+  entrypoint: nginx-grpc
+  interface: read-user-timeline
+- callgraph:
+    nginx-grpc:
+    - home
+    home:
+    - posts
+    posts: []
+  entrypoint: nginx-grpc
+  interface: read-home-timeline

@@ -1,0 +1,85 @@
+services:
+  frontend-envoy:
+    container_name: frontend-envoy
+    image: envoyproxy/envoy:v1.32-latest
+    volumes:
+      - ./.envoy-configs/frontend.yaml:/etc/envoy/envoy.yaml
+    restart: no
+    ports:
+      - 3000:3000
+      - 4000:4000
+    command: ["envoy", "-c", "/etc/envoy/envoy.yaml", "--log-level", "info", "--concurrency", "2", "--disable-hot-restart"]
+    cpuset: "6,22"
+
+
+  search-envoy:
+    container_name: search-envoy
+    image: envoyproxy/envoy:v1.32-latest
+    volumes:
+      - ./.envoy-configs/search.yaml:/etc/envoy/envoy.yaml
+    restart: no
+    ports:
+      - 3005:3005
+      - 4005:4005
+    command: ["envoy", "-c", "/etc/envoy/envoy.yaml", "--log-level", "info", "--concurrency", "2", "--disable-hot-restart"]
+    cpuset: "3,28"
+
+  profile-envoy:
+    container_name: profile-envoy
+    image: envoyproxy/envoy:v1.32-latest
+    volumes:
+      - ./.envoy-configs/profile.yaml:/etc/envoy/envoy.yaml
+    restart: no
+    ports:
+      - 3001:3001
+      - 4001:4001
+    command: ["envoy", "-c", "/etc/envoy/envoy.yaml", "--log-level", "info", "--concurrency", "1", "--disable-hot-restart"]
+    cpuset: "4"
+
+  reservation-envoy:
+    container_name: reservation-envoy
+    image: envoyproxy/envoy:v1.32-latest
+    volumes:
+      - ./.envoy-configs/reservation.yaml:/etc/envoy/envoy.yaml
+    restart: no
+    ports:
+      - 3002:3002
+      - 4002:4002
+    command: ["envoy", "-c", "/etc/envoy/envoy.yaml", "--log-level", "info", "--concurrency", "2", "--disable-hot-restart"]
+    cpuset: "5,27"
+
+  rate-envoy:
+    container_name: rate-envoy
+    image: envoyproxy/envoy:v1.32-latest
+    volumes:
+      - ./.envoy-configs/rate.yaml:/etc/envoy/envoy.yaml
+    restart: no
+    ports:
+      - 3003:3003
+      - 4003:4003
+    command: ["envoy", "-c", "/etc/envoy/envoy.yaml", "--log-level", "info", "--concurrency", "1", "--disable-hot-restart"]
+    cpuset: "2"
+
+  geo-envoy:
+    container_name: geo-envoy
+    image: envoyproxy/envoy:v1.32-latest
+    volumes:
+      - ./.envoy-configs/geo.yaml:/etc/envoy/envoy.yaml
+    restart: no
+    ports:
+      - 3004:3004
+      - 4004:4004
+    command: ["envoy", "-c", "/etc/envoy/envoy.yaml", "--log-level", "info", "--concurrency", "1", "--disable-hot-restart"]
+    cpuset: "1"
+
+  user-envoy:
+    container_name: user-envoy
+    image: envoyproxy/envoy:v1.32-latest
+    volumes:
+      - ./.envoy-configs/user.yaml:/etc/envoy/envoy.yaml
+    restart: no
+    ports:
+      - 3006:3006
+      - 4006:4006
+    command: ["envoy", "-c", "/etc/envoy/envoy.yaml", "--log-level", "info", "--concurrency", "1", "--disable-hot-restart"]
+    cpuset: "7"

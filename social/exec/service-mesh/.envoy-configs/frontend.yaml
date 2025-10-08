@@ -1,0 +1,162 @@
+node:
+  id: frontend
+  cluster: local
+
+stats_config:
+  stats_matcher:
+    reject_all: true
+
+stats_flush_interval: 30s
+
+static_resources:
+  listeners:
+  # ───────────────────────── 1.  Inbound traffic to Service A ─────────────────────────
+  - name: listener_inbound
+    address:
+      socket_address:
+        address: 0.0.0.0
+        port_value: 3000
+    filter_chains:
+    - filters:
+      - name: envoy.filters.network.http_connection_manager
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+          stat_prefix: envoy
+          generate_request_id: false
+          use_remote_address: true
+          http_filters:
+          - name: envoy.filters.http.router
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+          route_config:
+            name: local_route
+            virtual_hosts:
+            - name: backend
+              domains: ["*"]
+              routes:
+              - match:
+                  prefix: "/"
+                route:
+                  cluster: local_app
+                  timeout: 100s
+
+  # ───────────────────────── 2.  Outbound traffic from Service A ──────────────────────
+  - name: listener_outbound
+    address:
+      socket_address:
+        address: 0.0.0.0
+        port_value: 4000
+    filter_chains:
+    - filters:
+      - name: envoy.filters.network.http_connection_manager
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+          stat_prefix: envoy
+          generate_request_id: false
+          use_remote_address: true
+          http_filters:
+          - name: envoy.filters.http.router
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+          route_config:
+            name: local_route
+            virtual_hosts:
+            - name: backend
+              domains: ["*"]
+              routes:
+              - match:
+                  prefix: "/search.Search"
+                route:
+                  cluster: search-service
+                  timeout: 100s
+              - match:
+                  prefix: "/protobuf.Profile"
+                route:
+                  cluster: profile-service
+                  timeout: 100s
+              - match:
+                  prefix: "/reservation.Reservation"
+                route:
+                  cluster: reservation-service
+                  timeout: 100s
+              - match:
+                  prefix: "/user.User"
+                route:
+                  cluster: user-service
+                  timeout: 100s           
+          http2_protocol_options: {}
+
+  clusters:
+  # ───────────────────────── 3.  Local application (Service A) ────────────────────────
+  - name: local_app
+    connect_timeout: 2s
+    type: STATIC
+    load_assignment:
+      cluster_name: local_app
+      endpoints:
+      - lb_endpoints:
+        - endpoint:
+            address:
+              socket_address: { address: 172.17.0.1, port_value: 2000 }
+#    http2_protocol_options: {}        # gRPC requires H2
+
+  # ───────────────────────── 4.  Remote dependencies ─────────────────────────────────
+  - name: search-service
+    connect_timeout: 2s
+    type: STRICT_DNS                  # resolves each call
+    lb_policy: ROUND_ROBIN
+    load_assignment:
+      cluster_name: search-service
+      endpoints:
+      - lb_endpoints:
+        - endpoint:
+            address:
+              socket_address:
+                address: search-envoy
+                port_value: 3005
+    http2_protocol_options: {}
+
+  - name: profile-service
+    connect_timeout: 2s
+    type: STRICT_DNS
+    lb_policy: ROUND_ROBIN
+    load_assignment:
+      cluster_name: profile-service
+      endpoints:
+      - lb_endpoints:
+        - endpoint:
+            address:
+              socket_address:
+                address: profile-envoy
+                port_value: 3001
+    http2_protocol_options: {}
+  
+  - name: reservation-service
+    connect_timeout: 2s
+    type: STRICT_DNS
+    lb_policy: ROUND_ROBIN
+    load_assignment:
+      cluster_name: reservation-service
+      endpoints:
+      - lb_endpoints:
+        - endpoint:
+            address:
+              socket_address:
+                address: reservation-envoy
+                port_value: 3002
+    http2_protocol_options: {}
+
+  - name: user-service
+    connect_timeout: 2s
+    type: STRICT_DNS
+    lb_policy: ROUND_ROBIN
+    load_assignment:
+      cluster_name: user-service
+      endpoints:
+      - lb_endpoints:
+        - endpoint:
+            address:
+              socket_address:
+                address: user-envoy
+                port_value: 3006
+    http2_protocol_options: {}

@@ -1,0 +1,32 @@
+routing:
+  protobuf.PostStorage/StorePost:
+    upstream:
+      host: posts-sidecar
+      port: 3003
+  protobuf.UserTimeline/WriteUserTimeline:
+    upstream:
+      host: user-sidecar
+      port: 3001
+  protobuf.HomeTimeline/WriteHomeTimeline:
+    upstream:
+      host: home-sidecar
+      port: 3002
+mapping:
+  protobuf.ComposePost/ComposePost:
+    downstreams:
+      - protobuf.PostStorage/StorePost
+      - protobuf.UserTimeline/WriteUserTimeline
+      - protobuf.HomeTimeline/WriteHomeTimeline
+    min_max_concurrency: 10
+    limit: 23
+ring_size: 6000
+buffer_count: 1000
+buffer_size: 200000
+num_threads: 2
+egress_listener_port: 4005
+ingress_listener_port: 3005
+ingress_upstream_host: 172.17.0.1
+ingress_upstream_port: 2005
+ppm_limit: 23
+report_latency: True
+name: compose

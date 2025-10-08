@@ -1,0 +1,51 @@
+routing:
+  compose:
+    upstream:
+      host: nginx-sidecar
+      port: 3007
+    limit: 27
+    slo: 90
+  home:
+    upstream:
+      host: nginx-sidecar
+      port: 3007
+    limit: 12
+    slo: 21
+  user:
+    upstream:
+      host: nginx-sidecar
+      port: 3007
+    limit: 12
+    slo: 20
+mapping:
+  compose:
+    downstreams:
+      - compose
+    min_max_concurrency: 6
+    listen_port: 3000
+    limit: -1
+  home:
+    downstreams:
+      - home
+    min_max_concurrency: 6
+    listen_port: 3008
+    limit: -1
+  user:
+    downstreams:
+      - user
+    min_max_concurrency: 6
+    listen_port: 3009
+    limit: -1
+ring_size: 20000
+buffer_count: 8000
+buffer_size: 80000
+num_threads: 3
+egress_listener_port: 3000
+ingress_listener_port: 4000
+ingress_upstream_host: 172.17.0.1
+ingress_upstream_port: 2000
+is_ingress: True
+is_frontend: False
+ppm_limit: 2
+report_latency: True
+name: ingress

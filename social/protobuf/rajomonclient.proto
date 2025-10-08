@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package protobuf;
+
+option go_package = "social/protobuf";
+
+import "compose_post.proto";
+import "home_timeline.proto";
+import "user_timeline.proto";
+
+service RajomonClient {
+  rpc ComposePost(ComposePostRequest) returns (ComposePostResponse);
+  rpc ReadUserTimeline(ReadUserTimelineRequest) returns (ReadUserTimelineResponse);
+  rpc ReadHomeTimeline(ReadHomeTimelineRequest) returns (ReadHomeTimelineResponse);
+}
