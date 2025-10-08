@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -200,7 +201,7 @@ func (s *PostStorageServer) Run() error {
 	}
 
 	ctx := context.Background()
-	if _, shutdownList, ok := configOTL(ctx, "geo"); ok {
+	if _, shutdownList, ok := configOTL(ctx, serviceName); ok {
 		opts = append(opts, grpc.StatsHandler(otelgrpc.NewServerHandler()))
 
 		for _, f := range shutdownList {
@@ -233,7 +234,8 @@ func (s *PostStorageServer) Run() error {
 		dagorNode = dagorinit.GetDagorNode(serviceName, false, false)
 		opts = append(opts, grpc.ChainUnaryInterceptor(
 			CountersInterceptor(),
-			dagorNode.UnaryInterceptorServer))
+			dagorNode.UnaryInterceptorServer,
+			AcceptedRPCInterceptor()))
 		//opts = append(opts, grpc.UnaryInterceptor(dagorNode.UnaryInterceptorServer))
 	}
 
@@ -292,8 +294,34 @@ func main() {
 		//mutex:       sync.Mutex{},
 	}
 
+	populatePosts(srv,
+		utils.StrToInt(utils.GetEnvVar("num_of_posts", true)),
+		utils.StrToInt(utils.GetEnvVar("num_of_users", true)))
+
 	log.Info("Starting server...")
 	log.Error(srv.Run().Error())
+}
+
+func populatePosts(s *PostStorageServer, numberOfPosts, numberOfUser int) {
+	for ui := 0; ui < numberOfUser; ui++ {
+		userId := "user" + strconv.Itoa(ui)
+
+		posts := make(map[string]interface{}, numberOfPosts)
+		postIds := make([]string, numberOfPosts)
+		for i := 0; i < numberOfPosts; i++ {
+			postId := strconv.Itoa(i)
+			timestamp := time.Now().Unix()
+			posts[postId] = pb.Post{
+				PostId:    postId,
+				CreatorId: userId,
+				Text:      "This is a sample post",
+				Timestamp: timestamp,
+			}
+			postIds[i] = postId
+		}
+		utils.SetBulkState(context.Background(), posts)
+	}
+
 }
 
 func (s *PostStorageServer) StorePost(ctx context.Context, req *pb.StorePostRequest) (*pb.StorePostResponse, error) {
@@ -318,7 +346,21 @@ func (s *PostStorageServer) ReadPost(ctx context.Context, req *pb.ReadPostReques
 	return &pb.ReadPostResponse{Post: &post}, nil
 }
 
-func (s *PostStorageServer) ReadPosts(ctx context.Context, req *pb.ReadPostsRequest) (*pb.ReadPostsResponse, error) {
+func (s *PostStorageServer) ReadPostsHome(ctx context.Context, req *pb.ReadPostsRequest) (*pb.ReadPostsResponse, error) {
+	//ctx = config.PropagateMetadata(ctx, "poststorage")
+	retPosts, err := utils.GetBulkState[pb.Post](ctx, req.PostIds)
+	if err != nil {
+		log.Error("[ReadPosts] Error reading posts", "postIds", req.PostIds, "error", err)
+		return nil, err
+	}
+	posts := make([]*pb.Post, len(retPosts))
+	for i, post := range retPosts {
+		posts[i] = &post
+	}
+	return &pb.ReadPostsResponse{Posts: posts}, nil
+}
+
+func (s *PostStorageServer) ReadPostsUser(ctx context.Context, req *pb.ReadPostsRequest) (*pb.ReadPostsResponse, error) {
 	//ctx = config.PropagateMetadata(ctx, "poststorage")
 	retPosts, err := utils.GetBulkState[pb.Post](ctx, req.PostIds)
 	if err != nil {

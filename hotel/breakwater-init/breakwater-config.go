@@ -10,13 +10,13 @@ import (
 	bw "hotel/breakwater"
 )
 
-const breakwaterSLO = 5000
-const breakwaterClientExpiration = 100
-const breakwaterA = 1.2
-const breakwaterB = 0.35
-const breakwaterRTT = 3000
+const breakwaterSLO = 8000
+const breakwaterClientExpiration = 300
+const breakwaterA = 0.000
+const breakwaterB = 0.2
+const breakwaterRTT = 5000
 
-const breakwaterInitialCredit = 200
+const breakwaterInitialCredit = 100
 
 var bwConfigServer = bw.BWParameters{
 	Verbose:          false,

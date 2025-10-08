@@ -121,7 +121,8 @@ func InitializeOTel(ctx context.Context, serviceName string, frontend bool) ([]f
 		return nil, false
 	}
 	if ((utils.GetEnvVar("sidecar", false) == "true") && (utils.GetEnvVar("queuing_export", false) == "true")) ||
-		(utils.GetEnvVar("rajomon", false) == "true") || (utils.GetEnvVar("dagor", false) == "true") {
+		(utils.GetEnvVar("rajomon", false) == "true") || (utils.GetEnvVar("dagor", false) == "true") ||
+		(utils.GetEnvVar("plain", false) == "true") {
 		shutdownMeterProvider, err := initMeterProvider(ctx, res, otel_conn)
 		if err != nil {
 			logger.Error(err)

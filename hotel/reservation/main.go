@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	breakwaterinit "hotel/breakwater-init"
 	dagorinit "hotel/dagor_init"
 	oteltool "hotel/otel_tool"
 	rajomoninit "hotel/rajomon_init"
@@ -15,6 +16,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	bw "hotel/breakwater"
 	"hotel/dagor"
 
 	"github.com/bradfitz/gomemcache/memcache"
@@ -66,6 +68,7 @@ type CounterState struct {
 	inReq              sync.Map
 	outReq             sync.Map
 	maxQueue           sync.Map
+	lock               sync.Mutex
 }
 
 func (s *CounterState) IncrementInReq(method string) {
@@ -118,6 +121,8 @@ func (s *CounterState) GetOutReq(method string) int64 {
 }
 
 var maxQueueGuage metric.Int64Gauge
+
+// var queueHistogram metric.Int64Histogram
 var failedRPCCounterGauge metric.Int64Counter
 var acceptedRPCCounterGauge metric.Int64Counter
 var counters = &CounterState{}
@@ -137,10 +142,12 @@ func AcceptedRPCInterceptor() grpc.UnaryServerInterceptor {
 			return nil, fmt.Errorf("method not found in metadata")
 		}
 
+		counters.lock.Lock()
 		counters.acceptedRPCCounter.Add(1)
 		acceptedRPCCounterGauge.Add(ctx, 1, metric.WithAttributes(
-			attribute.String("method", method[0]),
+			attribute.String("api", method[0]),
 		))
+		counters.lock.Unlock()
 		return handler(ctx, req)
 	}
 }
@@ -160,22 +167,26 @@ func CountersInterceptor() grpc.UnaryServerInterceptor {
 			return nil, fmt.Errorf("method not found in metadata")
 		}
 
+		counters.lock.Lock()
 		counters.IncrementInReq(method[0])
 		queueSize := counters.GetInReq(method[0]) - counters.GetOutReq(method[0])
 		if queueSize > counters.GetMaxQueue(method[0]) {
 			counters.IncrementMaxQueue(method[0], queueSize)
 			maxQueueGuage.Record(ctx, queueSize, metric.WithAttributes(
-				attribute.String("method", method[0]),
+				attribute.String("api", method[0]),
 			))
 		}
+		counters.lock.Unlock()
 		resp, err := handler(ctx, req)
+		counters.lock.Lock()
 		if err != nil {
 			counters.IncrementFailedRPCCounter()
 			failedRPCCounterGauge.Add(ctx, 1, metric.WithAttributes(
-				attribute.String("method", method[0]),
+				attribute.String("api", method[0]),
 			))
 		}
 		counters.IncrementOutReq(method[0])
+		counters.lock.Unlock()
 		return resp, err
 	}
 }
@@ -211,12 +222,28 @@ func (s *Server) Run() error {
 		dagorNode = dagorinit.GetDagorNode(serviceName, false, false)
 		opts = append(opts, grpc.ChainUnaryInterceptor(
 			CountersInterceptor(),
-			dagorNode.UnaryInterceptorServer))
+			dagorNode.UnaryInterceptorServer,
+			AcceptedRPCInterceptor()))
 		//opts = append(opts, grpc.UnaryInterceptor(dagorNode.UnaryInterceptorServer))
+	}
+
+	var breakwaterd *bw.Breakwater
+	if utils.GetEnvVar("breakwaterd", false) == "true" {
+		log.Info("breakwaterd is enabled, configuring breakwaterd interceptor")
+		breakwaterd = breakwaterinit.GetBreakwater(serviceName, false)
+		opts = append(opts, grpc.ChainUnaryInterceptor(
+			CountersInterceptor(),
+			breakwaterd.UnaryInterceptor))
 	}
 
 	if (utils.GetEnvVar("sidecar", false) == "true") && (utils.GetEnvVar("queuing_export", false) == "true") {
 		opts = append(opts, grpc.UnaryInterceptor(CountersInterceptor()))
+	}
+
+	if utils.GetEnvVar("plain", false) == "true" {
+		opts = append(opts, grpc.ChainUnaryInterceptor(
+			CountersInterceptor(),
+			AcceptedRPCInterceptor()))
 	}
 
 	ctx := context.Background()
@@ -617,6 +644,14 @@ func main() {
 		log.Error("Failed to create accepted_rpc counter")
 		panic("Failed to create accepted_rpc counter")
 	}
+	/* queueHistogram, ok = otel.GetMeterProvider().Meter(serviceName).Int64Histogram("queue_length",
+		metric.WithDescription("Queue length for each RPC method"),
+		metric.WithUnit("1"),
+		metric.WithExplicitBucketBoundaries(0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 25, 30, 40, 50, 60, 80, 100, 150, 200, 300, 400, 500))
+	if ok != nil {
+		log.Error("Failed to create queue_length histogram")
+		panic("Failed to create queue_length histogram")
+	} */
 	log.Info("Initializing DB connection...")
 	mongoClient, mongoClose := initializeDatabase(utils.GetEnvVar("ReserveMongoAddress", true))
 	defer mongoClose()

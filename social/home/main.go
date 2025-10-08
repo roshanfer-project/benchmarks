@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"social"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -222,7 +223,8 @@ func (s *HomeTimelineServer) Run() error {
 		opts = append(opts, grpc.ChainUnaryInterceptor(
 			CountersInterceptor(),
 			ContextPropagationInterceptor(),
-			dagorNode.UnaryInterceptorServer))
+			dagorNode.UnaryInterceptorServer,
+			AcceptedRPCInterceptor()))
 	}
 
 	var breakwater *bw.Breakwater
@@ -233,6 +235,13 @@ func (s *HomeTimelineServer) Run() error {
 			CountersInterceptor(),
 			ContextPropagationInterceptor(),
 			breakwater.UnaryInterceptor))
+	}
+
+	if (utils.GetEnvVar("sidecar", false) == "true") && (utils.GetEnvVar("queuing_export", false) == "true") {
+		opts = append(opts, grpc.ChainUnaryInterceptor(
+			CountersInterceptor(),
+			ContextPropagationInterceptor(),
+		))
 	}
 
 	ctx := context.Background()
@@ -328,8 +337,33 @@ func main() {
 		//mutex: sync.Mutex{},
 	}
 
+	populate(utils.StrToInt(utils.GetEnvVar("num_of_posts", true)))
+
 	log.Info("Starting server...")
 	log.Error(srv.Run().Error())
+}
+
+func populate(numberOfposts int) {
+	ctx := context.Background()
+	var PostsId = make([]string, numberOfposts)
+	for i := 0; i < numberOfposts; i++ {
+		PostsId[i] = strconv.Itoa(i)
+	}
+	for _, follower := range []string{"user1"} {
+		postIds, err := utils.GetState[[]string](ctx, follower+"-"+serviceName)
+		if err != nil {
+			postIds = []string{}
+		}
+		if len(postIds) >= 10 {
+			postIds = postIds[1:]
+		}
+		postIds = append(postIds, PostsId...)
+		err = utils.SetState(ctx, follower+"-"+serviceName, postIds)
+		if err != nil {
+			log.Error("Failed to set state for follower", "follower", follower, "error", err)
+			panic(err)
+		}
+	}
 }
 
 func (s *HomeTimelineServer) ReadHomeTimeline(ctx context.Context, req *pb.ReadHomeTimelineRequest) (*pb.ReadHomeTimelineResponse, error) {
@@ -342,7 +376,7 @@ func (s *HomeTimelineServer) ReadHomeTimeline(ctx context.Context, req *pb.ReadH
 
 	postsReq := &pb.ReadPostsRequest{PostIds: postIds}
 	//postsResp, err := invoke.Invoke[*pb.ReadPostsResponse](ctx, "poststorage", "readposts", postsReq)
-	postsResp, err := s.postClient.ReadPosts(ctx, postsReq)
+	postsResp, err := s.postClient.ReadPostsHome(ctx, postsReq)
 	if err != nil {
 		log.Error("[ReadHomeTimeline] Error reading posts", "userId", req.UserId, "error", err)
 		return nil, err

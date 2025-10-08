@@ -217,7 +217,8 @@ func (s *GraphServer) Run() error {
 		opts = append(opts, grpc.ChainUnaryInterceptor(
 			CountersInterceptor(),
 			ContextPropagationInterceptor(),
-			dagorNode.UnaryInterceptorServer))
+			dagorNode.UnaryInterceptorServer,
+			AcceptedRPCInterceptor()))
 	}
 
 	var breakwater *bw.Breakwater
@@ -228,6 +229,12 @@ func (s *GraphServer) Run() error {
 			CountersInterceptor(),
 			ContextPropagationInterceptor(),
 			breakwater.UnaryInterceptor))
+	}
+
+	if (utils.GetEnvVar("sidecar", false) == "true") && (utils.GetEnvVar("queuing_export", false) == "true") {
+		opts = append(opts, grpc.ChainUnaryInterceptor(
+			CountersInterceptor(),
+		))
 	}
 
 	ctx := context.Background()

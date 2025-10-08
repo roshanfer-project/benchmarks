@@ -49,6 +49,7 @@ type CounterState struct {
 	inReq            sync.Map
 	outReq           sync.Map
 	maxQueue         sync.Map
+	lock             sync.Mutex
 }
 
 func (s *CounterState) IncrementInReq(method string) {
@@ -119,14 +120,18 @@ func tracingMiddleware2(next http.Handler) http.Handler {
 		// extract first part of the path as method name
 		method := r.URL.Path[1:]
 		defer span.End()
+		counters.lock.Lock()
 		counters.IncrementInReq(method)
 		queueSize := counters.GetInReq(method) - counters.GetOutReq(method)
 		if queueSize > counters.GetMaxQueue(method) {
 			counters.IncrementMaxQueue(method, queueSize)
-			maxQueueGuage.Record(ctx, queueSize, metric.WithAttributes(attribute.String("method", standardMethods[method])))
+			maxQueueGuage.Record(ctx, queueSize, metric.WithAttributes(attribute.String("api", standardMethods[method])))
 		}
+		counters.lock.Unlock()
 		next.ServeHTTP(w, r.WithContext(ctx))
+		counters.lock.Lock()
 		counters.IncrementOutReq(method)
+		counters.lock.Unlock()
 	})
 }
 

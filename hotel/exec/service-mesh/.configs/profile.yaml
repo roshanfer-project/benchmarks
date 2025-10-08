@@ -1,6 +1,6 @@
 mapping:
   protobuf.Profile/GetProfiles:
-    limit: 4
+    limit: 6
 ring_size: 1000
 buffer_count: 1000
 buffer_size: 50000
@@ -9,6 +9,6 @@ egress_listener_port: 4001
 ingress_listener_port: 3001
 ingress_upstream_host: 172.17.0.1
 ingress_upstream_port: 2001
-ppm_limit: 4
+ppm_limit: 6
 report_latency: True
 name: profile

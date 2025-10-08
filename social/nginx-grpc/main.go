@@ -224,7 +224,8 @@ func (s *NginxGRPCServer) Run() error {
 		opts = append(opts, grpc.ChainUnaryInterceptor(
 			CountersInterceptor(),
 			ContextPropagationInterceptor(),
-			dagorNode.UnaryInterceptorServer))
+			dagorNode.UnaryInterceptorServer,
+			AcceptedRPCInterceptor()))
 	}
 
 	var breakwater *bw.Breakwater

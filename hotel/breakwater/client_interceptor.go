@@ -113,6 +113,12 @@ func (b *Breakwater) UnaryInterceptorClient(ctx context.Context, method string, 
 			// Else, return to binary semaphore and keep looping
 			// Set a minimum credit balance of 0
 			b.outgoingCredits <- 0
+			// CRITICAL FIX: Must unblock other waiting goroutines when we exit with no credits
+			// Otherwise they remain permanently blocked on noCreditBlocker
+			//time.Sleep(1 * time.Millisecond)
+			//b.unblockNoCreditBlock()
+			//b.dequeueRequest()
+			//return status.Errorf(codes.ResourceExhausted, "No credit, request dropped at client %s", b.id.String())
 			// TODO: Consider adding a timeout here
 		}
 		logger("[Before Req]:	The method name for price table is %s\n")

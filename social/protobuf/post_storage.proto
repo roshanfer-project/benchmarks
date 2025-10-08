@@ -11,7 +11,8 @@ service PostStorage {
   rpc StorePost(StorePostRequest) returns (StorePostResponse);
   rpc StorePostMulti(StorePostMultiRequest) returns (StorePostMultiResponse);
   rpc ReadPost(ReadPostRequest) returns (ReadPostResponse);
-  rpc ReadPosts(ReadPostsRequest) returns (ReadPostsResponse);
+  rpc ReadPostsHome(ReadPostsRequest) returns (ReadPostsResponse);
+  rpc ReadPostsUser(ReadPostsRequest) returns (ReadPostsResponse);
 }
 
 message StorePostRequest {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"hotel"
+	breakwaterinit "hotel/breakwater-init"
 	dagorinit "hotel/dagor_init"
 	geo "hotel/geo/proto"
 	oteltool "hotel/otel_tool"
@@ -16,6 +17,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	bw "hotel/breakwater"
 	"hotel/dagor"
 
 	"github.com/google/uuid"
@@ -82,6 +84,7 @@ type CounterState struct {
 	inReq              sync.Map
 	outReq             sync.Map
 	maxQueue           sync.Map
+	lock               sync.Mutex
 }
 
 func (s *CounterState) IncrementInReq(method string) {
@@ -153,10 +156,12 @@ func AcceptedRPCInterceptor() grpc.UnaryServerInterceptor {
 			return nil, fmt.Errorf("method not found in metadata")
 		}
 
+		counters.lock.Lock()
 		counters.acceptedRPCCounter.Add(1)
 		acceptedRPCCounterGauge.Add(ctx, 1, metric.WithAttributes(
-			attribute.String("method", method[0]),
+			attribute.String("api", method[0]),
 		))
+		counters.lock.Unlock()
 		return handler(ctx, req)
 	}
 }
@@ -176,22 +181,26 @@ func CountersInterceptor() grpc.UnaryServerInterceptor {
 			return nil, fmt.Errorf("method not found in metadata")
 		}
 
+		counters.lock.Lock()
 		counters.IncrementInReq(method[0])
 		queueSize := counters.GetInReq(method[0]) - counters.GetOutReq(method[0])
 		if queueSize > counters.GetMaxQueue(method[0]) {
 			counters.IncrementMaxQueue(method[0], queueSize)
 			maxQueueGuage.Record(ctx, queueSize, metric.WithAttributes(
-				attribute.String("method", method[0]),
+				attribute.String("api", method[0]),
 			))
 		}
+		counters.lock.Unlock()
 		resp, err := handler(ctx, req)
+		counters.lock.Lock()
 		if err != nil {
 			counters.IncrementFailedRPCCounter()
 			failedRPCCounterGauge.Add(ctx, 1, metric.WithAttributes(
-				attribute.String("method", method[0]),
+				attribute.String("api", method[0]),
 			))
 		}
 		counters.IncrementOutReq(method[0])
+		counters.lock.Unlock()
 		return resp, err
 	}
 }
@@ -227,7 +236,18 @@ func (s *Server) Run() error {
 		opts = append(opts, grpc.ChainUnaryInterceptor(
 			CountersInterceptor(),
 			ContextPropagationInterceptor(),
-			dagorNode.UnaryInterceptorServer))
+			dagorNode.UnaryInterceptorServer,
+			AcceptedRPCInterceptor()))
+	}
+
+	var breakwaterd *bw.Breakwater
+	if utils.GetEnvVar("breakwaterd", false) == "true" {
+		log.Info("breakwaterd is enabled, configuring breakwaterd interceptor")
+		breakwaterd = breakwaterinit.GetBreakwater(serviceName, false)
+		opts = append(opts, grpc.ChainUnaryInterceptor(
+			CountersInterceptor(),
+			ContextPropagationInterceptor(),
+			breakwaterd.UnaryInterceptor))
 	}
 
 	if (utils.GetEnvVar("sidecar", false) == "true") && (utils.GetEnvVar("queuing_export", false) == "true") {
@@ -235,6 +255,13 @@ func (s *Server) Run() error {
 			CountersInterceptor(),
 			ContextPropagationInterceptor(),
 		))
+	}
+
+	if utils.GetEnvVar("plain", false) == "true" {
+		opts = append(opts, grpc.ChainUnaryInterceptor(
+			CountersInterceptor(),
+			ContextPropagationInterceptor(),
+			AcceptedRPCInterceptor()))
 	}
 
 	ctx := context.Background()
@@ -276,7 +303,15 @@ func (s *Server) Run() error {
 	} else if dagorNode != nil {
 		options = append(options, grpc.WithUnaryInterceptor(dagorNode.UnaryInterceptorClient))
 	}
-	conn := hotel.GetConn(utils.GetEnvVar(geoEnv, true), options...)
+
+	var geoOptions []grpc.DialOption
+	if breakwaterd != nil {
+		bwClient := breakwaterinit.GetBreakwater(serviceName, true)
+		geoOptions = append(options, grpc.WithUnaryInterceptor(bwClient.UnaryInterceptorClient))
+	} else {
+		geoOptions = options
+	}
+	conn := hotel.GetConn(utils.GetEnvVar(geoEnv, true), geoOptions...)
 	s.geoClient = geo.NewGeoClient(conn)
 
 	var rateEnv string
@@ -285,7 +320,14 @@ func (s *Server) Run() error {
 	} else {
 		rateEnv = "RateAddr"
 	}
-	conn = hotel.GetConn(utils.GetEnvVar(rateEnv, true), options...)
+	var rateOptions []grpc.DialOption
+	if breakwaterd != nil {
+		bwClient := breakwaterinit.GetBreakwater(serviceName, true)
+		rateOptions = append(options, grpc.WithUnaryInterceptor(bwClient.UnaryInterceptorClient))
+	} else {
+		rateOptions = options
+	}
+	conn = hotel.GetConn(utils.GetEnvVar(rateEnv, true), rateOptions...)
 	s.rateClient = rate.NewRateClient(conn)
 
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", utils.StrToInt(utils.GetEnvVar("SearchPort", true))))

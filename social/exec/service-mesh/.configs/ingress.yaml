@@ -3,19 +3,19 @@ routing:
     upstream:
       host: nginx-sidecar
       port: 3007
-    limit: 27
+    limit: 32
     slo: 90
   home:
     upstream:
       host: nginx-sidecar
       port: 3007
-    limit: 12
-    slo: 21
+    limit: 13
+    slo: 20
   user:
     upstream:
       host: nginx-sidecar
       port: 3007
-    limit: 12
+    limit: 11
     slo: 20
 mapping:
   compose:

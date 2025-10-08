@@ -1,5 +1,5 @@
 routing:
-  protobuf.PostStorage/ReadPosts:
+  protobuf.PostStorage/ReadPostsHome:
     upstream:
       host: posts-sidecar
       port: 3003
@@ -10,20 +10,20 @@ routing:
 mapping:
   protobuf.HomeTimeline/ReadHomeTimeline:
     downstreams:
-      - protobuf.PostStorage/ReadPosts
-    limit: 9
+      - protobuf.PostStorage/ReadPostsHome
+    limit: 8
   protobuf.HomeTimeline/WriteHomeTimeline:
     downstreams:
       - protobuf.SocialGraph/GetFollowers
-    limit: 11
-ring_size: 1000
+    limit: 13
+ring_size: 20000
 buffer_count: 1000
 buffer_size: 50000
-num_threads: 1
+num_threads: 2
 egress_listener_port: 4002
 ingress_listener_port: 3002
 ingress_upstream_host: 172.17.0.1
 ingress_upstream_port: 2002
-ppm_limit: 18
+ppm_limit: 25
 report_latency: True
 name: home

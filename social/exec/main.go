@@ -46,17 +46,17 @@ func main() {
 
 	serviceList := [][]string{
 		{"graph", "7", ""},
-		{"posts", "9", ""},
-		{"home", "11,12", ""},
-		{"user", "13", ""},
-		{"compose", "15", ""},
+		{"posts", "9,10", ""},
+		{"home", "11,12,26,25", ""},
+		{"user", "13,14", ""},
+		{"compose", "15,16", ""},
 	}
 
 	if args.Rajomon || args.Dagor || args.Breakwater || args.BreakwaterD {
-		serviceList = append(serviceList, []string{"nginx-grpc", "17", "6"})
-		serviceList = append(serviceList, []string{"rajomon-client", "19", "7"})
+		serviceList = append(serviceList, []string{"nginx-grpc", "17,18", "6"})
+		serviceList = append(serviceList, []string{"rajomon-client", "19-24", "7"})
 	} else {
-		serviceList = append(serviceList, []string{"nginx", "17", "6"})
+		serviceList = append(serviceList, []string{"nginx", "17,18", "6"})
 	}
 
 	if args.Sidecar {

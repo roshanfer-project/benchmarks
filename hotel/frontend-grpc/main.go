@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"hotel"
+	breakwaterinit "hotel/breakwater-init"
 	dagorinit "hotel/dagor_init"
 	oteltool "hotel/otel_tool"
 	pb "hotel/protobuf"
@@ -18,6 +19,8 @@ import (
 	"time"
 
 	"hotel/dagor"
+
+	bw "hotel/breakwater"
 
 	"github.com/pennsail/rajomon"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
@@ -61,6 +64,7 @@ type CounterState struct {
 	inReq              sync.Map
 	outReq             sync.Map
 	maxQueue           sync.Map
+	lock               sync.Mutex
 }
 
 func (s *CounterState) IncrementInReq(method string) {
@@ -132,10 +136,12 @@ func AcceptedRPCInterceptor() grpc.UnaryServerInterceptor {
 			return nil, fmt.Errorf("method not found in metadata")
 		}
 
+		counters.lock.Lock()
 		counters.acceptedRPCCounter.Add(1)
 		acceptedRPCCounterGauge.Add(ctx, 1, metric.WithAttributes(
-			attribute.String("method", method[0]),
+			attribute.String("api", method[0]),
 		))
+		counters.lock.Unlock()
 		return handler(ctx, req)
 	}
 }
@@ -155,22 +161,26 @@ func CountersInterceptor() grpc.UnaryServerInterceptor {
 			return nil, fmt.Errorf("method not found in metadata")
 		}
 
+		counters.lock.Lock()
 		counters.IncrementInReq(method[0])
 		queueSize := counters.GetInReq(method[0]) - counters.GetOutReq(method[0])
 		if queueSize > counters.GetMaxQueue(method[0]) {
 			counters.IncrementMaxQueue(method[0], queueSize)
 			maxQueueGuage.Record(ctx, queueSize, metric.WithAttributes(
-				attribute.String("method", method[0]),
+				attribute.String("api", method[0]),
 			))
 		}
+		counters.lock.Unlock()
 		resp, err := handler(ctx, req)
+		counters.lock.Lock()
 		if err != nil {
 			counters.IncrementFailedRPCCounter()
 			failedRPCCounterGauge.Add(ctx, 1, metric.WithAttributes(
-				attribute.String("method", method[0]),
+				attribute.String("api", method[0]),
 			))
 		}
 		counters.IncrementOutReq(method[0])
+		counters.lock.Unlock()
 		return resp, err
 	}
 }
@@ -218,7 +228,29 @@ func (s *Server) Run() error {
 		opts = append(opts, grpc.ChainUnaryInterceptor(
 			CountersInterceptor(),
 			ContextPropagationInterceptor(),
-			dagorNode.UnaryInterceptorServer))
+			dagorNode.UnaryInterceptorServer,
+			AcceptedRPCInterceptor(),
+		))
+	}
+
+	var breakwater *bw.Breakwater
+	if utils.GetEnvVar("breakwater", false) == "true" {
+		log.Info("breakwater is enabled, configuring breakwater interceptor")
+		breakwater = breakwaterinit.GetBreakwater(serviceName, false)
+		opts = append(opts, grpc.ChainUnaryInterceptor(
+			CountersInterceptor(),
+			ContextPropagationInterceptor(),
+			breakwater.UnaryInterceptor))
+	}
+
+	var breakwaterd *bw.Breakwater
+	if utils.GetEnvVar("breakwaterd", false) == "true" {
+		log.Info("breakwaterd is enabled, configuring breakwaterd interceptor")
+		breakwaterd = breakwaterinit.GetBreakwater(serviceName, false)
+		opts = append(opts, grpc.ChainUnaryInterceptor(
+			CountersInterceptor(),
+			ContextPropagationInterceptor(),
+			breakwaterd.UnaryInterceptor))
 	}
 
 	ctx := context.Background()
@@ -255,7 +287,15 @@ func (s *Server) Run() error {
 		log.Debug("Using dagor interceptor for search client")
 		options = append(options, grpc.WithUnaryInterceptor(dagorNode.UnaryInterceptorClient))
 	}
-	conn := hotel.GetConn(utils.GetEnvVar(searchEnv, true), options...)
+
+	var searchOptions []grpc.DialOption
+	if breakwaterd != nil {
+		bwClient := breakwaterinit.GetBreakwater(serviceName, true)
+		searchOptions = append(options, grpc.WithUnaryInterceptor(bwClient.UnaryInterceptorClient))
+	} else {
+		searchOptions = options
+	}
+	conn := hotel.GetConn(utils.GetEnvVar(searchEnv, true), searchOptions...)
 	s.searchClient = search.NewSearchClient(conn)
 
 	var profileEnv string
@@ -264,7 +304,14 @@ func (s *Server) Run() error {
 	} else {
 		profileEnv = "ProfileAddr"
 	}
-	conn = hotel.GetConn(utils.GetEnvVar(profileEnv, true), options...)
+	var profileOptions []grpc.DialOption
+	if breakwaterd != nil {
+		bwClient := breakwaterinit.GetBreakwater(serviceName, true)
+		profileOptions = append(options, grpc.WithUnaryInterceptor(bwClient.UnaryInterceptorClient))
+	} else {
+		profileOptions = options
+	}
+	conn = hotel.GetConn(utils.GetEnvVar(profileEnv, true), profileOptions...)
 	s.profileClient = pb.NewProfileClient(conn)
 
 	/* if err := s.initRecommendationClient("srv-recommendation"); err != nil {
@@ -276,7 +323,14 @@ func (s *Server) Run() error {
 	} else {
 		userEnv = "UserAddr"
 	}
-	conn = hotel.GetConn(utils.GetEnvVar(userEnv, true), options...)
+	var userOptions []grpc.DialOption
+	if breakwaterd != nil {
+		bwClient := breakwaterinit.GetBreakwater(serviceName, true)
+		userOptions = append(options, grpc.WithUnaryInterceptor(bwClient.UnaryInterceptorClient))
+	} else {
+		userOptions = options
+	}
+	conn = hotel.GetConn(utils.GetEnvVar(userEnv, true), userOptions...)
 	s.userClient = user.NewUserClient(conn)
 
 	var reservationEnv string
@@ -285,7 +339,14 @@ func (s *Server) Run() error {
 	} else {
 		reservationEnv = "ReservationAddr"
 	}
-	conn = hotel.GetConn(utils.GetEnvVar(reservationEnv, true), options...)
+	var reservationOptions []grpc.DialOption
+	if breakwaterd != nil {
+		bwClient := breakwaterinit.GetBreakwater(serviceName, true)
+		reservationOptions = append(options, grpc.WithUnaryInterceptor(bwClient.UnaryInterceptorClient))
+	} else {
+		reservationOptions = options
+	}
+	conn = hotel.GetConn(utils.GetEnvVar(reservationEnv, true), reservationOptions...)
 	s.reservationClient = reservation.NewReservationClient(conn)
 
 	log.Info("Successful")

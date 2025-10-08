@@ -28,8 +28,6 @@ require (
 
 require (
 	github.com/alexflint/go-scalar v1.2.0 // indirect
-	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
-	github.com/farzad1132/dagor-grpc v0.0.0-20250721162410-c376a182cb0f
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/golang/snappy v1.0.0 // indirect

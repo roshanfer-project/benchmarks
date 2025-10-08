@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	breakwaterinit "hotel/breakwater-init"
 	dagorinit "hotel/dagor_init"
 	oteltool "hotel/otel_tool"
 	pb "hotel/protobuf"
@@ -15,6 +16,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	bw "hotel/breakwater"
 	"hotel/dagor"
 
 	"github.com/bradfitz/gomemcache/memcache"
@@ -66,6 +68,7 @@ type CounterState struct {
 	inReq              sync.Map
 	outReq             sync.Map
 	maxQueue           sync.Map
+	lock               sync.Mutex
 }
 
 func (s *CounterState) IncrementInReq(method string) {
@@ -137,10 +140,12 @@ func AcceptedRPCInterceptor() grpc.UnaryServerInterceptor {
 			return nil, fmt.Errorf("method not found in metadata")
 		}
 
+		counters.lock.Lock()
 		counters.acceptedRPCCounter.Add(1)
 		acceptedRPCCounterGauge.Add(ctx, 1, metric.WithAttributes(
-			attribute.String("method", method[0]),
+			attribute.String("api", method[0]),
 		))
+		counters.lock.Unlock()
 		return handler(ctx, req)
 	}
 }
@@ -160,22 +165,26 @@ func CountersInterceptor() grpc.UnaryServerInterceptor {
 			return nil, fmt.Errorf("method not found in metadata")
 		}
 
+		counters.lock.Lock()
 		counters.IncrementInReq(method[0])
 		queueSize := counters.GetInReq(method[0]) - counters.GetOutReq(method[0])
 		if queueSize > counters.GetMaxQueue(method[0]) {
 			counters.IncrementMaxQueue(method[0], queueSize)
 			maxQueueGuage.Record(ctx, queueSize, metric.WithAttributes(
-				attribute.String("method", method[0]),
+				attribute.String("api", method[0]),
 			))
 		}
+		counters.lock.Unlock()
 		resp, err := handler(ctx, req)
+		counters.lock.Lock()
 		if err != nil {
 			counters.IncrementFailedRPCCounter()
 			failedRPCCounterGauge.Add(ctx, 1, metric.WithAttributes(
-				attribute.String("method", method[0]),
+				attribute.String("api", method[0]),
 			))
 		}
 		counters.IncrementOutReq(method[0])
+		counters.lock.Unlock()
 		return resp, err
 	}
 }
@@ -214,11 +223,27 @@ func (s *Server) Run() error {
 		//opts = append(opts, grpc.UnaryInterceptor(dagorNode.UnaryInterceptorServer))
 		opts = append(opts, grpc.ChainUnaryInterceptor(
 			CountersInterceptor(),
-			dagorNode.UnaryInterceptorServer))
+			dagorNode.UnaryInterceptorServer,
+			AcceptedRPCInterceptor()))
+	}
+
+	var breakwaterd *bw.Breakwater
+	if utils.GetEnvVar("breakwaterd", false) == "true" {
+		log.Info("breakwaterd is enabled, configuring breakwaterd interceptor")
+		breakwaterd = breakwaterinit.GetBreakwater(serviceName, false)
+		opts = append(opts, grpc.ChainUnaryInterceptor(
+			CountersInterceptor(),
+			breakwaterd.UnaryInterceptor))
 	}
 
 	if (utils.GetEnvVar("sidecar", false) == "true") && (utils.GetEnvVar("queuing_export", false) == "true") {
 		opts = append(opts, grpc.UnaryInterceptor(CountersInterceptor()))
+	}
+
+	if utils.GetEnvVar("plain", false) == "true" {
+		opts = append(opts, grpc.ChainUnaryInterceptor(
+			CountersInterceptor(),
+			AcceptedRPCInterceptor()))
 	}
 
 	ctx := context.Background()

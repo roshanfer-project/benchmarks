@@ -193,7 +193,7 @@ func (s *Server) Run() error {
 func main() {
 	standardMethods = make(map[string]string)
 	standardMethods["compose"] = "compose-post"
-	standardMethods["user"] = "read-home-timeline"
+	standardMethods["user"] = "read-user-timeline"
 	standardMethods["home"] = "read-home-timeline"
 	var ok error
 	maxQueueGuage, ok = otel.GetMeterProvider().Meter(serviceName).Int64Gauge("max_queue",

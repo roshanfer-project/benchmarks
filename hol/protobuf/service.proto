@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package protobuf;
+
+option go_package = "hol/protobuf";
+
+service HOLService {
+    rpc FastRPC(FastRPCRequest) returns (FastRPCResponse);
+    rpc SlowRPC(SlowRPCRequest) returns (SlowRPCResponse);
+}
+
+message FastRPCRequest {
+    string test = 1;
+}
+
+message FastRPCResponse {
+    string test = 1;
+}
+
+message SlowRPCRequest {
+    string test = 1;
+}
+
+message SlowRPCResponse {
+    string test = 1;
+}

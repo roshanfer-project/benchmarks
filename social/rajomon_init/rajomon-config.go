@@ -24,11 +24,11 @@ var rajomonOptions = map[string]interface{}{
 	//"pinpointLatency":    false,
 	"debug": false,
 	//"lazyResponse":       false,
-	"priceUpdateRate": 5521 * time.Microsecond,
+	"priceUpdateRate": 7592 * time.Microsecond,
 	//"guidePrice":       int64(-1),
 	"priceStrategy":    "expdecay",
-	"latencyThreshold": 1921 * time.Microsecond,
-	"priceStep":        int64(199),
+	"latencyThreshold": 700 * time.Microsecond,
+	"priceStep":        int64(312),
 	"priceAggregation": "maximal",
 	"recordPrice":      false,
 }
@@ -49,8 +49,8 @@ var rajomonOptionsEnd = map[string]interface{}{
 	"priceAggregation": "maximal",
 	"tokensLeft":       int64(0),
 	"initprice":        int64(0),
-	"tokenUpdateStep":  int64(4),
-	"tokenUpdateRate":  29761 * time.Microsecond,
+	"tokenUpdateStep":  int64(1),
+	"tokenUpdateRate":  31649 * time.Microsecond,
 	"tokenRefillDist":  "poisson",
 	"tokenStrategy":    "uniform",
 	//"clientTimeOut":    60 * time.Millisecond,
@@ -144,6 +144,7 @@ func getCallGraph() map[string]map[string][]string {
 
 	return callGraph
 }
+
 func loadEnvFile(accepted map[string]interface{}) map[string]interface{} {
 	file, err := os.Open("../env-setter.env")
 	if err != nil {

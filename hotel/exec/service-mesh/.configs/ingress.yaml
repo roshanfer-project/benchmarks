@@ -3,13 +3,13 @@ routing:
     upstream:
       host: frontend-sidecar
       port: 3007
-    limit: 26
+    limit: 33
     slo: 60
   reservation:
     upstream:
       host: frontend-sidecar
       port: 3007
-    limit: 13
+    limit: 16
     slo: 25
 mapping:
   hotels:

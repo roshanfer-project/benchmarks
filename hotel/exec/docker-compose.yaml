@@ -13,6 +13,53 @@ services:
       - 4317:4317
     networks:
       - monitoring
+#    cpuset: "47"
+  
+#  influxdb3-core:
+#    container_name: influxdb3-core
+#    image: influxdb:3-core
+#    ports:
+#      - 8181:8181
+#    command:
+#      - influxdb3
+#      - serve
+#      - --node-id=node0
+#      - --object-store=memory
+#      - --without-auth
+#      - --data-dir=/var/lib/influxdb3/data
+#      - --plugin-dir=/var/lib/influxdb3/plugins
+#    volumes:
+#      - type: bind
+#        source: ~/.influxdb3/core/data
+#        target: /var/lib/influxdb3/data
+#      - type: bind
+#        source: ~/.influxdb3/core/plugins
+#        target: /var/lib/influxdb3/plugins
+#    cpuset: "46,47"
+  
+  influxdb:
+    image: influxdb:2.0-alpine
+    container_name: influxdb
+    networks:
+      - monitoring
+    ports:
+      - "8086:8086"
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=croco
+      - DOCKER_INFLUXDB_INIT_PASSWORD=password1
+      - DOCKER_INFLUXDB_INIT_ORG=k6io
+      - DOCKER_INFLUXDB_INIT_BUCKET=demo
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=EEKpryGZk8pVDXmIuy484BKUxM5jOEDv7YNoeNZUbsNbpbPbP6kK_qY9Zsyw7zNnlZ7pHG16FYzNaqwLMBUz8g==
+#    cpuset: "46,47"
+
+#  explorer:
+#    image: influxdata/influxdb3-ui:1.2.0
+#    networks:
+#      - monitoring
+#    container_name: influxdb3-explorer
+#    ports:
+#      - "8888:8888"
   
   prometheus:
     container_name: prometheus
@@ -25,6 +72,7 @@ services:
       - otel-collector
     networks:
       - monitoring
+#    cpuset: "46"
   
   jaeger:
     container_name: jaeger
@@ -38,6 +86,7 @@ services:
       - monitoring
     environment:
     - COLLECTOR_ZIPKIN_HOST_PORT=9411       # To collect envoy's traces
+#    cpuset: "45"
 
   memcached-rate:
     image: memcached:latest
@@ -55,6 +104,7 @@ services:
       replicas: 1
       restart_policy:
         condition: any
+    cpuset: "44"
   
   memcached-profile:
     image: memcached:latest
@@ -72,6 +122,7 @@ services:
       replicas: 1
       restart_policy:
         condition: any
+    cpuset: "44"
     
   memcached-reserve:
     image: memcached:latest
@@ -89,6 +140,7 @@ services:
       replicas: 1
       restart_policy:
         condition: any
+    cpuset: "43"
   
   mongodb-geo:
     image: mongo:5.0
@@ -102,6 +154,7 @@ services:
       replicas: 1
       restart_policy:
         condition: any
+    cpuset: "43"
 
   mongodb-profile:
     image: mongo:5.0
@@ -115,6 +168,7 @@ services:
       replicas: 1
       restart_policy:
         condition: any
+    cpuset: "42"
 
   mongodb-rate:
     image: mongo:5.0
@@ -128,6 +182,7 @@ services:
       replicas: 1
       restart_policy:
         condition: any
+    cpuset: "42"
   
   mongodb-reservation:
     image: mongo:5.0
@@ -141,6 +196,7 @@ services:
       replicas: 1
       restart_policy:
         condition: any
+    cpuset: "41"
   
   mongodb-user:
     image: mongo:5.0
@@ -154,6 +210,7 @@ services:
       replicas: 1
       restart_policy:
         condition: any
+    cpuset: "41"
 
 volumes:
   geo:

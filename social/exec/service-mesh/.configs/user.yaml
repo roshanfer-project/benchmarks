@@ -1,23 +1,23 @@
 routing:
-  protobuf.PostStorage/ReadPosts:
+  protobuf.PostStorage/ReadPostsUser:
     upstream:
       host: posts-sidecar
       port: 3003
 mapping:
   protobuf.UserTimeline/ReadUserTimeline:
     downstreams:
-        - protobuf.PostStorage/ReadPosts
-    limit: 8
-  protobuf.UserTimeline/WriteUserTimeline:
+        - protobuf.PostStorage/ReadPostsUser
     limit: 6
-ring_size: 1000
+  protobuf.UserTimeline/WriteUserTimeline:
+    limit: 7
+ring_size: 20000
 buffer_count: 1000
 buffer_size: 50000
-num_threads: 1
+num_threads: 2
 egress_listener_port: 4001
 ingress_listener_port: 3001
 ingress_upstream_host: 172.17.0.1
 ingress_upstream_port: 2001
-ppm_limit: 14
+ppm_limit: 17
 report_latency: True
 name: user

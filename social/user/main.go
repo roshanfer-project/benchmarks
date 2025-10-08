@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"social"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -221,7 +222,8 @@ func (s *UserTimelineServer) Run() error {
 		opts = append(opts, grpc.ChainUnaryInterceptor(
 			CountersInterceptor(),
 			ContextPropagationInterceptor(),
-			dagorNode.UnaryInterceptorServer))
+			dagorNode.UnaryInterceptorServer,
+			AcceptedRPCInterceptor()))
 	}
 
 	var breakwater *bw.Breakwater
@@ -232,6 +234,13 @@ func (s *UserTimelineServer) Run() error {
 			CountersInterceptor(),
 			ContextPropagationInterceptor(),
 			breakwater.UnaryInterceptor))
+	}
+
+	if (utils.GetEnvVar("sidecar", false) == "true") && (utils.GetEnvVar("queuing_export", false) == "true") {
+		opts = append(opts, grpc.ChainUnaryInterceptor(
+			CountersInterceptor(),
+			ContextPropagationInterceptor(),
+		))
 	}
 
 	ctx := context.Background()
@@ -312,8 +321,30 @@ func main() {
 		//mutex: sync.Mutex{},
 	}
 
+	populate(srv, utils.StrToInt(utils.GetEnvVar("num_of_users", true)), utils.StrToInt(utils.GetEnvVar("num_of_posts", true)))
+
 	log.Info("Starting server...")
 	log.Error(srv.Run().Error())
+}
+
+func populate(s *UserTimelineServer, numberOfUsers, numberOfposts int) {
+	var postsId = make([]string, numberOfposts)
+	for i := 0; i < numberOfposts; i++ {
+		postsId[i] = strconv.Itoa(i)
+	}
+	for u := 0; u < numberOfUsers; u++ {
+		userId := "user" + strconv.Itoa(u)
+		req := &pb.WriteUserTimelineRequest{
+			UserId:  userId,
+			PostIds: postsId,
+		}
+		_, err := s.WriteUserTimeline(context.Background(), req)
+		if err != nil {
+			log.Error("[populate] Error writing user timeline", "userId", userId, "error", err)
+			panic(err)
+		}
+
+	}
 }
 
 func (s *UserTimelineServer) ReadUserTimeline(ctx context.Context, req *pb.ReadUserTimelineRequest) (*pb.ReadUserTimelineResponse, error) {
@@ -326,7 +357,7 @@ func (s *UserTimelineServer) ReadUserTimeline(ctx context.Context, req *pb.ReadU
 
 	postsReq := &pb.ReadPostsRequest{PostIds: postIds}
 	//postsResp, err := invoke.Invoke[*pb.ReadPostsResponse](ctx, "poststorage", "readposts", postsReq)
-	postsResp, err := s.postClient.ReadPosts(ctx, postsReq)
+	postsResp, err := s.postClient.ReadPostsUser(ctx, postsReq)
 	if err != nil {
 		log.Error("[ReadUserTimeline] Error reading posts", "userId", req.UserId, "error", err)
 		return nil, err

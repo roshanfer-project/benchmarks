@@ -18,8 +18,8 @@ mapping:
       - protobuf.UserTimeline/WriteUserTimeline
       - protobuf.HomeTimeline/WriteHomeTimeline
     min_max_concurrency: 10
-    limit: 23
-ring_size: 6000
+    limit: 28
+ring_size: 20000
 buffer_count: 1000
 buffer_size: 200000
 num_threads: 2
@@ -27,6 +27,6 @@ egress_listener_port: 4005
 ingress_listener_port: 3005
 ingress_upstream_host: 172.17.0.1
 ingress_upstream_port: 2005
-ppm_limit: 23
+ppm_limit: 40
 report_latency: True
 name: compose

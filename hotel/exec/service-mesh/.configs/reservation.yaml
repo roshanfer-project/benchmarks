@@ -1,8 +1,8 @@
 mapping:
   reservation.Reservation/MakeReservation:
-    limit: 6
+    limit: 9
   reservation.Reservation/CheckAvailability:
-    limit: 6
+    limit: 9
 ring_size: 1000
 buffer_count: 1000
 buffer_size: 50000
@@ -11,6 +11,6 @@ egress_listener_port: 4002
 ingress_listener_port: 3002
 ingress_upstream_host: 172.17.0.1
 ingress_upstream_port: 2002
-ppm_limit: 7
+ppm_limit: 16
 report_latency: True
 name: reservation

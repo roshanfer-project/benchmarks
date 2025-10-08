@@ -22,18 +22,29 @@ func main() {
 	var args struct {
 		//Duration string `arg:"required"`
 		//Rate     string `arg:"required"`
-		Sidecar bool `arg:"--sidecar,-s" help:"Run sidecar"`
-		//Ppm     bool `arg:"--ppm,-p" help:"Run sidecar with PPM"`
-		Envoy   bool `arg:"--envoy,-e" help:"Run with Envoy"`
-		Profile bool `arg:"--profile" help:"Profile sidecars"`
-		Rajomon bool `arg:"--rajomon" help:"Run with Rajomon"`
-		Dagor   bool `arg:"--dagor" help:"Run with Dagor"`
-		Seconds int  `arg:"-t,--seconds" default:"0" help:"Duration in seconds to run the benchmark"`
+		Sidecar      bool `arg:"--sidecar,-s" help:"Run sidecar"`
+		SidecarQueue bool `arg:"--sidecar-queue" help:"Run sidecar with queue"`
+		Plain        bool `arg:"--plain" help:"Run with Plain"`
+		Envoy        bool `arg:"--envoy,-e" help:"Run with Envoy"`
+		Profile      bool `arg:"--profile" help:"Profile sidecars"`
+		Rajomon      bool `arg:"--rajomon" help:"Run with Rajomon"`
+		Dagor        bool `arg:"--dagor" help:"Run with Dagor"`
+		Breakwater   bool `arg:"--breakwater" help:"Run with Breakwater"`
+		BreakwaterD  bool `arg:"--breakwaterd" help:"Run with BreakwaterD"`
+		Seconds      int  `arg:"-t,--seconds" default:"0" help:"Duration in seconds to run the benchmark"`
 	}
 
 	arg.MustParse(&args)
+	if args.SidecarQueue {
+		args.Sidecar = true
+	}
 	wg = &sync.WaitGroup{}
 	fmt.Printf("args: %+v\n", args)
+
+	// remove /tmp/HOTEL.ready if it exists
+	if _, err := os.Stat("/tmp/HOTEL.ready"); err == nil {
+		os.Remove("/tmp/HOTEL.ready")
+	}
 
 	/* serviceList := [][]string{
 		{"geo", "7", ""},
@@ -44,22 +55,32 @@ func main() {
 		{"frontend", "43-48", ""},
 	} */
 
+	/* serviceList := [][]string{
+		{"user", "9,10", "0"},                        //2
+		{"geo", "11,12", "1"},                        //1
+		{"rate", "13,14,40", "2"},                    //4
+		{"search", "15,16,42", "3"},                  //3
+		{"profile", "17,18", "4"},                    //2
+		{"reservation", "19,20,43,44,45,46,47", "5"}, //5
+	} */
+
 	serviceList := [][]string{
-		{"user", "9,10", "0"},
-		{"geo", "11", "1"},
-		{"rate", "13", "2"},
-		{"search", "15,16", "3"},
-		{"profile", "17,18", "4"},
-		{"reservation", "19,20", "5"},
+		{"user", "9", "0"},                 //2
+		{"geo", "11", "1"},                 //1
+		{"rate", "13,14,12", "2"},          //4
+		{"search", "15,16", "3"},           //3
+		{"profile", "17", "4"},             //2
+		{"reservation", "19,20,18,6", "5"}, //5
 	}
 
-	if args.Rajomon || args.Dagor {
+	if args.Rajomon || args.Dagor || args.Breakwater || args.BreakwaterD {
 		serviceList = append(serviceList, []string{"frontend-grpc", "21,22", "6"})
-		serviceList = append(serviceList, []string{"rajomon-client", "23-25", "7"})
+		serviceList = append(serviceList, []string{"rajomon-client", "23-27", "7"})
 	} else {
-		serviceList = append(serviceList, []string{"frontend", "21,22,40", "6"})
+		//serviceList = append(serviceList, []string{"frontend", "21,22,40", "6"})
+		serviceList = append(serviceList, []string{"frontend", "21,7", "6"})
 		if args.Sidecar {
-			serviceList = append(serviceList, []string{"frontend-2", "41,42,43", "6"})
+			//serviceList = append(serviceList, []string{"frontend-2", "41,42,43", "6"})
 		}
 	}
 
@@ -93,17 +114,35 @@ func main() {
 	// run the services
 	var env string
 	if args.Sidecar {
-		env = "./.env.sidecar"
+		if args.SidecarQueue {
+			env = "./.env.sidecar.queue"
+		} else {
+			env = "./.env.sidecar"
+		}
 	} else if args.Rajomon {
 		env = "./.env.rajomon"
 	} else if args.Dagor {
 		env = "./.env.dagor"
 	} else if args.Envoy {
 		env = "./.env.envoy"
-	} else {
+	} else if args.Breakwater {
+		env = "./.env.breakwater"
+	} else if args.BreakwaterD {
+		env = "./.env.breakwaterd"
+	} else if args.Plain {
 		env = "./.env"
+	} else {
+		panic("No mode selected. Use --sidecar, --rajomon, --dagor, --envoy, --breakwater, --breakwaterd, or --plain")
 	}
 	run_servicees(env, serviceList, args.Sidecar, args.Envoy, args.Profile)
+
+	// create /tmp/HOTEL.ready
+	_, err := os.Create("/tmp/HOTEL.ready")
+	if err != nil {
+		fmt.Println("Error creating /tmp/HOTEL.ready:", err)
+		cancel()
+		panic(err)
+	}
 
 	if args.Seconds > 0 {
 		time.Sleep(time.Second * time.Duration(args.Seconds))

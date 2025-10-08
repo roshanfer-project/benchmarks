@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"hotel"
+	breakwaterinit "hotel/breakwater-init"
 	dagorinit "hotel/dagor_init"
 	rajomoninit "hotel/rajomon_init"
 	"hotel/utils"
@@ -109,8 +110,16 @@ func (s *Server) Run() error {
 		log.Info("Dagor is enabled, initializing Dagor client...")
 		dagorNode := dagorinit.GetDagorNode(serviceName, false, true)
 		conn = hotel.GetConn(frontendEnv, grpc.WithUnaryInterceptor(dagorNode.UnaryInterceptorClient))
+	} else if utils.GetEnvVar("breakwater", false) == "true" {
+		log.Info("Breakwater is enabled, initializing Breakwater client...")
+		breakwater := breakwaterinit.GetBreakwater(serviceName, true)
+		conn = hotel.GetConn(frontendEnv, grpc.WithUnaryInterceptor(breakwater.UnaryInterceptorClient))
+	} else if utils.GetEnvVar("breakwaterd", false) == "true" {
+		log.Info("BreakwaterD is enabled, initializing BreakwaterD client...")
+		breakwaterd := breakwaterinit.GetBreakwater(serviceName, true)
+		conn = hotel.GetConn(frontendEnv, grpc.WithUnaryInterceptor(breakwaterd.UnaryInterceptorClient))
 	} else {
-		panic("Either Rajomon or Dagor must be enabled")
+		panic("Either Rajomon or Dagor or Breakwater must be enabled")
 	}
 	s.frontendClient = pb.NewFrontendServiceClient(conn)
 

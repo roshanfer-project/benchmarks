@@ -1,8 +1,10 @@
 package rajomoninit
 
 import (
+	"bufio"
 	"hotel/utils"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -22,11 +24,11 @@ var rajomonOptions = map[string]interface{}{
 	//"pinpointLatency":    false,
 	"debug": false,
 	//"lazyResponse":       false,
-	"priceUpdateRate": 3 * time.Millisecond,
+	"priceUpdateRate": 54671 * time.Microsecond,
 	//"guidePrice":       int64(-1),
-	"priceStrategy":    "linear",
-	"latencyThreshold": 1000 * time.Microsecond,
-	"priceStep":        int64(15),
+	"priceStrategy":    "expdecay",
+	"latencyThreshold": 1891 * time.Microsecond,
+	"priceStep":        int64(199),
 	"priceAggregation": "maximal",
 	"recordPrice":      false,
 }
@@ -47,8 +49,8 @@ var rajomonOptionsEnd = map[string]interface{}{
 	"priceAggregation": "maximal",
 	"tokensLeft":       int64(0),
 	"initprice":        int64(0),
-	"tokenUpdateStep":  int64(1),
-	"tokenUpdateRate":  30 * time.Millisecond,
+	"tokenUpdateStep":  int64(4),
+	"tokenUpdateRate":  29761 * time.Microsecond,
 	"tokenRefillDist":  "poisson",
 	"tokenStrategy":    "uniform",
 	//"clientTimeOut":    60 * time.Millisecond,
@@ -142,6 +144,67 @@ func getCallGraph() map[string]map[string][]string {
 
 	return callGraph
 }
+func loadEnvFile(accepted map[string]interface{}) map[string]interface{} {
+	file, err := os.Open("../env-setter.env")
+	if err != nil {
+		log.Info("env-setter file not found")
+		return accepted
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := scanner.Text()
+		parts := strings.SplitN(line, "=", 2)
+		if len(parts) == 2 {
+			key := strings.TrimSpace(parts[0])
+			value := strings.TrimSpace(parts[1])
+			if _, ok := accepted[key]; ok {
+				if key == "priceUpdateRate" {
+					if floatValue, err := strconv.ParseFloat(value, 64); err == nil {
+						intValue := int64(floatValue)
+						accepted[key] = time.Duration(intValue) * time.Microsecond
+					} else {
+						panic(err)
+					}
+				} else if key == "latencyThreshold" {
+					if floatValue, err := strconv.ParseFloat(value, 64); err == nil {
+						intValue := int64(floatValue)
+						accepted[key] = time.Duration(intValue) * time.Microsecond
+					} else {
+						panic(err)
+					}
+				} else if key == "tokenUpdateRate" {
+					if floatValue, err := strconv.ParseFloat(value, 64); err == nil {
+						intValue := int64(floatValue)
+						accepted[key] = time.Duration(intValue) * time.Microsecond
+					} else {
+						panic(err)
+					}
+				} else if key == "priceStep" {
+					if floatValue, err := strconv.ParseFloat(value, 64); err == nil {
+						intValue := int64(floatValue)
+						accepted[key] = intValue
+					} else {
+						panic(err)
+					}
+				} else if key == "tokenUpdateStep" {
+					if floatValue, err := strconv.ParseFloat(value, 64); err == nil {
+						intValue := int64(floatValue)
+						accepted[key] = intValue
+					} else {
+						panic(err)
+					}
+				} else {
+					panic("Unsupported environment variable type")
+				}
+				log.Info("[loadEnvFile]", "key", key, "value", accepted[key])
+			}
+		}
+	}
+
+	return accepted
+}
 
 func GetPriceTable(name string, enduser bool) *rajomon.PriceTable {
 
@@ -166,6 +229,9 @@ func GetPriceTable(name string, enduser bool) *rajomon.PriceTable {
 	if utils.GetEnvVar("RAJOMON_DEBUG", false) == "true" {
 		options["debug"] = true
 	}
+
+	options = loadEnvFile(options)
+	log.Info("[GetPriceTable]", "options:", options)
 
 	priceTable := rajomon.NewRajomon(
 		name,
