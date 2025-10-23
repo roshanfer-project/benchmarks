@@ -27,6 +27,7 @@ mapping:
 ring_size: 20000
 buffer_count: 8000
 buffer_size: 80000
+ingress_pool_connections: 100
 num_threads: 2
 egress_listener_port: 3000
 ingress_listener_port: 4000
