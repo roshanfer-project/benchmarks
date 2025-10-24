@@ -19,9 +19,9 @@ mapping:
       - protobuf.HomeTimeline/WriteHomeTimeline
     min_max_concurrency: 10
     limit: 28
-ring_size: 20000
+ring_size: 1000
 buffer_count: 1000
-buffer_size: 200000
+buffer_size: 80000
 num_threads: 2
 egress_listener_port: 4005
 ingress_listener_port: 3005

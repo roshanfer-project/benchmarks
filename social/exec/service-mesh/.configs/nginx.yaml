@@ -27,8 +27,8 @@ mapping:
       - protobuf.UserTimeline/ReadUserTimeline
     min_max_concurrency: 3
     limit: 9
-ring_size: 10000
-buffer_count: 10000
+ring_size: 1000
+buffer_count: 1000
 buffer_size: 80000
 frontend_pool_connections: 100
 num_threads: 2

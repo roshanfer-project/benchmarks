@@ -5,9 +5,9 @@ mapping:
     limit: 3
   protobuf.PostStorage/ReadPostsUser:
     limit: 3
-ring_size: 2000
-buffer_count: 2000
-buffer_size: 60000
+ring_size: 1000
+buffer_count: 1000
+buffer_size: 80000
 num_threads: 2
 egress_listener_port: 4003
 ingress_listener_port: 3003

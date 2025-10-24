@@ -16,9 +16,9 @@ mapping:
     downstreams:
       - protobuf.SocialGraph/GetFollowers
     limit: 13
-ring_size: 20000
+ring_size: 1000
 buffer_count: 1000
-buffer_size: 50000
+buffer_size: 80000
 num_threads: 2
 egress_listener_port: 4002
 ingress_listener_port: 3002
