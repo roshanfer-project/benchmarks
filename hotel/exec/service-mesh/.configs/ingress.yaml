@@ -24,10 +24,10 @@ mapping:
     min_max_concurrency: 4
     listen_port: 3009
     limit: -1
-ring_size: 20000
-buffer_count: 8000
-buffer_size: 80000
-ingress_pool_connections: 100
+ring_size: 4000
+buffer_count: 2000
+buffer_size: 10000
+ingress_pool_connections: 300
 num_threads: 2
 egress_listener_port: 3000
 ingress_listener_port: 4000
