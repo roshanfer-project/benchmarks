@@ -37,20 +37,20 @@ services:
 #        target: /var/lib/influxdb3/plugins
 #    cpuset: "46,47"
   
-  influxdb:
-    image: influxdb:2.0-alpine
-    container_name: influxdb
-    networks:
-      - monitoring
-    ports:
-      - "8086:8086"
-    environment:
-      - DOCKER_INFLUXDB_INIT_MODE=setup
-      - DOCKER_INFLUXDB_INIT_USERNAME=croco
-      - DOCKER_INFLUXDB_INIT_PASSWORD=password1
-      - DOCKER_INFLUXDB_INIT_ORG=k6io
-      - DOCKER_INFLUXDB_INIT_BUCKET=demo
-      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=EEKpryGZk8pVDXmIuy484BKUxM5jOEDv7YNoeNZUbsNbpbPbP6kK_qY9Zsyw7zNnlZ7pHG16FYzNaqwLMBUz8g==
+#  influxdb:
+#    image: influxdb:2.0-alpine
+#    container_name: influxdb
+#    networks:
+#      - monitoring
+#    ports:
+#      - "8086:8086"
+#    environment:
+#      - DOCKER_INFLUXDB_INIT_MODE=setup
+#      - DOCKER_INFLUXDB_INIT_USERNAME=croco
+#      - DOCKER_INFLUXDB_INIT_PASSWORD=password1
+#      - DOCKER_INFLUXDB_INIT_ORG=k6io
+#      - DOCKER_INFLUXDB_INIT_BUCKET=demo
+#      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=EEKpryGZk8pVDXmIuy484BKUxM5jOEDv7YNoeNZUbsNbpbPbP6kK_qY9Zsyw7zNnlZ7pHG16FYzNaqwLMBUz8g==
 #    cpuset: "46,47"
 
 #  explorer:
