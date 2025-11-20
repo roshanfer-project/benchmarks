@@ -1,0 +1,4 @@
+namespace: app
+kubeconfig: /home/farzad/.kube/config
+build_images: true
+
