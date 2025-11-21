@@ -91,6 +91,21 @@ func generate(inputFile, outputDir string) error {
 		return fmt.Errorf("failed to generate go.mod: %w", err)
 	}
 
+	// Copy input YAML to output directory for self-sufficiency
+	if err := copyInputYAML(inputFile, outputDir); err != nil {
+		return fmt.Errorf("failed to copy input YAML: %w", err)
+	}
+
+	// Generate default deploy.yaml
+	if err := generateDeployConfig(genConfig, outputDir); err != nil {
+		return fmt.Errorf("failed to generate deploy config: %w", err)
+	}
+
+	// Generate run.sh and clean.sh scripts
+	if err := generateScripts(outputDir); err != nil {
+		return fmt.Errorf("failed to generate scripts: %w", err)
+	}
+
 	fmt.Printf("Successfully generated benchmark artifacts in %s\n", outputDir)
 	return nil
 }
@@ -247,4 +262,180 @@ func generateProtobuf(genConfig *GeneratedConfig, outputDir string) error {
 
 	protoFile := filepath.Join(protoDir, "services.proto")
 	return os.WriteFile(protoFile, []byte(sb.String()), 0644)
+}
+
+func copyInputYAML(inputFile, outputDir string) error {
+	data, err := os.ReadFile(inputFile)
+	if err != nil {
+		return fmt.Errorf("failed to read input file: %w", err)
+	}
+
+	outputYAML := filepath.Join(outputDir, "input.yaml")
+	return os.WriteFile(outputYAML, data, 0644)
+}
+
+func generateDeployConfig(genConfig *GeneratedConfig, outputDir string) error {
+	deployConfig := fmt.Sprintf(`namespace: %s
+build_images: true
+`, genConfig.Namespace)
+
+	deployConfigPath := filepath.Join(outputDir, "deploy.yaml")
+	return os.WriteFile(deployConfigPath, []byte(deployConfig), 0644)
+}
+
+func generateScripts(outputDir string) error {
+
+	// Generate run.sh
+	runScript := `#!/bin/bash
+set -e
+
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+OUTPUT_DIR="$SCRIPT_DIR"
+INPUT_YAML="$OUTPUT_DIR/input.yaml"
+DEPLOY_CONFIG="$OUTPUT_DIR/deploy.yaml"
+MODE="${1:-plain}"
+USE_GO_RUN=false
+
+# Validate mode
+if [ "$MODE" != "plain" ] && [ "$MODE" != "roshanfer" ]; then
+    echo "Error: Mode must be 'plain' or 'roshanfer'"
+    echo "Usage: $0 [plain|roshanfer]"
+    exit 1
+fi
+
+# Find benchmark-gen binary
+BENCHMARK_GEN=""
+if command -v benchmark-gen &> /dev/null; then
+    BENCHMARK_GEN="benchmark-gen"
+elif [ -f "$SCRIPT_DIR/../benchmark-gen/benchmark-gen" ]; then
+    BENCHMARK_GEN="$SCRIPT_DIR/../benchmark-gen/benchmark-gen"
+elif [ -f "$SCRIPT_DIR/../../benchmark-gen/benchmark-gen" ]; then
+    BENCHMARK_GEN="$SCRIPT_DIR/../../benchmark-gen/benchmark-gen"
+else
+    # Try to use go run from benchmark-gen source directory
+    BENCHMARK_GEN_DIR=""
+    if [ -d "$SCRIPT_DIR/../benchmark-gen" ]; then
+        BENCHMARK_GEN_DIR="$SCRIPT_DIR/../benchmark-gen"
+    elif [ -d "$SCRIPT_DIR/../../benchmark-gen" ]; then
+        BENCHMARK_GEN_DIR="$SCRIPT_DIR/../../benchmark-gen"
+    fi
+    
+    if [ -n "$BENCHMARK_GEN_DIR" ] && [ -f "$BENCHMARK_GEN_DIR/main.go" ]; then
+        BENCHMARK_GEN="cd \"$BENCHMARK_GEN_DIR\" && go run *.go"
+        USE_GO_RUN=true
+    else
+        echo "Error: Could not find benchmark-gen binary or source directory"
+        echo "Please ensure benchmark-gen is in PATH or in a parent directory"
+        exit 1
+    fi
+fi
+
+# Check if input files exist
+if [ ! -f "$INPUT_YAML" ]; then
+    echo "Error: Input YAML not found: $INPUT_YAML"
+    exit 1
+fi
+
+if [ ! -f "$DEPLOY_CONFIG" ]; then
+    echo "Error: Deploy config not found: $DEPLOY_CONFIG"
+    exit 1
+fi
+
+echo "Deploying benchmark in $MODE mode..."
+echo "Using benchmark-gen: $BENCHMARK_GEN"
+echo "Input YAML: $INPUT_YAML"
+echo "Deploy config: $DEPLOY_CONFIG"
+echo "Output directory: $OUTPUT_DIR"
+
+# Execute deploy command
+if [ "$USE_GO_RUN" = true ]; then
+    eval "$BENCHMARK_GEN deploy -i \"$INPUT_YAML\" -o \"$OUTPUT_DIR\" -c \"$DEPLOY_CONFIG\" -m \"$MODE\""
+else
+    "$BENCHMARK_GEN" deploy -i "$INPUT_YAML" -o "$OUTPUT_DIR" -c "$DEPLOY_CONFIG" -m "$MODE"
+fi
+`
+
+	runScriptPath := filepath.Join(outputDir, "run.sh")
+	if err := os.WriteFile(runScriptPath, []byte(runScript), 0755); err != nil {
+		return fmt.Errorf("failed to write run.sh: %w", err)
+	}
+
+	// Generate clean.sh
+	cleanScript := `#!/bin/bash
+set -e
+
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+OUTPUT_DIR="$SCRIPT_DIR"
+INPUT_YAML="$OUTPUT_DIR/input.yaml"
+DEPLOY_CONFIG="$OUTPUT_DIR/deploy.yaml"
+MODE="${1:-plain}"
+USE_GO_RUN=false
+
+# Validate mode
+if [ "$MODE" != "plain" ] && [ "$MODE" != "roshanfer" ]; then
+    echo "Error: Mode must be 'plain' or 'roshanfer'"
+    echo "Usage: $0 [plain|roshanfer]"
+    exit 1
+fi
+
+# Find benchmark-gen binary
+BENCHMARK_GEN=""
+if command -v benchmark-gen &> /dev/null; then
+    BENCHMARK_GEN="benchmark-gen"
+elif [ -f "$SCRIPT_DIR/../benchmark-gen/benchmark-gen" ]; then
+    BENCHMARK_GEN="$SCRIPT_DIR/../benchmark-gen/benchmark-gen"
+elif [ -f "$SCRIPT_DIR/../../benchmark-gen/benchmark-gen" ]; then
+    BENCHMARK_GEN="$SCRIPT_DIR/../../benchmark-gen/benchmark-gen"
+else
+    # Try to use go run from benchmark-gen source directory
+    BENCHMARK_GEN_DIR=""
+    if [ -d "$SCRIPT_DIR/../benchmark-gen" ]; then
+        BENCHMARK_GEN_DIR="$SCRIPT_DIR/../benchmark-gen"
+    elif [ -d "$SCRIPT_DIR/../../benchmark-gen" ]; then
+        BENCHMARK_GEN_DIR="$SCRIPT_DIR/../../benchmark-gen"
+    fi
+    
+    if [ -n "$BENCHMARK_GEN_DIR" ] && [ -f "$BENCHMARK_GEN_DIR/main.go" ]; then
+        BENCHMARK_GEN="cd \"$BENCHMARK_GEN_DIR\" && go run *.go"
+        USE_GO_RUN=true
+    else
+        echo "Error: Could not find benchmark-gen binary or source directory"
+        echo "Please ensure benchmark-gen is in PATH or in a parent directory"
+        exit 1
+    fi
+fi
+
+# Check if input files exist
+if [ ! -f "$INPUT_YAML" ]; then
+    echo "Error: Input YAML not found: $INPUT_YAML"
+    exit 1
+fi
+
+if [ ! -f "$DEPLOY_CONFIG" ]; then
+    echo "Error: Deploy config not found: $DEPLOY_CONFIG"
+    exit 1
+fi
+
+echo "Destroying benchmark deployment in $MODE mode..."
+echo "Using benchmark-gen: $BENCHMARK_GEN"
+echo "Input YAML: $INPUT_YAML"
+echo "Deploy config: $DEPLOY_CONFIG"
+echo "Output directory: $OUTPUT_DIR"
+
+# Execute destroy command
+if [ "$USE_GO_RUN" = true ]; then
+    eval "$BENCHMARK_GEN destroy -i \"$INPUT_YAML\" -o \"$OUTPUT_DIR\" -c \"$DEPLOY_CONFIG\" -m \"$MODE\""
+else
+    "$BENCHMARK_GEN" destroy -i "$INPUT_YAML" -o "$OUTPUT_DIR" -c "$DEPLOY_CONFIG" -m "$MODE"
+fi
+`
+
+	cleanScriptPath := filepath.Join(outputDir, "clean.sh")
+	if err := os.WriteFile(cleanScriptPath, []byte(cleanScript), 0755); err != nil {
+		return fmt.Errorf("failed to write clean.sh: %w", err)
+	}
+
+	return nil
 }

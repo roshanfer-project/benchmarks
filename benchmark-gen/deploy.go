@@ -20,6 +20,53 @@ type DeployConfig struct {
 	BuildImages bool   `yaml:"build_images,omitempty"`
 }
 
+// needsSudoForKubectl checks if kubectl is configured to use k3s config file which requires sudo
+func needsSudoForKubectl(kubeconfig string) bool {
+	configPath := kubeconfig
+	if configPath == "" {
+		// Check KUBECONFIG env var first
+		if envKubeconfig := os.Getenv("KUBECONFIG"); envKubeconfig != "" {
+			configPath = envKubeconfig
+		} else {
+			// Check default location
+			homeDir, err := os.UserHomeDir()
+			if err == nil {
+				configPath = filepath.Join(homeDir, ".kube", "config")
+			} else {
+				configPath = "/etc/rancher/k3s/k3s.yaml"
+			}
+		}
+	}
+	// Check if config path is k3s default location
+	if configPath == "/etc/rancher/k3s/k3s.yaml" || strings.Contains(configPath, "/etc/rancher/k3s/") {
+		return true
+	}
+	return false
+}
+
+// buildKubectlCommand builds a kubectl command with appropriate sudo prefix
+func buildKubectlCommand(kubectlCmd string, useSudo bool, kubeconfig string, args ...string) *exec.Cmd {
+	var cmd *exec.Cmd
+	if kubectlCmd == "microk8s" {
+		cmdArgs := append([]string{"microk8s", "kubectl"}, args...)
+		cmd = exec.Command("sudo", cmdArgs...)
+	} else if kubectlCmd == "k3s" {
+		cmdArgs := append([]string{"k3s", "kubectl"}, args...)
+		cmd = exec.Command("sudo", cmdArgs...)
+	} else {
+		// kubectl
+		if useSudo {
+			cmd = exec.Command("sudo", append([]string{"kubectl"}, args...)...)
+		} else {
+			cmd = exec.Command("kubectl", args...)
+		}
+		if kubeconfig != "" {
+			cmd.Env = append(os.Environ(), fmt.Sprintf("KUBECONFIG=%s", kubeconfig))
+		}
+	}
+	return cmd
+}
+
 func deploy(inputFile, outputDir, configFile, mode string) error {
 	// Validate mode
 	if mode != "plain" && mode != "roshanfer" {
@@ -41,31 +88,29 @@ func deploy(inputFile, outputDir, configFile, mode string) error {
 		deployConfig.Namespace = "app"
 	}
 
-	// Determine kubectl command (check if kubectl exists, otherwise use k3s or microk8s)
+	// Determine kubectl command (prefer k3s/microk8s if available, as they need sudo)
 	kubectlCmd := "kubectl"
-	if _, err := exec.LookPath("kubectl"); err != nil {
-		// kubectl not in PATH, try k3s first
-		if _, err := exec.LookPath("k3s"); err == nil {
-			kubectlCmd = "k3s"
-		} else if _, err := exec.LookPath("microk8s"); err == nil {
-			kubectlCmd = "microk8s"
-		} else {
-			return fmt.Errorf("none of kubectl, k3s, or microk8s found in PATH")
+	useSudo := false
+	if _, err := exec.LookPath("k3s"); err == nil {
+		// k3s is available, use it (requires sudo)
+		kubectlCmd = "k3s"
+		useSudo = true
+	} else if _, err := exec.LookPath("microk8s"); err == nil {
+		// microk8s is available, use it (requires sudo)
+		kubectlCmd = "microk8s"
+		useSudo = true
+	} else if _, err := exec.LookPath("kubectl"); err != nil {
+		// None found
+		return fmt.Errorf("none of kubectl, k3s, or microk8s found in PATH")
+	} else {
+		// Check if kubectl is configured for k3s (needs sudo)
+		if needsSudoForKubectl(deployConfig.Kubeconfig) {
+			useSudo = true
 		}
 	}
 
 	// Check if namespace exists and is terminating, wait for it to be deleted
-	var checkNsCmd *exec.Cmd
-	if kubectlCmd == "microk8s" {
-		checkNsCmd = exec.Command("sudo", "microk8s", "kubectl", "get", "namespace", deployConfig.Namespace, "--ignore-not-found=true", "-o", "jsonpath={.status.phase}")
-	} else if kubectlCmd == "k3s" {
-		checkNsCmd = exec.Command("sudo", "k3s", "kubectl", "get", "namespace", deployConfig.Namespace, "--ignore-not-found=true", "-o", "jsonpath={.status.phase}")
-	} else {
-		checkNsCmd = exec.Command("kubectl", "get", "namespace", deployConfig.Namespace, "--ignore-not-found=true", "-o", "jsonpath={.status.phase}")
-		if deployConfig.Kubeconfig != "" {
-			checkNsCmd.Env = append(os.Environ(), fmt.Sprintf("KUBECONFIG=%s", deployConfig.Kubeconfig))
-		}
-	}
+	checkNsCmd := buildKubectlCommand(kubectlCmd, useSudo, deployConfig.Kubeconfig, "get", "namespace", deployConfig.Namespace, "--ignore-not-found=true", "-o", "jsonpath={.status.phase}")
 
 	nsPhase, err := checkNsCmd.Output()
 	nsPhaseStr := strings.TrimSpace(string(nsPhase))
@@ -75,17 +120,7 @@ func deploy(inputFile, outputDir, configFile, mode string) error {
 		deleted := false
 		for i := 0; i < 30; i++ {
 			time.Sleep(1 * time.Second)
-			var waitCmd *exec.Cmd
-			if kubectlCmd == "microk8s" {
-				waitCmd = exec.Command("sudo", "microk8s", "kubectl", "get", "namespace", deployConfig.Namespace, "--ignore-not-found=true", "-o", "jsonpath={.status.phase}")
-			} else if kubectlCmd == "k3s" {
-				waitCmd = exec.Command("sudo", "k3s", "kubectl", "get", "namespace", deployConfig.Namespace, "--ignore-not-found=true", "-o", "jsonpath={.status.phase}")
-			} else {
-				waitCmd = exec.Command("kubectl", "get", "namespace", deployConfig.Namespace, "--ignore-not-found=true", "-o", "jsonpath={.status.phase}")
-				if deployConfig.Kubeconfig != "" {
-					waitCmd.Env = append(os.Environ(), fmt.Sprintf("KUBECONFIG=%s", deployConfig.Kubeconfig))
-				}
-			}
+			waitCmd := buildKubectlCommand(kubectlCmd, useSudo, deployConfig.Kubeconfig, "get", "namespace", deployConfig.Namespace, "--ignore-not-found=true", "-o", "jsonpath={.status.phase}")
 			waitPhase, waitErr := waitCmd.Output()
 			waitPhaseStr := strings.TrimSpace(string(waitPhase))
 			// Check if namespace still exists - if command fails or returns empty, namespace is gone
@@ -102,42 +137,15 @@ func deploy(inputFile, outputDir, configFile, mode string) error {
 		}
 		// If namespace is still terminating after 30 seconds, try to force delete it
 		if !deleted {
-			fmt.Printf("Namespace %s is stuck in Terminating state, attempting to force delete...\n", deployConfig.Namespace)
-			var forceDeleteCmd *exec.Cmd
-			if kubectlCmd == "microk8s" {
-				// First try to remove finalizers
-				patchCmd := exec.Command("sudo", "microk8s", "kubectl", "patch", "namespace", deployConfig.Namespace, "-p", `{"metadata":{"finalizers":[]}}`, "--type=merge")
-				patchCmd.Run() // Ignore errors
-				forceDeleteCmd = exec.Command("sudo", "microk8s", "kubectl", "delete", "namespace", deployConfig.Namespace, "--force", "--grace-period=0", "--ignore-not-found=true")
-			} else if kubectlCmd == "k3s" {
-				patchCmd := exec.Command("sudo", "k3s", "kubectl", "patch", "namespace", deployConfig.Namespace, "-p", `{"metadata":{"finalizers":[]}}`, "--type=merge")
-				patchCmd.Run() // Ignore errors
-				forceDeleteCmd = exec.Command("sudo", "k3s", "kubectl", "delete", "namespace", deployConfig.Namespace, "--force", "--grace-period=0", "--ignore-not-found=true")
-			} else {
-				patchCmd := exec.Command("kubectl", "patch", "namespace", deployConfig.Namespace, "-p", `{"metadata":{"finalizers":[]}}`, "--type=merge")
-				if deployConfig.Kubeconfig != "" {
-					patchCmd.Env = append(os.Environ(), fmt.Sprintf("KUBECONFIG=%s", deployConfig.Kubeconfig))
-				}
-				patchCmd.Run() // Ignore errors
-				forceDeleteCmd = exec.Command("kubectl", "delete", "namespace", deployConfig.Namespace, "--force", "--grace-period=0", "--ignore-not-found=true")
-				if deployConfig.Kubeconfig != "" {
-					forceDeleteCmd.Env = append(os.Environ(), fmt.Sprintf("KUBECONFIG=%s", deployConfig.Kubeconfig))
-				}
-			}
+		fmt.Printf("Namespace %s is stuck in Terminating state, attempting to force delete...\n", deployConfig.Namespace)
+		// First try to remove finalizers
+		patchCmd := buildKubectlCommand(kubectlCmd, useSudo, deployConfig.Kubeconfig, "patch", "namespace", deployConfig.Namespace, "-p", `{"metadata":{"finalizers":[]}}`, "--type=merge")
+		patchCmd.Run() // Ignore errors
+		forceDeleteCmd := buildKubectlCommand(kubectlCmd, useSudo, deployConfig.Kubeconfig, "delete", "namespace", deployConfig.Namespace, "--force", "--grace-period=0", "--ignore-not-found=true")
 			forceDeleteCmd.Run() // Ignore errors, just try
-			// Wait a bit more and verify deletion
-			time.Sleep(3 * time.Second)
-			var verifyCmd *exec.Cmd
-			if kubectlCmd == "microk8s" {
-				verifyCmd = exec.Command("sudo", "microk8s", "kubectl", "get", "namespace", deployConfig.Namespace, "--ignore-not-found=true", "-o", "jsonpath={.status.phase}")
-			} else if kubectlCmd == "k3s" {
-				verifyCmd = exec.Command("sudo", "k3s", "kubectl", "get", "namespace", deployConfig.Namespace, "--ignore-not-found=true", "-o", "jsonpath={.status.phase}")
-			} else {
-				verifyCmd = exec.Command("kubectl", "get", "namespace", deployConfig.Namespace, "--ignore-not-found=true", "-o", "jsonpath={.status.phase}")
-				if deployConfig.Kubeconfig != "" {
-					verifyCmd.Env = append(os.Environ(), fmt.Sprintf("KUBECONFIG=%s", deployConfig.Kubeconfig))
-				}
-			}
+		// Wait a bit more and verify deletion
+		time.Sleep(3 * time.Second)
+		verifyCmd := buildKubectlCommand(kubectlCmd, useSudo, deployConfig.Kubeconfig, "get", "namespace", deployConfig.Namespace, "--ignore-not-found=true", "-o", "jsonpath={.status.phase}")
 			verifyPhase, _ := verifyCmd.Output()
 			verifyPhaseStr := strings.TrimSpace(string(verifyPhase))
 			if len(verifyPhaseStr) == 0 {
@@ -261,18 +269,7 @@ func deploy(inputFile, outputDir, configFile, mode string) error {
 			continue
 		}
 
-		var cmd *exec.Cmd
-		if kubectlCmd == "microk8s" {
-			// Use sudo microk8s kubectl
-			cmd = exec.Command("sudo", "microk8s", "kubectl", "apply", "-f", manifestPath, "--validate=false")
-		} else if kubectlCmd == "k3s" {
-			cmd = exec.Command("sudo", "k3s", "kubectl", "apply", "-f", manifestPath, "--validate=false")
-		} else {
-			cmd = exec.Command("kubectl", "apply", "-f", manifestPath, "--validate=false")
-			if deployConfig.Kubeconfig != "" {
-				cmd.Env = append(os.Environ(), fmt.Sprintf("KUBECONFIG=%s", deployConfig.Kubeconfig))
-			}
-		}
+		cmd := buildKubectlCommand(kubectlCmd, useSudo, deployConfig.Kubeconfig, "apply", "-f", manifestPath, "--validate=false")
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		if err := cmd.Run(); err != nil {
@@ -293,7 +290,7 @@ func deploy(inputFile, outputDir, configFile, mode string) error {
 			}
 
 			fmt.Printf("Waiting for pod %s to be ready...\n", podName)
-			if err := waitForPodReady(kubectlCmd, deployConfig.Kubeconfig, deployConfig.Namespace, podName); err != nil {
+			if err := waitForPodReady(kubectlCmd, useSudo, deployConfig.Kubeconfig, deployConfig.Namespace, podName); err != nil {
 				fmt.Printf("Warning: pod %s may not be ready: %v\n", podName, err)
 			}
 		}
@@ -327,16 +324,24 @@ func destroy(outputDir, configFile, mode string) error {
 
 	k8sDir := filepath.Join(outputDir, "k8s")
 
-	// Determine kubectl command (check if kubectl exists, otherwise use k3s or microk8s)
+	// Determine kubectl command (prefer k3s/microk8s if available, as they need sudo)
 	kubectlCmd := "kubectl"
-	if _, err := exec.LookPath("kubectl"); err != nil {
-		// kubectl not in PATH, try k3s first
-		if _, err := exec.LookPath("k3s"); err == nil {
-			kubectlCmd = "k3s"
-		} else if _, err := exec.LookPath("microk8s"); err == nil {
-			kubectlCmd = "microk8s"
-		} else {
-			return fmt.Errorf("none of kubectl, k3s, or microk8s found in PATH")
+	useSudo := false
+	if _, err := exec.LookPath("k3s"); err == nil {
+		// k3s is available, use it (requires sudo)
+		kubectlCmd = "k3s"
+		useSudo = true
+	} else if _, err := exec.LookPath("microk8s"); err == nil {
+		// microk8s is available, use it (requires sudo)
+		kubectlCmd = "microk8s"
+		useSudo = true
+	} else if _, err := exec.LookPath("kubectl"); err != nil {
+		// None found
+		return fmt.Errorf("none of kubectl, k3s, or microk8s found in PATH")
+	} else {
+		// Check if kubectl is configured for k3s (needs sudo)
+		if needsSudoForKubectl(deployConfig.Kubeconfig) {
+			useSudo = true
 		}
 	}
 
@@ -398,18 +403,7 @@ func destroy(outputDir, configFile, mode string) error {
 			continue
 		}
 
-		var cmd *exec.Cmd
-		if kubectlCmd == "microk8s" {
-			// Use sudo microk8s kubectl
-			cmd = exec.Command("sudo", "microk8s", "kubectl", "delete", "-f", manifestPath, "--ignore-not-found=true")
-		} else if kubectlCmd == "k3s" {
-			cmd = exec.Command("sudo", "k3s", "kubectl", "delete", "-f", manifestPath, "--ignore-not-found=true")
-		} else {
-			cmd = exec.Command("kubectl", "delete", "-f", manifestPath, "--ignore-not-found=true")
-			if deployConfig.Kubeconfig != "" {
-				cmd.Env = append(os.Environ(), fmt.Sprintf("KUBECONFIG=%s", deployConfig.Kubeconfig))
-			}
-		}
+		cmd := buildKubectlCommand(kubectlCmd, useSudo, deployConfig.Kubeconfig, "delete", "-f", manifestPath, "--ignore-not-found=true")
 		cmd.Stdout = os.Stdout
 
 		// Capture stderr to filter out watch warnings
@@ -459,66 +453,26 @@ func destroy(outputDir, configFile, mode string) error {
 	fmt.Printf("Deleting all remaining resources in namespace %s...\n", deployConfig.Namespace)
 
 	// Delete pods
-	var deletePodsCmd *exec.Cmd
-	if kubectlCmd == "microk8s" {
-		deletePodsCmd = exec.Command("sudo", "microk8s", "kubectl", "delete", "pods", "--all", "-n", deployConfig.Namespace, "--ignore-not-found=true")
-	} else if kubectlCmd == "k3s" {
-		deletePodsCmd = exec.Command("sudo", "k3s", "kubectl", "delete", "pods", "--all", "-n", deployConfig.Namespace, "--ignore-not-found=true")
-	} else {
-		deletePodsCmd = exec.Command("kubectl", "delete", "pods", "--all", "-n", deployConfig.Namespace, "--ignore-not-found=true")
-		if deployConfig.Kubeconfig != "" {
-			deletePodsCmd.Env = append(os.Environ(), fmt.Sprintf("KUBECONFIG=%s", deployConfig.Kubeconfig))
-		}
-	}
+	deletePodsCmd := buildKubectlCommand(kubectlCmd, useSudo, deployConfig.Kubeconfig, "delete", "pods", "--all", "-n", deployConfig.Namespace, "--ignore-not-found=true")
 	deletePodsCmd.Stdout = os.Stdout
 	deletePodsCmd.Stderr = os.Stderr
 	deletePodsCmd.Run() // Ignore errors - resources may not exist
 
 	// Delete configmaps
-	var deleteConfigMapsCmd *exec.Cmd
-	if kubectlCmd == "microk8s" {
-		deleteConfigMapsCmd = exec.Command("sudo", "microk8s", "kubectl", "delete", "configmaps", "--all", "-n", deployConfig.Namespace, "--ignore-not-found=true")
-	} else if kubectlCmd == "k3s" {
-		deleteConfigMapsCmd = exec.Command("sudo", "k3s", "kubectl", "delete", "configmaps", "--all", "-n", deployConfig.Namespace, "--ignore-not-found=true")
-	} else {
-		deleteConfigMapsCmd = exec.Command("kubectl", "delete", "configmaps", "--all", "-n", deployConfig.Namespace, "--ignore-not-found=true")
-		if deployConfig.Kubeconfig != "" {
-			deleteConfigMapsCmd.Env = append(os.Environ(), fmt.Sprintf("KUBECONFIG=%s", deployConfig.Kubeconfig))
-		}
-	}
+	deleteConfigMapsCmd := buildKubectlCommand(kubectlCmd, useSudo, deployConfig.Kubeconfig, "delete", "configmaps", "--all", "-n", deployConfig.Namespace, "--ignore-not-found=true")
 	deleteConfigMapsCmd.Stdout = os.Stdout
 	deleteConfigMapsCmd.Stderr = os.Stderr
 	deleteConfigMapsCmd.Run() // Ignore errors - resources may not exist
 
 	// Delete other resources (pods, services, etc.)
-	var deleteAllCmd *exec.Cmd
-	if kubectlCmd == "microk8s" {
-		deleteAllCmd = exec.Command("sudo", "microk8s", "kubectl", "delete", "all", "--all", "-n", deployConfig.Namespace, "--ignore-not-found=true")
-	} else if kubectlCmd == "k3s" {
-		deleteAllCmd = exec.Command("sudo", "k3s", "kubectl", "delete", "all", "--all", "-n", deployConfig.Namespace, "--ignore-not-found=true")
-	} else {
-		deleteAllCmd = exec.Command("kubectl", "delete", "all", "--all", "-n", deployConfig.Namespace, "--ignore-not-found=true")
-		if deployConfig.Kubeconfig != "" {
-			deleteAllCmd.Env = append(os.Environ(), fmt.Sprintf("KUBECONFIG=%s", deployConfig.Kubeconfig))
-		}
-	}
+	deleteAllCmd := buildKubectlCommand(kubectlCmd, useSudo, deployConfig.Kubeconfig, "delete", "all", "--all", "-n", deployConfig.Namespace, "--ignore-not-found=true")
 	deleteAllCmd.Stdout = os.Stdout
 	deleteAllCmd.Stderr = os.Stderr
 	deleteAllCmd.Run() // Ignore errors - resources may not exist
 
 	// Finally, delete the namespace (this will cascade delete everything)
 	fmt.Printf("Deleting namespace %s...\n", deployConfig.Namespace)
-	var deleteNsCmd *exec.Cmd
-	if kubectlCmd == "microk8s" {
-		deleteNsCmd = exec.Command("sudo", "microk8s", "kubectl", "delete", "namespace", deployConfig.Namespace, "--ignore-not-found=true", "--wait=false")
-	} else if kubectlCmd == "k3s" {
-		deleteNsCmd = exec.Command("sudo", "k3s", "kubectl", "delete", "namespace", deployConfig.Namespace, "--ignore-not-found=true", "--wait=false")
-	} else {
-		deleteNsCmd = exec.Command("kubectl", "delete", "namespace", deployConfig.Namespace, "--ignore-not-found=true", "--wait=false")
-		if deployConfig.Kubeconfig != "" {
-			deleteNsCmd.Env = append(os.Environ(), fmt.Sprintf("KUBECONFIG=%s", deployConfig.Kubeconfig))
-		}
-	}
+	deleteNsCmd := buildKubectlCommand(kubectlCmd, useSudo, deployConfig.Kubeconfig, "delete", "namespace", deployConfig.Namespace, "--ignore-not-found=true", "--wait=false")
 	deleteNsCmd.Stdout = os.Stdout
 
 	// Filter stderr for namespace deletion too
@@ -549,19 +503,9 @@ func destroy(outputDir, configFile, mode string) error {
 	// Wait for namespace deletion to complete and handle stuck namespaces
 	fmt.Printf("Waiting for namespace %s to be deleted...\n", deployConfig.Namespace)
 	deleted := false
-	for i := 0; i < 60; i++ {
+		for i := 0; i < 60; i++ {
 		time.Sleep(100 * time.Millisecond)
-		var checkCmd *exec.Cmd
-		if kubectlCmd == "microk8s" {
-			checkCmd = exec.Command("sudo", "microk8s", "kubectl", "get", "namespace", deployConfig.Namespace, "--ignore-not-found=true", "-o", "jsonpath={.status.phase}")
-		} else if kubectlCmd == "k3s" {
-			checkCmd = exec.Command("sudo", "k3s", "kubectl", "get", "namespace", deployConfig.Namespace, "--ignore-not-found=true", "-o", "jsonpath={.status.phase}")
-		} else {
-			checkCmd = exec.Command("kubectl", "get", "namespace", deployConfig.Namespace, "--ignore-not-found=true", "-o", "jsonpath={.status.phase}")
-			if deployConfig.Kubeconfig != "" {
-				checkCmd.Env = append(os.Environ(), fmt.Sprintf("KUBECONFIG=%s", deployConfig.Kubeconfig))
-			}
-		}
+		checkCmd := buildKubectlCommand(kubectlCmd, useSudo, deployConfig.Kubeconfig, "get", "namespace", deployConfig.Namespace, "--ignore-not-found=true", "-o", "jsonpath={.status.phase}")
 		phase, err := checkCmd.Output()
 		phaseStr := strings.TrimSpace(string(phase))
 		// Check if namespace still exists - if command fails or returns empty, namespace is gone
@@ -583,43 +527,16 @@ func destroy(outputDir, configFile, mode string) error {
 	// If namespace is still terminating after 60 seconds, try to force delete it
 	if !deleted {
 		fmt.Printf("Namespace %s is stuck in Terminating state, attempting to force delete...\n", deployConfig.Namespace)
-		var forceDeleteCmd *exec.Cmd
-		if kubectlCmd == "microk8s" {
-			// First try to remove finalizers
-			patchCmd := exec.Command("sudo", "microk8s", "kubectl", "patch", "namespace", deployConfig.Namespace, "-p", `{"metadata":{"finalizers":[]}}`, "--type=merge")
-			patchCmd.Run() // Ignore errors
-			forceDeleteCmd = exec.Command("sudo", "microk8s", "kubectl", "delete", "namespace", deployConfig.Namespace, "--force", "--grace-period=0", "--ignore-not-found=true")
-		} else if kubectlCmd == "k3s" {
-			patchCmd := exec.Command("sudo", "k3s", "kubectl", "patch", "namespace", deployConfig.Namespace, "-p", `{"metadata":{"finalizers":[]}}`, "--type=merge")
-			patchCmd.Run() // Ignore errors
-			forceDeleteCmd = exec.Command("sudo", "k3s", "kubectl", "delete", "namespace", deployConfig.Namespace, "--force", "--grace-period=0", "--ignore-not-found=true")
-		} else {
-			patchCmd := exec.Command("kubectl", "patch", "namespace", deployConfig.Namespace, "-p", `{"metadata":{"finalizers":[]}}`, "--type=merge")
-			if deployConfig.Kubeconfig != "" {
-				patchCmd.Env = append(os.Environ(), fmt.Sprintf("KUBECONFIG=%s", deployConfig.Kubeconfig))
-			}
-			patchCmd.Run() // Ignore errors
-			forceDeleteCmd = exec.Command("kubectl", "delete", "namespace", deployConfig.Namespace, "--force", "--grace-period=0", "--ignore-not-found=true")
-			if deployConfig.Kubeconfig != "" {
-				forceDeleteCmd.Env = append(os.Environ(), fmt.Sprintf("KUBECONFIG=%s", deployConfig.Kubeconfig))
-			}
-		}
+		// First try to remove finalizers
+		patchCmd := buildKubectlCommand(kubectlCmd, useSudo, deployConfig.Kubeconfig, "patch", "namespace", deployConfig.Namespace, "-p", `{"metadata":{"finalizers":[]}}`, "--type=merge")
+		patchCmd.Run() // Ignore errors
+		forceDeleteCmd := buildKubectlCommand(kubectlCmd, useSudo, deployConfig.Kubeconfig, "delete", "namespace", deployConfig.Namespace, "--force", "--grace-period=0", "--ignore-not-found=true")
 		forceDeleteCmd.Stdout = os.Stdout
 		forceDeleteCmd.Stderr = os.Stderr
 		forceDeleteCmd.Run() // Ignore errors, just try
 		// Wait a bit more and verify deletion
 		time.Sleep(3 * time.Second)
-		var verifyCmd *exec.Cmd
-		if kubectlCmd == "microk8s" {
-			verifyCmd = exec.Command("sudo", "microk8s", "kubectl", "get", "namespace", deployConfig.Namespace, "--ignore-not-found=true", "-o", "jsonpath={.status.phase}")
-		} else if kubectlCmd == "k3s" {
-			verifyCmd = exec.Command("sudo", "k3s", "kubectl", "get", "namespace", deployConfig.Namespace, "--ignore-not-found=true", "-o", "jsonpath={.status.phase}")
-		} else {
-			verifyCmd = exec.Command("kubectl", "get", "namespace", deployConfig.Namespace, "--ignore-not-found=true", "-o", "jsonpath={.status.phase}")
-			if deployConfig.Kubeconfig != "" {
-				verifyCmd.Env = append(os.Environ(), fmt.Sprintf("KUBECONFIG=%s", deployConfig.Kubeconfig))
-			}
-		}
+		verifyCmd := buildKubectlCommand(kubectlCmd, useSudo, deployConfig.Kubeconfig, "get", "namespace", deployConfig.Namespace, "--ignore-not-found=true", "-o", "jsonpath={.status.phase}")
 		verifyPhase, _ := verifyCmd.Output()
 		verifyPhaseStr := strings.TrimSpace(string(verifyPhase))
 		if len(verifyPhaseStr) == 0 {
@@ -927,39 +844,19 @@ func calculateDeploymentOrder(config *BenchmarkConfig, allServices []string) []s
 }
 
 // waitForPodReady waits for a pod to be in Ready state
-func waitForPodReady(kubectlCmd, kubeconfig, namespace, podName string) error {
+func waitForPodReady(kubectlCmd string, useSudo bool, kubeconfig, namespace, podName string) error {
 	maxWait := 120     // Maximum wait time in seconds
 	checkInterval := 1 // Check every second
 
 	for i := 0; i < maxWait; i++ {
-		var cmd *exec.Cmd
-		if kubectlCmd == "microk8s" {
-			cmd = exec.Command("sudo", "microk8s", "kubectl", "get", "pod", podName, "-n", namespace, "-o", "jsonpath={.status.phase}")
-		} else if kubectlCmd == "k3s" {
-			cmd = exec.Command("sudo", "k3s", "kubectl", "get", "pod", podName, "-n", namespace, "-o", "jsonpath={.status.phase}")
-		} else {
-			cmd = exec.Command("kubectl", "get", "pod", podName, "-n", namespace, "-o", "jsonpath={.status.phase}")
-			if kubeconfig != "" {
-				cmd.Env = append(os.Environ(), fmt.Sprintf("KUBECONFIG=%s", kubeconfig))
-			}
-		}
+		cmd := buildKubectlCommand(kubectlCmd, useSudo, kubeconfig, "get", "pod", podName, "-n", namespace, "-o", "jsonpath={.status.phase}")
 
 		output, err := cmd.Output()
 		if err == nil {
 			phase := strings.TrimSpace(string(output))
 			if phase == "Running" {
 				// Check if all containers are ready
-				var readyCmd *exec.Cmd
-				if kubectlCmd == "microk8s" {
-					readyCmd = exec.Command("sudo", "microk8s", "kubectl", "get", "pod", podName, "-n", namespace, "-o", "jsonpath={.status.containerStatuses[*].ready}")
-				} else if kubectlCmd == "k3s" {
-					readyCmd = exec.Command("sudo", "k3s", "kubectl", "get", "pod", podName, "-n", namespace, "-o", "jsonpath={.status.containerStatuses[*].ready}")
-				} else {
-					readyCmd = exec.Command("kubectl", "get", "pod", podName, "-n", namespace, "-o", "jsonpath={.status.containerStatuses[*].ready}")
-					if kubeconfig != "" {
-						readyCmd.Env = append(os.Environ(), fmt.Sprintf("KUBECONFIG=%s", kubeconfig))
-					}
-				}
+				readyCmd := buildKubectlCommand(kubectlCmd, useSudo, kubeconfig, "get", "pod", podName, "-n", namespace, "-o", "jsonpath={.status.containerStatuses[*].ready}")
 
 				readyOutput, err := readyCmd.Output()
 				if err == nil {
