@@ -3,44 +3,38 @@ routing:
     upstream:
       host: nginx-sidecar
       port: 3007
-    limit: 30
-    slo: 90
-  home:
-    upstream:
-      host: nginx-sidecar
-      port: 3007
-    limit: 11
-    slo: 20
-  user:
-    upstream:
-      host: nginx-sidecar
-      port: 3007
-    limit: 9
-    slo: 20
+    limit: 10000
+    slo: 16
+#  home:
+#    upstream:
+#      host: nginx-sidecar
+#      port: 3007
+#    limit: 11
+#    slo: 20
+#  user:
+#    upstream:
+#      host: nginx-sidecar
+#      port: 3007
+#    limit: 9
+#    slo: 20
 mapping:
   compose:
     downstreams:
       - compose
-    min_max_concurrency: 6
     listen_port: 3000
-    limit: -1
-  home:
-    downstreams:
-      - home
-    min_max_concurrency: 6
-    listen_port: 3008
-    limit: -1
-  user:
-    downstreams:
-      - user
-    min_max_concurrency: 6
-    listen_port: 3009
-    limit: -1
+#  home:
+#    downstreams:
+#      - home
+#    listen_port: 3008
+#  user:
+#    downstreams:
+#      - user
+#    listen_port: 3009
 ring_size: 4000
-buffer_count: 2000
+buffer_count: 16384
 buffer_size: 10000
 ingress_pool_connections: 100
-num_threads: 3
+num_threads: 1
 egress_listener_port: 3000
 ingress_listener_port: 4000
 ingress_upstream_host: 172.17.0.1

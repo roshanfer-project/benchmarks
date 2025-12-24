@@ -22,8 +22,7 @@ const (
 	PostStorage_StorePost_FullMethodName      = "/protobuf.PostStorage/StorePost"
 	PostStorage_StorePostMulti_FullMethodName = "/protobuf.PostStorage/StorePostMulti"
 	PostStorage_ReadPost_FullMethodName       = "/protobuf.PostStorage/ReadPost"
-	PostStorage_ReadPostsHome_FullMethodName  = "/protobuf.PostStorage/ReadPostsHome"
-	PostStorage_ReadPostsUser_FullMethodName  = "/protobuf.PostStorage/ReadPostsUser"
+	PostStorage_ReadPosts_FullMethodName      = "/protobuf.PostStorage/ReadPosts"
 )
 
 // PostStorageClient is the client API for PostStorage service.
@@ -33,8 +32,7 @@ type PostStorageClient interface {
 	StorePost(ctx context.Context, in *StorePostRequest, opts ...grpc.CallOption) (*StorePostResponse, error)
 	StorePostMulti(ctx context.Context, in *StorePostMultiRequest, opts ...grpc.CallOption) (*StorePostMultiResponse, error)
 	ReadPost(ctx context.Context, in *ReadPostRequest, opts ...grpc.CallOption) (*ReadPostResponse, error)
-	ReadPostsHome(ctx context.Context, in *ReadPostsRequest, opts ...grpc.CallOption) (*ReadPostsResponse, error)
-	ReadPostsUser(ctx context.Context, in *ReadPostsRequest, opts ...grpc.CallOption) (*ReadPostsResponse, error)
+	ReadPosts(ctx context.Context, in *ReadPostsRequest, opts ...grpc.CallOption) (*ReadPostsResponse, error)
 }
 
 type postStorageClient struct {
@@ -72,18 +70,9 @@ func (c *postStorageClient) ReadPost(ctx context.Context, in *ReadPostRequest, o
 	return out, nil
 }
 
-func (c *postStorageClient) ReadPostsHome(ctx context.Context, in *ReadPostsRequest, opts ...grpc.CallOption) (*ReadPostsResponse, error) {
+func (c *postStorageClient) ReadPosts(ctx context.Context, in *ReadPostsRequest, opts ...grpc.CallOption) (*ReadPostsResponse, error) {
 	out := new(ReadPostsResponse)
-	err := c.cc.Invoke(ctx, PostStorage_ReadPostsHome_FullMethodName, in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *postStorageClient) ReadPostsUser(ctx context.Context, in *ReadPostsRequest, opts ...grpc.CallOption) (*ReadPostsResponse, error) {
-	out := new(ReadPostsResponse)
-	err := c.cc.Invoke(ctx, PostStorage_ReadPostsUser_FullMethodName, in, out, opts...)
+	err := c.cc.Invoke(ctx, PostStorage_ReadPosts_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -97,8 +86,7 @@ type PostStorageServer interface {
 	StorePost(context.Context, *StorePostRequest) (*StorePostResponse, error)
 	StorePostMulti(context.Context, *StorePostMultiRequest) (*StorePostMultiResponse, error)
 	ReadPost(context.Context, *ReadPostRequest) (*ReadPostResponse, error)
-	ReadPostsHome(context.Context, *ReadPostsRequest) (*ReadPostsResponse, error)
-	ReadPostsUser(context.Context, *ReadPostsRequest) (*ReadPostsResponse, error)
+	ReadPosts(context.Context, *ReadPostsRequest) (*ReadPostsResponse, error)
 	mustEmbedUnimplementedPostStorageServer()
 }
 
@@ -115,11 +103,8 @@ func (UnimplementedPostStorageServer) StorePostMulti(context.Context, *StorePost
 func (UnimplementedPostStorageServer) ReadPost(context.Context, *ReadPostRequest) (*ReadPostResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ReadPost not implemented")
 }
-func (UnimplementedPostStorageServer) ReadPostsHome(context.Context, *ReadPostsRequest) (*ReadPostsResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ReadPostsHome not implemented")
-}
-func (UnimplementedPostStorageServer) ReadPostsUser(context.Context, *ReadPostsRequest) (*ReadPostsResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ReadPostsUser not implemented")
+func (UnimplementedPostStorageServer) ReadPosts(context.Context, *ReadPostsRequest) (*ReadPostsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ReadPosts not implemented")
 }
 func (UnimplementedPostStorageServer) mustEmbedUnimplementedPostStorageServer() {}
 
@@ -188,38 +173,20 @@ func _PostStorage_ReadPost_Handler(srv interface{}, ctx context.Context, dec fun
 	return interceptor(ctx, in, info, handler)
 }
 
-func _PostStorage_ReadPostsHome_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _PostStorage_ReadPosts_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ReadPostsRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(PostStorageServer).ReadPostsHome(ctx, in)
+		return srv.(PostStorageServer).ReadPosts(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: PostStorage_ReadPostsHome_FullMethodName,
+		FullMethod: PostStorage_ReadPosts_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(PostStorageServer).ReadPostsHome(ctx, req.(*ReadPostsRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _PostStorage_ReadPostsUser_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ReadPostsRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(PostStorageServer).ReadPostsUser(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: PostStorage_ReadPostsUser_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(PostStorageServer).ReadPostsUser(ctx, req.(*ReadPostsRequest))
+		return srv.(PostStorageServer).ReadPosts(ctx, req.(*ReadPostsRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -244,12 +211,8 @@ var PostStorage_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _PostStorage_ReadPost_Handler,
 		},
 		{
-			MethodName: "ReadPostsHome",
-			Handler:    _PostStorage_ReadPostsHome_Handler,
-		},
-		{
-			MethodName: "ReadPostsUser",
-			Handler:    _PostStorage_ReadPostsUser_Handler,
+			MethodName: "ReadPosts",
+			Handler:    _PostStorage_ReadPosts_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

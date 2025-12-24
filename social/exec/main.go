@@ -45,23 +45,21 @@ func main() {
 	}
 
 	serviceList := [][]string{
-		{"graph", "7", ""},
-		{"posts", "9,10", ""},
-		{"home", "11,12,26,25", ""},
-		{"user", "13,14", ""},
-		{"compose", "15,16", ""},
+		{"graph", "1", ""},
+		{"posts", "2", ""},
+		{"home", "3", ""},
+		{"user", "4", ""},
+		{"compose", "5", ""},
 	}
 
 	if args.Rajomon || args.Dagor || args.Breakwater || args.BreakwaterD {
 		serviceList = append(serviceList, []string{"nginx-grpc", "17,18", "6"})
 		serviceList = append(serviceList, []string{"rajomon-client", "19-24", "7"})
 	} else {
-		serviceList = append(serviceList, []string{"nginx", "17,18", "6"})
+		serviceList = append(serviceList, []string{"nginx", "6", "6"})
 	}
 
-	if args.Sidecar {
-		serviceList = append(serviceList, []string{"ingress", "_", "_"})
-	}
+	serviceList = append(serviceList, []string{"ingress", "_", "_"})
 
 	// listen for SIGINT (Ctrl-C)
 	sigCh := make(chan os.Signal, 1)
@@ -77,7 +75,7 @@ func main() {
 	ctx, cancel = context.WithCancel(context.Background())
 
 	// run memcached and mongodb
-	run_docker_compose()
+	//run_docker_compose()
 
 	time.Sleep(time.Second * 2)
 
@@ -109,7 +107,7 @@ func main() {
 	} else {
 		panic("Either Sidecar, Rajomon, Dagor, Envoy, Breakwater or Plain must be enabled")
 	}
-	run_servicees(env, serviceList, args.Sidecar, args.Envoy, args.Profile)
+	run_servicees(env, serviceList, args.Sidecar, args.Envoy, args.Plain, args.Profile)
 
 	// create /tmp/SOCIAL.ready
 	_, err := os.Create("/tmp/SOCIAL.ready")
@@ -136,7 +134,7 @@ func run_docker_compose() {
 	no_env_run(c, dir, false, "docker-compose")
 }
 
-func run_servicees(env string, serviceList [][]string, sidecar, envoy, profile bool) {
+func run_servicees(env string, serviceList [][]string, sidecar, envoy, plain, profile bool) {
 	sidecar_dir := get_cwd() + "/service-mesh"
 	for _, tuple := range serviceList {
 		name := tuple[0]
@@ -168,29 +166,35 @@ func run_servicees(env string, serviceList [][]string, sidecar, envoy, profile b
 		}
 
 		// run the sidecar
-		if sidecar || envoy {
-			if sidecar {
+		if sidecar {
+			c := exec.CommandContext(ctx, "docker", "compose", "run", "-d", "-T", "-P",
+				"--name", fmt.Sprintf("%s-sidecar", name), fmt.Sprintf("%s-sidecar", name))
+			c.Dir = sidecar_dir
+			no_env_run(c, sidecar_dir, false, "docker-compose")
+
+			if profile && name == "search" {
+				c_prof := exec.Command("/bin/bash", get_cwd()+"/profile.sh", fmt.Sprintf("%s-sidecar", name))
+				c_prof.Stdout = os.Stdout
+				c_prof.Stderr = os.Stderr
+				c_prof.Start()
+			}
+		} else if envoy {
+			c := exec.CommandContext(ctx, "docker", "compose", "-f", "envoy-compose.yaml", "run", "-d", "-T", "-P",
+				"--name", fmt.Sprintf("%s-envoy", name), fmt.Sprintf("%s-envoy", name))
+			c.Dir = sidecar_dir
+			no_env_run(c, sidecar_dir, false, "envoy-compose")
+		} else if plain {
+			if name == "ingress" {
 				c := exec.CommandContext(ctx, "docker", "compose", "run", "-d", "-T", "-P",
-					"--name", fmt.Sprintf("%s-sidecar", name), fmt.Sprintf("%s-sidecar", name))
+					"--name", "ingress-plain", "ingress-plain")
 				c.Dir = sidecar_dir
 				no_env_run(c, sidecar_dir, false, "docker-compose")
-
-				if profile && name == "search" {
-					c_prof := exec.Command("/bin/bash", get_cwd()+"/profile.sh", fmt.Sprintf("%s-sidecar", name))
-					c_prof.Stdout = os.Stdout
-					c_prof.Stderr = os.Stderr
-					c_prof.Start()
-				}
-			} else {
-				c := exec.CommandContext(ctx, "docker", "compose", "-f", "envoy-compose.yaml", "run", "-d", "-T", "-P",
-					"--name", fmt.Sprintf("%s-envoy", name), fmt.Sprintf("%s-envoy", name))
-				c.Dir = sidecar_dir
-				no_env_run(c, sidecar_dir, false, "envoy-compose")
 			}
 		}
 
 		time.Sleep(time.Millisecond * 100)
 	}
+
 }
 
 func compile_sidecar(profile bool) {

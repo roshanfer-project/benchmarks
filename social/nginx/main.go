@@ -30,6 +30,7 @@ type Server struct {
 const serviceName = "nginx"
 
 var log = utils.GetLogger(serviceName)
+
 var tracer trace.Tracer
 
 type CounterState struct {
@@ -123,10 +124,12 @@ func tracingMiddleware2(next http.Handler) http.Handler {
 	})
 }
 
+var sidecar bool
+
 func (s *Server) Run() error {
 	var tracingMiddleware func(next http.Handler) http.Handler
 	if (utils.GetEnvVar("sidecar", false) == "true") && (utils.GetEnvVar("queuing_export", false) == "true") {
-		tracingMiddleware = tracingMiddleware2
+		tracingMiddleware = tracingMiddleware1
 	} else {
 		tracingMiddleware = tracingMiddleware1
 	}
@@ -161,6 +164,8 @@ func (s *Server) Run() error {
 
 	log.Info("Successful")
 
+	sidecar = utils.GetEnvVar("sidecar", false) == "true"
+
 	// initialize
 	/* populatePosts(
 		s,
@@ -170,8 +175,8 @@ func (s *Server) Run() error {
 	log.Info("[PopulatePosts] Finished populating posts")
 
 	// Configure OTL
-	ctx := context.Background()
-	social.ConfigOTL(ctx, serviceName, true)
+	//ctx := context.Background()
+	//social.ConfigOTL(ctx, serviceName, true)
 	tracer = otel.GetTracerProvider().Tracer(serviceName + "-tracer")
 
 	mux := http.NewServeMux()
@@ -195,13 +200,13 @@ func main() {
 	standardMethods["compose"] = "compose-post"
 	standardMethods["user"] = "read-user-timeline"
 	standardMethods["home"] = "read-home-timeline"
-	var ok error
+	/* var ok error
 	maxQueueGuage, ok = otel.GetMeterProvider().Meter(serviceName).Int64Gauge("max_queue",
 		metric.WithDescription("Maximum queue length for each RPC method"))
 	if ok != nil {
 		log.Error("Failed to create max_queue gauge")
 		panic("Failed to create max_queue gauge")
-	}
+	} */
 	s := &Server{}
 	if err := s.Run(); err != nil {
 		log.Error("Failed to start server", "error", err)
@@ -269,8 +274,18 @@ func populatePosts(s *Server, numOfUsers int, numOfPosts int) {
 
 func (s *Server) composeHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
+	var rpc_id string
+	if sidecar {
+		rpc_id = r.Header.Get("rpc-id")
+		if rpc_id == "" {
+			http.Error(w, "Please specify rpc-id", http.StatusBadRequest)
+			return
+		}
+	} else {
+		rpc_id = ""
+	}
 	ctx := r.Context()
-	ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("method", "compose-post"))
+	ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("method", "compose-post", "rpc-id", rpc_id))
 
 	log.Debug("Start composeHandler")
 
@@ -303,8 +318,18 @@ func (s *Server) composeHandler(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) userHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
+	var rpc_id string
+	if sidecar {
+		rpc_id = r.Header.Get("rpc-id")
+		if rpc_id == "" {
+			http.Error(w, "Please specify rpc-id", http.StatusBadRequest)
+			return
+		}
+	} else {
+		rpc_id = ""
+	}
 	ctx := r.Context()
-	ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("method", "read-user-timeline"))
+	ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("method", "read-user-timeline", "rpc-id", rpc_id))
 
 	log.Debug("Start userHandler")
 
@@ -332,8 +357,18 @@ func (s *Server) userHandler(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) homeHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
+	var rpc_id string
+	if sidecar {
+		rpc_id = r.Header.Get("rpc-id")
+		if rpc_id == "" {
+			http.Error(w, "Please specify rpc-id", http.StatusBadRequest)
+			return
+		}
+	} else {
+		rpc_id = ""
+	}
 	ctx := r.Context()
-	ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("method", "read-home-timeline"))
+	ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("method", "read-home-timeline", "rpc-id", rpc_id))
 
 	log.Debug("Start homeHandler")
 

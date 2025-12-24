@@ -15,29 +15,23 @@ mapping:
   compose:
     downstreams:
       - protobuf.ComposePost/ComposePost
-    min_max_concurrency: 20
-    limit: 30
   home:
     downstreams:
       - protobuf.HomeTimeline/ReadHomeTimeline
-    min_max_concurrency: 3
-    limit: 11
   user:
     downstreams:
       - protobuf.UserTimeline/ReadUserTimeline
-    min_max_concurrency: 3
-    limit: 9
 ring_size: 1000
-buffer_count: 1000
+buffer_count: 4096
 buffer_size: 80000
 frontend_pool_connections: 100
-num_threads: 2
+num_threads: 1
 egress_listener_port: 4007
 ingress_listener_port: 3007
 ingress_upstream_host: 172.17.0.1
 ingress_upstream_port: 2007
 is_ingress: False
 is_frontend: True
-ppm_limit: 46
+ppm_limit: 2
 report_latency: True
 name: nginx

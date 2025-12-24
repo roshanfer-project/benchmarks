@@ -17,18 +17,13 @@ require (
 	google.golang.org/protobuf v1.36.7
 )
 
-require (
-	github.com/alexflint/go-scalar v1.2.0 // indirect
-	github.com/cespare/xxhash/v2 v2.3.0 // indirect
-	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
-)
+require github.com/alexflint/go-scalar v1.2.0 // indirect
 
 require (
 	github.com/bytedance/gopkg v0.1.1 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.2 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
-	github.com/go-redis/redis/v8 v8.11.5
 	github.com/google/uuid v1.6.0
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.1 // indirect
 	github.com/lithammer/shortuuid v3.0.0+incompatible

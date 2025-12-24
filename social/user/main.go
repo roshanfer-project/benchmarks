@@ -21,7 +21,6 @@ import (
 	bw "social/breakwater"
 
 	"github.com/pennsail/rajomon"
-	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
@@ -236,14 +235,14 @@ func (s *UserTimelineServer) Run() error {
 			breakwater.UnaryInterceptor))
 	}
 
-	if (utils.GetEnvVar("sidecar", false) == "true") && (utils.GetEnvVar("queuing_export", false) == "true") {
+	if utils.GetEnvVar("sidecar", false) == "true" {
 		opts = append(opts, grpc.ChainUnaryInterceptor(
-			CountersInterceptor(),
+			//CountersInterceptor(),
 			ContextPropagationInterceptor(),
 		))
 	}
 
-	ctx := context.Background()
+	/* ctx := context.Background()
 	if _, shutdownList, ok := configOTL(ctx, serviceName); ok {
 		opts = append(opts, grpc.StatsHandler(otelgrpc.NewServerHandler()))
 
@@ -257,7 +256,7 @@ func (s *UserTimelineServer) Run() error {
 		log.Info("Successfully initialized OpenTelemetry")
 	} else {
 		log.Error("Failed to initialize OpenTelemetry")
-	}
+	} */
 
 	srv := grpc.NewServer(opts...)
 	pb.RegisterUserTimelineServer(srv, s)
@@ -293,7 +292,7 @@ func (s *UserTimelineServer) Run() error {
 }
 
 func main() {
-	var ok error
+	/* var ok error
 	maxQueueGuage, ok = otel.GetMeterProvider().Meter(serviceName).Int64Gauge("max_queue",
 		metric.WithDescription("Maximum queue length for each RPC method"))
 	if ok != nil {
@@ -311,7 +310,7 @@ func main() {
 	if ok != nil {
 		log.Error("Failed to create accepted_rpc counter")
 		panic("Failed to create accepted_rpc counter")
-	}
+	} */
 	/* log.Info("Initializing DB connection...")
 	mongoClient, mongoClose := initializeDatabase(utils.GetEnvVar("GeoMongoAddress", true))
 	defer mongoClose() */
@@ -357,7 +356,7 @@ func (s *UserTimelineServer) ReadUserTimeline(ctx context.Context, req *pb.ReadU
 
 	postsReq := &pb.ReadPostsRequest{PostIds: postIds}
 	//postsResp, err := invoke.Invoke[*pb.ReadPostsResponse](ctx, "poststorage", "readposts", postsReq)
-	postsResp, err := s.postClient.ReadPostsUser(ctx, postsReq)
+	postsResp, err := s.postClient.ReadPosts(ctx, postsReq)
 	if err != nil {
 		log.Error("[ReadUserTimeline] Error reading posts", "userId", req.UserId, "error", err)
 		return nil, err

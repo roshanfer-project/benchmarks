@@ -19,7 +19,6 @@ import (
 	bw "social/breakwater"
 
 	"github.com/pennsail/rajomon"
-	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
@@ -231,13 +230,13 @@ func (s *GraphServer) Run() error {
 			breakwater.UnaryInterceptor))
 	}
 
-	if (utils.GetEnvVar("sidecar", false) == "true") && (utils.GetEnvVar("queuing_export", false) == "true") {
+	/* if (utils.GetEnvVar("sidecar", false) == "true") && (utils.GetEnvVar("queuing_export", false) == "true") {
 		opts = append(opts, grpc.ChainUnaryInterceptor(
 			CountersInterceptor(),
 		))
-	}
+	} */
 
-	ctx := context.Background()
+	/* ctx := context.Background()
 	if _, shutdownList, ok := configOTL(ctx, serviceName); ok {
 		opts = append(opts, grpc.StatsHandler(otelgrpc.NewServerHandler()))
 
@@ -251,7 +250,7 @@ func (s *GraphServer) Run() error {
 		log.Info("Successfully initialized OpenTelemetry")
 	} else {
 		log.Error("Failed to initialize OpenTelemetry")
-	}
+	} */
 
 	srv := grpc.NewServer(opts...)
 	pb.RegisterSocialGraphServer(srv, s)
@@ -266,7 +265,7 @@ func (s *GraphServer) Run() error {
 }
 
 func main() {
-	var ok error
+	/* var ok error
 	maxQueueGuage, ok = otel.GetMeterProvider().Meter(serviceName).Int64Gauge("max_queue",
 		metric.WithDescription("Maximum queue length for each RPC method"))
 	if ok != nil {
@@ -284,7 +283,7 @@ func main() {
 	if ok != nil {
 		log.Error("Failed to create accepted_rpc counter")
 		panic("Failed to create accepted_rpc counter")
-	}
+	} */
 	/* log.Info("Initializing DB connection...")
 	mongoClient, mongoClose := initializeDatabase(utils.GetEnvVar("GeoMongoAddress", true))
 	defer mongoClose() */
@@ -377,6 +376,7 @@ func (s *GraphServer) InsertUser(ctx context.Context, req *pb.InsertUserRequest)
 
 // GetFollowers retrieves the list of followers for a given user
 func (s *GraphServer) GetFollowers(ctx context.Context, req *pb.GetFollowersRequest) (*pb.GetFollowersResponse, error) {
+	utils.BusyLoop(100)
 	//ctx = config.PropagateMetadata(ctx, "socialgraph")
 	sg, err := utils.GetState[utils.SGVertex](ctx, req.UserId)
 	if err != nil {

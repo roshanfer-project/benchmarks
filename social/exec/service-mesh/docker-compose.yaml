@@ -1,5 +1,21 @@
 services:
 
+  ingress-plain:
+    image: sidecar-sidecar:latest
+    container_name: ingress-plain
+    restart: no
+    environment:
+      - PROC_NAME=ingress-plain
+      - GLOG_logtostderr=1
+    volumes:
+      - ./.configs/ingress-plain.yaml:/config.yaml
+      - /usr/local/lib:/usr/local/lib:ro
+      - /lib/x86_64-linux-gnu:/lib/x86_64-linux-gnu:ro
+    ports:
+      - "3000:3000"   # hotels listen_port
+    privileged: true
+    cpuset: "22,23"
+
   ingress-sidecar:
     image: sidecar-sidecar:latest
     container_name: ingress-sidecar
@@ -19,7 +35,7 @@ services:
       - "3008:3008"   # home listen_port
       - "3009:3009"   # user listen_port
     privileged: true
-    cpuset: "38,39,40"
+    cpuset: "22,23"
 
   nginx-sidecar:
     image: sidecar-sidecar:latest
@@ -38,7 +54,7 @@ services:
       - "4007:4007" # egress_listener_port
       - "3007:3007"   # ingress_listener_port
     privileged: true
-    cpuset: "36,37"
+    cpuset: "20,21"
   
   compose-sidecar:
     image: sidecar-sidecar:latest
@@ -56,7 +72,7 @@ services:
       - "4005:4005" # egress_listener_port
       - "3005:3005"   # ingress_listener_port
     privileged: true
-    cpuset: "34,35"
+    cpuset: "18,19"
   
   home-sidecar:
     image: sidecar-sidecar:latest
@@ -74,7 +90,7 @@ services:
       - "4002:4002" # egress_listener_port
       - "3002:3002"   # ingress_listener_port
     privileged: true
-    cpuset: "32,33"
+    cpuset: "16,17"
   
   user-sidecar:
     image: sidecar-sidecar:latest
@@ -93,7 +109,7 @@ services:
       - "4001:4001" # egress_listener_port
       - "3001:3001"   # ingress_listener_port
     privileged: true
-    cpuset: "30,31"
+    cpuset: "14,15"
   
   posts-sidecar:
     image: sidecar-sidecar:latest
@@ -111,7 +127,7 @@ services:
       - "4003:4003" # egress_listener_port
       - "3003:3003"   # ingress_listener_port
     privileged: true
-    cpuset: "28,29"
+    cpuset: "12,13"
   
   graph-sidecar:
     image: sidecar-sidecar:latest
@@ -130,4 +146,4 @@ services:
       - "4004:4004" # egress_listener_port
       - "3004:3004"   # ingress_listener_port
     privileged: true
-    cpuset: "26,27"
+    cpuset: "10,11"

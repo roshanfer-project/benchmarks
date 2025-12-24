@@ -41,18 +41,5 @@ services:
     environment:
     - COLLECTOR_ZIPKIN_HOST_PORT=9411       # To collect envoy's traces
     cpuset: "45"
-  
-  redis:
-    container_name: redis
-    image: redis:latest
-    ports:
-      - 6379:6379
-    volumes:
-      - redis:/data
-    networks:
-      - monitoring
-    command: ["redis-server", "--maxmemory", "1gb", "--maxmemory-policy", "allkeys-lru"]
-    cpuset: "41-44"
 
 volumes:
-  redis:

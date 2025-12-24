@@ -21,7 +21,6 @@ import (
 
 	"github.com/lithammer/shortuuid"
 	"github.com/pennsail/rajomon"
-	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
@@ -200,7 +199,7 @@ func (s *PostStorageServer) Run() error {
 		//grpc.UnaryInterceptor(tracingInterceptor),
 	}
 
-	ctx := context.Background()
+	/* ctx := context.Background()
 	if _, shutdownList, ok := configOTL(ctx, serviceName); ok {
 		opts = append(opts, grpc.StatsHandler(otelgrpc.NewServerHandler()))
 
@@ -214,7 +213,7 @@ func (s *PostStorageServer) Run() error {
 		log.Info("Successfully initialized OpenTelemetry")
 	} else {
 		log.Error("Failed to initialize OpenTelemetry")
-	}
+	} */
 
 	var priceTable *rajomon.PriceTable = nil
 	if utils.GetEnvVar("rajomon", false) == "true" {
@@ -248,9 +247,9 @@ func (s *PostStorageServer) Run() error {
 			breakwaterd.UnaryInterceptor))
 	}
 
-	if (utils.GetEnvVar("sidecar", false) == "true") && (utils.GetEnvVar("queuing_export", false) == "true") {
+	/* if (utils.GetEnvVar("sidecar", false) == "true") && (utils.GetEnvVar("queuing_export", false) == "true") {
 		opts = append(opts, grpc.UnaryInterceptor(CountersInterceptor()))
-	}
+	} */
 
 	srv := grpc.NewServer(opts...)
 
@@ -266,7 +265,7 @@ func (s *PostStorageServer) Run() error {
 }
 
 func main() {
-	var ok error
+	/* var ok error
 	maxQueueGuage, ok = otel.GetMeterProvider().Meter(serviceName).Int64Gauge("max_queue",
 		metric.WithDescription("Maximum queue length for each RPC method"))
 	if ok != nil {
@@ -284,7 +283,7 @@ func main() {
 	if ok != nil {
 		log.Error("Failed to create accepted_rpc counter")
 		panic("Failed to create accepted_rpc counter")
-	}
+	} */
 	/* log.Info("Initializing DB connection...")
 	mongoClient, mongoClose := initializeDatabase(utils.GetEnvVar("GeoMongoAddress", true))
 	defer mongoClose() */
@@ -326,6 +325,7 @@ func populatePosts(s *PostStorageServer, numberOfPosts, numberOfUser int) {
 
 func (s *PostStorageServer) StorePost(ctx context.Context, req *pb.StorePostRequest) (*pb.StorePostResponse, error) {
 	//ctx = config.PropagateMetadata(ctx, "poststorage")
+	utils.BusyLoop(50)
 	postId := s.storePost(ctx, req.CreatorId, req.Text)
 	return &pb.StorePostResponse{PostId: postId}, nil
 }
@@ -346,21 +346,7 @@ func (s *PostStorageServer) ReadPost(ctx context.Context, req *pb.ReadPostReques
 	return &pb.ReadPostResponse{Post: &post}, nil
 }
 
-func (s *PostStorageServer) ReadPostsHome(ctx context.Context, req *pb.ReadPostsRequest) (*pb.ReadPostsResponse, error) {
-	//ctx = config.PropagateMetadata(ctx, "poststorage")
-	retPosts, err := utils.GetBulkState[pb.Post](ctx, req.PostIds)
-	if err != nil {
-		log.Error("[ReadPosts] Error reading posts", "postIds", req.PostIds, "error", err)
-		return nil, err
-	}
-	posts := make([]*pb.Post, len(retPosts))
-	for i, post := range retPosts {
-		posts[i] = &post
-	}
-	return &pb.ReadPostsResponse{Posts: posts}, nil
-}
-
-func (s *PostStorageServer) ReadPostsUser(ctx context.Context, req *pb.ReadPostsRequest) (*pb.ReadPostsResponse, error) {
+func (s *PostStorageServer) ReadPosts(ctx context.Context, req *pb.ReadPostsRequest) (*pb.ReadPostsResponse, error) {
 	//ctx = config.PropagateMetadata(ctx, "poststorage")
 	retPosts, err := utils.GetBulkState[pb.Post](ctx, req.PostIds)
 	if err != nil {
