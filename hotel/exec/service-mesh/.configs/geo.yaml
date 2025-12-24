@@ -1,14 +1,13 @@
 mapping:
   geo.Geo/Nearby:
-    limit: 2
 ring_size: 1000
-buffer_count: 1000
+buffer_count: 16384
 buffer_size: 50000
 num_threads: 1
 egress_listener_port: 4004
 ingress_listener_port: 3004
 ingress_upstream_host: 172.17.0.1
 ingress_upstream_port: 2004
-ppm_limit: 2
 report_latency: True
+ppm_limit: 2
 name: geo

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"hotel"
 	breakwaterinit "hotel/breakwater-init"
 	dagorinit "hotel/dagor_init"
 	oteltool "hotel/otel_tool"
@@ -11,21 +12,15 @@ import (
 	"strconv"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	bw "hotel/breakwater"
 	pb "hotel/geo/proto"
 	"hotel/utils"
 
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
-	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/stats/opentelemetry"
 
@@ -54,8 +49,6 @@ type Server struct {
 	index *geoindex.ClusteringIndex
 	uuid  string
 	mutex sync.Mutex // Add mutex for thread-safe access to the index
-
-	MongoClient *mongo.Client
 }
 
 /* func tracingInterceptor(ctx context.Context, req any,
@@ -208,23 +201,11 @@ func CountersInterceptor() grpc.UnaryServerInterceptor {
 
 func (s *Server) Run() error {
 
-	if s.index == nil {
-		s.index = newGeoIndex(s.MongoClient)
-	}
-
 	s.uuid = uuid.New().String()
 
-	opts := []grpc.ServerOption{
-		grpc.KeepaliveParams(keepalive.ServerParameters{
-			Timeout: 120 * time.Second,
-		}),
-		grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
-			PermitWithoutStream: true,
-		}),
-		//grpc.UnaryInterceptor(tracingInterceptor),
-	}
+	opts := hotel.DefaultServerOptions()
 
-	ctx := context.Background()
+	/* ctx := context.Background()
 	if _, shutdownList, ok := configOTL(ctx, "geo"); ok {
 		opts = append(opts, grpc.StatsHandler(otelgrpc.NewServerHandler()))
 
@@ -238,7 +219,7 @@ func (s *Server) Run() error {
 		log.Info("Successfully initialized OpenTelemetry")
 	} else {
 		log.Error("Failed to initialize OpenTelemetry")
-	}
+	} */
 
 	var priceTable *rajomon.PriceTable = nil
 	if utils.GetEnvVar("rajomon", false) == "true" {
@@ -272,7 +253,7 @@ func (s *Server) Run() error {
 			breakwaterd.UnaryInterceptor))
 	}
 
-	if (utils.GetEnvVar("sidecar", false) == "true") && (utils.GetEnvVar("queuing_export", false) == "true") {
+	/* if (utils.GetEnvVar("sidecar", false) == "true") && (utils.GetEnvVar("queuing_export", false) == "true") {
 		opts = append(opts, grpc.UnaryInterceptor(CountersInterceptor()))
 	}
 
@@ -280,7 +261,7 @@ func (s *Server) Run() error {
 		opts = append(opts, grpc.ChainUnaryInterceptor(
 			CountersInterceptor(),
 			AcceptedRPCInterceptor()))
-	}
+	} */
 
 	srv := grpc.NewServer(opts...)
 
@@ -348,20 +329,10 @@ func (s *Server) getNearbyPoints(_ context.Context, lat, lon float64) []geoindex
 }
 
 // newGeoIndex returns a geo index with points loaded
-func newGeoIndex(client *mongo.Client) *geoindex.ClusteringIndex {
+func newGeoIndex() *geoindex.ClusteringIndex {
 	log.Debug("new geo newGeoIndex")
 
-	collection := client.Database("geo-db").Collection("geo")
-	curr, err := collection.Find(context.TODO(), bson.D{})
-	if err != nil {
-		log.Error(fmt.Sprintf("Failed get geo data: %v", err))
-	}
-
-	var points []*point
-	curr.All(context.TODO(), &points)
-	if err != nil {
-		log.Error(fmt.Sprintf("Failed get geo data: %v", err))
-	}
+	points := initializeGeoPoints()
 
 	// add points to index
 	index := geoindex.NewClusteringIndex()
@@ -370,6 +341,27 @@ func newGeoIndex(client *mongo.Client) *geoindex.ClusteringIndex {
 	}
 
 	return index
+}
+
+func initializeGeoPoints() []*point {
+	points := []*point{
+		{"1", 37.7867, -122.4112},
+		{"2", 37.7854, -122.4005},
+		{"3", 37.7854, -122.4071},
+		{"4", 37.7936, -122.3930},
+		{"5", 37.7831, -122.4181},
+		{"6", 37.7863, -122.4015},
+	}
+
+	for i := 7; i <= 80; i++ {
+		hotelID := strconv.Itoa(i)
+		lat := 37.7835 + float64(i)/500.0*3
+		lon := -122.41 + float64(i)/500.0*4
+
+		points = append(points, &point{hotelID, lat, lon})
+	}
+
+	return points
 }
 
 type point struct {
@@ -384,7 +376,7 @@ func (p *point) Lon() float64 { return p.Plon }
 func (p *point) Id() string   { return p.Pid }
 
 func main() {
-	var ok error
+	/* var ok error
 	maxQueueGuage, ok = otel.GetMeterProvider().Meter(serviceName).Int64Gauge("max_queue",
 		metric.WithDescription("Maximum queue length for each RPC method"))
 	if ok != nil {
@@ -402,60 +394,15 @@ func main() {
 	if ok != nil {
 		log.Error("Failed to create accepted_rpc counter")
 		panic("Failed to create accepted_rpc counter")
-	}
-	log.Info("Initializing DB connection...")
-	mongoClient, mongoClose := initializeDatabase(utils.GetEnvVar("GeoMongoAddress", true))
-	defer mongoClose()
+	} */
+	log.Info("Initializing in-memory geo index...")
+	index := newGeoIndex()
 
 	srv := &Server{
-		MongoClient: mongoClient,
-		mutex:       sync.Mutex{},
+		index: index,
+		mutex: sync.Mutex{},
 	}
 
 	log.Info("Starting server...")
 	log.Error(srv.Run().Error())
-}
-
-func initializeDatabase(url string) (*mongo.Client, func()) {
-	log.Info("Generating test data...")
-
-	newPoints := []interface{}{
-		point{"1", 37.7867, -122.4112},
-		point{"2", 37.7854, -122.4005},
-		point{"3", 37.7854, -122.4071},
-		point{"4", 37.7936, -122.3930},
-		point{"5", 37.7831, -122.4181},
-		point{"6", 37.7863, -122.4015},
-	}
-
-	for i := 7; i <= 80; i++ {
-		hotelID := strconv.Itoa(i)
-		lat := 37.7835 + float64(i)/500.0*3
-		lon := -122.41 + float64(i)/500.0*4
-
-		newPoints = append(newPoints, point{hotelID, lat, lon})
-	}
-
-	uri := fmt.Sprintf("mongodb://%s", url)
-	log.Info(fmt.Sprintf("Attempting connection to %v", uri))
-
-	opts := options.Client().ApplyURI(uri)
-	client, err := mongo.Connect(context.TODO(), opts)
-	if err != nil {
-		log.Error(err.Error())
-	}
-	log.Info("Successfully connected to MongoDB")
-
-	collection := client.Database("geo-db").Collection("geo")
-	_, err = collection.InsertMany(context.TODO(), newPoints)
-	if err != nil {
-		log.Error(err.Error())
-	}
-	log.Info("Successfully inserted test data into geo DB")
-
-	return client, func() {
-		if err := client.Disconnect(context.TODO()); err != nil {
-			log.Error(err.Error())
-		}
-	}
 }

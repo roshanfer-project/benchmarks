@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"hotel"
 	breakwaterinit "hotel/breakwater-init"
 	dagorinit "hotel/dagor_init"
 	oteltool "hotel/otel_tool"
@@ -14,24 +15,17 @@ import (
 	"strconv"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	bw "hotel/breakwater"
 	"hotel/dagor"
 
-	"github.com/bradfitz/gomemcache/memcache"
 	"github.com/google/uuid"
 	"github.com/pennsail/rajomon"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
-	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/stats/opentelemetry"
 )
@@ -46,8 +40,10 @@ type Server struct {
 
 	uuid string
 
-	MongoClient *mongo.Client
-	MemcClient  *memcache.Client
+	// In-memory data stores
+	hotels   map[string]*pb.Hotel // key: hotelId
+	memcache map[string][]byte    // key: hotelId, value: JSON-encoded Hotel
+	mu       sync.RWMutex         // protects all in-memory stores
 }
 
 func configOTL(ctx context.Context, serviceName string, frontend bool) (grpc.ServerOption, []func(context.Context) error, bool) {
@@ -195,15 +191,7 @@ func (s *Server) Run() error {
 
 	log.Info(fmt.Sprintf("in run s.IpAddr = %s, port = %d", "localhost", utils.StrToInt(utils.GetEnvVar("ProfilePort", true))))
 
-	opts := []grpc.ServerOption{
-		grpc.KeepaliveParams(keepalive.ServerParameters{
-			Timeout: 120 * time.Second,
-		}),
-		grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
-			PermitWithoutStream: true,
-		}),
-		//grpc.UnaryInterceptor(tracingInterceptor),
-	}
+	opts := hotel.DefaultServerOptions()
 
 	var priceTable *rajomon.PriceTable = nil
 	if utils.GetEnvVar("rajomon", false) == "true" {
@@ -236,7 +224,7 @@ func (s *Server) Run() error {
 			breakwaterd.UnaryInterceptor))
 	}
 
-	if (utils.GetEnvVar("sidecar", false) == "true") && (utils.GetEnvVar("queuing_export", false) == "true") {
+	/* if (utils.GetEnvVar("sidecar", false) == "true") && (utils.GetEnvVar("queuing_export", false) == "true") {
 		opts = append(opts, grpc.UnaryInterceptor(CountersInterceptor()))
 	}
 
@@ -244,9 +232,9 @@ func (s *Server) Run() error {
 		opts = append(opts, grpc.ChainUnaryInterceptor(
 			CountersInterceptor(),
 			AcceptedRPCInterceptor()))
-	}
+	} */
 
-	ctx := context.Background()
+	/* ctx := context.Background()
 	if _, shutdownList, ok := configOTL(ctx, serviceName, false); ok {
 		opts = append(opts, grpc.StatsHandler(otelgrpc.NewServerHandler()))
 
@@ -260,7 +248,7 @@ func (s *Server) Run() error {
 		log.Info("Successfully initialized OpenTelemetry")
 	} else {
 		log.Error("Failed to initialize OpenTelemetry")
-	}
+	} */
 
 	srv := grpc.NewServer(opts...)
 
@@ -292,60 +280,66 @@ func (s *Server) GetProfiles(ctx context.Context, req *pb.Request) (*pb.Result, 
 	_, memSpan := tracer.Start(ctx, "memcached_get_profile")
 	// memSpan.SetAttributes(attribute.String("span.kind", "client"))
 	memSpan.SetAttributes(attribute.String("span.kind", "client"))
-	resMap, err := s.MemcClient.GetMulti(hotelIds)
+
+	// Get from memcache
+	s.mu.RLock()
+	resMap := make(map[string][]byte)
+	for _, hotelId := range hotelIds {
+		if val, ok := s.memcache[hotelId]; ok {
+			resMap[hotelId] = val
+		}
+	}
+	s.mu.RUnlock()
+
 	//memSpan.Finish()
 	memSpan.End()
 
 	res := new(pb.Result)
 	hotels := make([]*pb.Hotel, 0)
 
-	if err != nil && err != memcache.ErrCacheMiss {
-		log.Error(fmt.Sprintf("Tried to get hotelIds [%v], but got memmcached error = %s", hotelIds, err))
-	} else {
-		for hotelId, item := range resMap {
-			profileStr := string(item.Value)
-			log.Debug(fmt.Sprintf("memc hit with %v", profileStr))
+	for hotelId, item := range resMap {
+		profileStr := string(item)
+		log.Debug(fmt.Sprintf("memc hit with %v", profileStr))
 
-			hotelProf := new(pb.Hotel)
-			json.Unmarshal(item.Value, hotelProf)
+		hotelProf := new(pb.Hotel)
+		json.Unmarshal(item, hotelProf)
+		hotels = append(hotels, hotelProf)
+		delete(profileMap, hotelId)
+	}
+
+	wg.Add(len(profileMap))
+	for hotelId := range profileMap {
+		go func(hotelId string) {
+			_, mongoSpan := tracer.Start(ctx, "mongo_profile")
+			mongoSpan.SetAttributes(attribute.String("span.kind", "client"))
+
+			s.mu.RLock()
+			hotelProf := s.hotels[hotelId]
+			s.mu.RUnlock()
+
+			mongoSpan.End()
+
+			if hotelProf == nil {
+				log.Error(fmt.Sprintf("Failed get hotels data: hotelId %v not found", hotelId))
+			}
+
+			mutex.Lock()
 			hotels = append(hotels, hotelProf)
-			delete(profileMap, hotelId)
-		}
+			mutex.Unlock()
 
-		wg.Add(len(profileMap))
-		for hotelId := range profileMap {
-			go func(hotelId string) {
-				var hotelProf *pb.Hotel
-
-				collection := s.MongoClient.Database("profile-db").Collection("hotels")
-
-				//mongoSpan, _ := opentracing.StartSpanFromContext(ctx, "mongo_profile")
-				_, mongoSpan := tracer.Start(ctx, "mongo_profile")
-				//mongoSpan.SetTag("span.kind", "client")
-				mongoSpan.SetAttributes(attribute.String("span.kind", "client"))
-				err := collection.FindOne(context.TODO(), bson.D{{Key: "id", Value: hotelId}}).Decode(&hotelProf)
-				//mongoSpan.Finish()
-				mongoSpan.End()
-
-				if err != nil {
-					log.Error(fmt.Sprintf("Failed get hotels data: %v", err))
-				}
-
-				mutex.Lock()
-				hotels = append(hotels, hotelProf)
-				mutex.Unlock()
-
+			if hotelProf != nil {
 				profJson, err := json.Marshal(hotelProf)
 				if err != nil {
 					log.Error(fmt.Sprintf("Failed to marshal hotel [id: %v] with err: %v", hotelProf.Id, err))
+				} else {
+					// write to memcached
+					s.mu.Lock()
+					s.memcache[hotelId] = profJson
+					s.mu.Unlock()
 				}
-				memcStr := string(profJson)
-
-				// write to memcached
-				go s.MemcClient.Set(&memcache.Item{Key: hotelId, Value: []byte(memcStr)})
-				defer wg.Done()
-			}(hotelId)
-		}
+			}
+			defer wg.Done()
+		}(hotelId)
 	}
 	wg.Wait()
 
@@ -356,7 +350,8 @@ func (s *Server) GetProfiles(ctx context.Context, req *pb.Request) (*pb.Result, 
 
 func main() {
 	log.Info("Reading config...")
-	var ok error
+	tracer = otel.GetTracerProvider().Tracer(serviceName)
+	/* var ok error
 	maxQueueGuage, ok = otel.GetMeterProvider().Meter(serviceName).Int64Gauge("max_queue",
 		metric.WithDescription("Maximum queue length for each RPC method"))
 	if ok != nil {
@@ -374,19 +369,13 @@ func main() {
 	if ok != nil {
 		log.Error("Failed to create accepted_rpc counter")
 		panic("Failed to create accepted_rpc counter")
-	}
-	log.Info("Initializing DB connection...")
-	mongoClient, mongoClose := initializeDatabase(utils.GetEnvVar("ProfileMongoAddress", true))
-	defer mongoClose()
-
-	log.Info(fmt.Sprintf("Read profile memcashed address: %v", utils.GetEnvVar("ProfileMemcAddress", true)))
-	log.Info("Initializing Memcashed client...")
-	memcClient := utils.NewMemCClient2(utils.GetEnvVar("ProfileMemcAddress", true))
-	log.Info("Success")
+	} */
+	log.Info("Initializing in-memory data stores...")
+	hotels := initializeDatabase()
 
 	srv := &Server{
-		MongoClient: mongoClient,
-		MemcClient:  memcClient,
+		hotels:   hotels,
+		memcache: make(map[string][]byte),
 	}
 
 	log.Info("Starting server...")
@@ -408,61 +397,22 @@ type Address struct {
 	Lon          float32 `bson:"lon"`
 }
 
-func initializeDatabase(url string) (*mongo.Client, func()) {
+func initializeDatabase() map[string]*pb.Hotel {
 	log.Info("Generating test data...")
 
-	newProfiles := []interface{}{
-		Hotel{
-			"1",
-		},
-		Hotel{
-			"2",
-		},
-		Hotel{
-			"3",
-		},
-		Hotel{
-			"4",
-		},
-		Hotel{
-			"5",
-		},
-		Hotel{
-			"6",
-		},
-	}
+	hotels := make(map[string]*pb.Hotel)
 
+	hotelIds := []string{"1", "2", "3", "4", "5", "6"}
 	for i := 7; i <= 50; i++ {
-		hotelID := strconv.Itoa(i)
-
-		newProfiles = append(
-			newProfiles,
-			Hotel{
-				hotelID,
-			},
-		)
+		hotelIds = append(hotelIds, strconv.Itoa(i))
 	}
 
-	uri := fmt.Sprintf("mongodb://%s", url)
-	log.Info(fmt.Sprintf("Attempting connection to %v", uri))
-
-	opts := options.Client().ApplyURI(uri)
-	client, err := mongo.Connect(context.TODO(), opts)
-	if err != nil {
-		log.Error(err.Error())
-	}
-	log.Info("Successfully connected to MongoDB")
-
-	collection := client.Database("profile-db").Collection("hotels")
-	_, err = collection.InsertMany(context.TODO(), newProfiles)
-	if err != nil {
-		log.Error(err.Error())
-	}
-	log.Info("Successfully inserted test data into profile DB")
-
-	return client, func() {
-		if err := client.Disconnect(context.TODO()); err != nil {
-			log.Error(err.Error())
+	for _, hotelID := range hotelIds {
+		hotels[hotelID] = &pb.Hotel{
+			Id: hotelID,
 		}
 	}
+
+	log.Info("Successfully initialized in-memory profile data stores")
+	return hotels
 }

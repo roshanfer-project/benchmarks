@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"embed"
 	"encoding/json"
 	"fmt"
@@ -43,6 +42,7 @@ const serviceName = "frontend"
 
 var log = utils.GetLogger(serviceName)
 var tracer trace.Tracer
+var sidecar bool
 
 type CounterState struct {
 	failedRPCCounter atomic.Int64
@@ -139,10 +139,12 @@ func (s *Server) Run() error {
 	var tracingMiddleware func(next http.Handler) http.Handler
 	if (utils.GetEnvVar("sidecar", false) == "true") && (utils.GetEnvVar("queuing_export", false) == "true") ||
 		(utils.GetEnvVar("plain", false) == "true") {
-		tracingMiddleware = tracingMiddleware2
+		tracingMiddleware = tracingMiddleware1
 	} else {
 		tracingMiddleware = tracingMiddleware1
 	}
+
+	sidecar = utils.GetEnvVar("sidecar", false) == "true"
 
 	log.Info("Loading static content...")
 	staticContent, err := fs.Sub(content, "static")
@@ -201,8 +203,8 @@ func (s *Server) Run() error {
 	log.Info("Successful")
 
 	// Configure OTL
-	ctx := context.Background()
-	hotel.ConfigOTL(ctx, serviceName, true)
+	/* ctx := context.Background()
+	hotel.ConfigOTL(ctx, serviceName, true) */
 	tracer = otel.GetTracerProvider().Tracer(serviceName + "-tracer")
 
 	//log.Trace().Msg("frontend before mux")
@@ -231,9 +233,19 @@ func (s *Server) Run() error {
 
 func (s *Server) searchHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
+	var rpc_id string
+	if sidecar {
+		rpc_id = r.Header.Get("rpc-id")
+		if rpc_id == "" {
+			http.Error(w, "Please specify rpc-id", http.StatusBadRequest)
+			return
+		}
+	} else {
+		rpc_id = ""
+	}
 	ctx := r.Context()
 	// add method to context
-	ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("method", "search-hotel"))
+	ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("method", "search-hotel", "rpc-id", rpc_id))
 
 	log.Debug("starts searchHandler")
 
@@ -327,8 +339,18 @@ func (s *Server) searchHandler(w http.ResponseWriter, r *http.Request) {
 func (s *Server) reservationHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	ctx := r.Context()
+	var rpc_id string
+	if sidecar {
+		rpc_id = r.Header.Get("rpc-id")
+		if rpc_id == "" {
+			http.Error(w, "Please specify rpc-id", http.StatusBadRequest)
+			return
+		}
+	} else {
+		rpc_id = ""
+	}
 	// add method to context
-	ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("method", "reserve-hotel"))
+	ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("method", "reserve-hotel", "rpc-id", rpc_id))
 
 	inDate, outDate := r.URL.Query().Get("inDate"), r.URL.Query().Get("outDate")
 	if inDate == "" || outDate == "" {
@@ -443,13 +465,13 @@ func main() {
 	standardMethods = make(map[string]string)
 	standardMethods["hotels"] = "search-hotel"
 	standardMethods["reservation"] = "reserve-hotel"
-	var ok error
+	/* var ok error
 	maxQueueGuage, ok = otel.GetMeterProvider().Meter(serviceName).Int64Gauge("max_queue",
 		metric.WithDescription("Maximum queue length for each RPC method"))
 	if ok != nil {
 		log.Error("Failed to create max_queue gauge")
 		panic("Failed to create max_queue gauge")
-	}
+	} */
 	s := &Server{}
 	if err := s.Run(); err != nil {
 		log.Error("Failed to start server", "error", err)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"fmt"
+	"hotel"
 	breakwaterinit "hotel/breakwater-init"
 	dagorinit "hotel/dagor_init"
 	rajomoninit "hotel/rajomon_init"
@@ -12,7 +13,6 @@ import (
 	"strconv"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	pb "hotel/user/proto"
 
@@ -23,15 +23,10 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/pennsail/rajomon"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
-	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/stats/opentelemetry"
 )
@@ -44,9 +39,9 @@ var log = utils.GetLogger(serviceName)
 
 type Server struct {
 	pb.UnimplementedUserServer
-	uuid        string
-	users       map[string]string
-	MongoClient *mongo.Client
+	uuid  string
+	users map[string]string // key: username, value: password hash
+	mu    sync.RWMutex      // protects users map
 }
 
 func configOTL(ctx context.Context, serviceName string) (grpc.ServerOption, []func(context.Context) error, bool) {
@@ -190,20 +185,9 @@ func CountersInterceptor() grpc.UnaryServerInterceptor {
 
 func (s *Server) Run() error {
 
-	if s.users == nil {
-		s.users = loadUsers(s.MongoClient)
-	}
-
 	s.uuid = uuid.New().String()
 
-	opts := []grpc.ServerOption{
-		grpc.KeepaliveParams(keepalive.ServerParameters{
-			Timeout: 120 * time.Second,
-		}),
-		grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
-			PermitWithoutStream: true,
-		}),
-	}
+	opts := hotel.DefaultServerOptions()
 
 	var priceTable *rajomon.PriceTable = nil
 	if utils.GetEnvVar("rajomon", false) == "true" {
@@ -236,7 +220,7 @@ func (s *Server) Run() error {
 			breakwaterd.UnaryInterceptor))
 	}
 
-	if (utils.GetEnvVar("sidecar", false) == "true") && (utils.GetEnvVar("queuing_export", false) == "true") {
+	/* if (utils.GetEnvVar("sidecar", false) == "true") && (utils.GetEnvVar("queuing_export", false) == "true") {
 		opts = append(opts, grpc.UnaryInterceptor(CountersInterceptor()))
 	}
 
@@ -244,9 +228,9 @@ func (s *Server) Run() error {
 		opts = append(opts, grpc.ChainUnaryInterceptor(
 			CountersInterceptor(),
 			AcceptedRPCInterceptor()))
-	}
+	} */
 
-	ctx := context.Background()
+	/* ctx := context.Background()
 	if _, shutdownList, ok := configOTL(ctx, serviceName); ok {
 		opts = append(opts, grpc.StatsHandler(otelgrpc.NewServerHandler()))
 
@@ -260,7 +244,7 @@ func (s *Server) Run() error {
 		log.Info("Successfully initialized OpenTelemetry")
 	} else {
 		log.Error("Failed to initialize OpenTelemetry")
-	}
+	} */
 
 	srv := grpc.NewServer(opts...)
 
@@ -283,47 +267,21 @@ func (s *Server) CheckUser(ctx context.Context, req *pb.Request) (*pb.Result, er
 	pass := fmt.Sprintf("%x", sum)
 
 	res.Correct = false
+	s.mu.RLock()
 	if true_pass, found := s.users[req.Username]; found {
 		res.Correct = pass == true_pass
 	}
+	s.mu.RUnlock()
 
 	//log.Trace().Msgf("CheckUser %d", res.Correct)
 
 	return res, nil
 }
 
-func loadUsers(client *mongo.Client) map[string]string {
-	collection := client.Database("user-db").Collection("user")
-	curr, err := collection.Find(context.TODO(), bson.D{})
-	if err != nil {
-		log.Error("Failed get users data: " + err.Error())
-	}
-
-	var users []User
-	curr.All(context.TODO(), &users)
-	if err != nil {
-		log.Error("Failed get users data: " + err.Error())
-	}
-
-	res := make(map[string]string)
-	for _, user := range users {
-		res[user.Username] = user.Password
-	}
-
-	//log.Trace().Msg("Done load users")
-
-	return res
-}
-
-type User struct {
-	Username string `bson:"username"`
-	Password string `bson:"password"`
-}
-
-func initializeDatabase(url string) (*mongo.Client, func()) {
+func initializeDatabase() map[string]string {
 	log.Info("Generating test data...")
 
-	newUsers := []interface{}{}
+	users := make(map[string]string)
 
 	for i := 0; i <= 500; i++ {
 		suffix := strconv.Itoa(i)
@@ -334,39 +292,18 @@ func initializeDatabase(url string) (*mongo.Client, func()) {
 		}
 		sum := sha256.Sum256([]byte(password))
 
-		newUsers = append(newUsers, User{
-			fmt.Sprintf("Cornell_%x", suffix),
-			fmt.Sprintf("%x", sum),
-		})
+		username := fmt.Sprintf("Cornell_%x", suffix)
+		passwordHash := fmt.Sprintf("%x", sum)
+		users[username] = passwordHash
 	}
 
-	uri := fmt.Sprintf("mongodb://%s", url)
-	log.Info(fmt.Sprintf("Attempting connection to %v", uri))
-
-	opts := options.Client().ApplyURI(uri)
-	client, err := mongo.Connect(context.TODO(), opts)
-	if err != nil {
-		panic(err.Error())
-	}
-	log.Info("Successfully connected to MongoDB")
-
-	collection := client.Database("user-db").Collection("user")
-	_, err = collection.InsertMany(context.TODO(), newUsers)
-	if err != nil {
-		panic(err.Error())
-	}
-	log.Info("Successfully inserted test data into user DB")
-
-	return client, func() {
-		if err := client.Disconnect(context.TODO()); err != nil {
-			panic(err.Error())
-		}
-	}
+	log.Info("Successfully initialized in-memory user data stores")
+	return users
 }
 
 func main() {
 	log.Info("Reading config...")
-	var ok error
+	/* var ok error
 	maxQueueGuage, ok = otel.GetMeterProvider().Meter(serviceName).Int64Gauge("max_queue",
 		metric.WithDescription("Maximum queue length for each RPC method"))
 	if ok != nil {
@@ -384,13 +321,12 @@ func main() {
 	if ok != nil {
 		log.Error("Failed to create accepted_rpc counter")
 		panic("Failed to create accepted_rpc counter")
-	}
-	log.Info("Initializing DB connection...")
-	mongoClient, mongoClose := initializeDatabase(utils.GetEnvVar("UserMongoAddress", true))
-	defer mongoClose()
+	} */
+	log.Info("Initializing in-memory data stores...")
+	users := initializeDatabase()
 
 	srv := &Server{
-		MongoClient: mongoClient,
+		users: users,
 	}
 
 	log.Info("Starting server...")

@@ -15,19 +15,16 @@ import (
 	"net"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	bw "hotel/breakwater"
 	"hotel/dagor"
 
 	"github.com/google/uuid"
 	"github.com/pennsail/rajomon"
-	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/stats/opentelemetry"
 )
@@ -208,15 +205,7 @@ func CountersInterceptor() grpc.UnaryServerInterceptor {
 func (s *Server) Run() error {
 	s.uuid = uuid.New().String()
 
-	opts := []grpc.ServerOption{
-		grpc.KeepaliveParams(keepalive.ServerParameters{
-			Timeout: 120 * time.Second,
-		}),
-		grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
-			PermitWithoutStream: true,
-		}),
-		//grpc.UnaryInterceptor(tracingInterceptor),
-	}
+	opts := hotel.DefaultServerOptions()
 
 	var priceTable *rajomon.PriceTable = nil
 	if utils.GetEnvVar("rajomon", false) == "true" {
@@ -250,21 +239,27 @@ func (s *Server) Run() error {
 			breakwaterd.UnaryInterceptor))
 	}
 
-	if (utils.GetEnvVar("sidecar", false) == "true") && (utils.GetEnvVar("queuing_export", false) == "true") {
+	/* if (utils.GetEnvVar("sidecar", false) == "true") && (utils.GetEnvVar("queuing_export", false) == "true") {
 		opts = append(opts, grpc.ChainUnaryInterceptor(
 			CountersInterceptor(),
 			ContextPropagationInterceptor(),
 		))
-	}
+	} else if utils.GetEnvVar("sidecar", false) == "true" {
+		opts = append(opts, grpc.UnaryInterceptor(ContextPropagationInterceptor()))
+	} */
 
-	if utils.GetEnvVar("plain", false) == "true" {
+	/* if utils.GetEnvVar("plain", false) == "true" {
 		opts = append(opts, grpc.ChainUnaryInterceptor(
 			CountersInterceptor(),
 			ContextPropagationInterceptor(),
 			AcceptedRPCInterceptor()))
+	} */
+
+	if utils.GetEnvVar("sidecar", false) == "true" {
+		opts = append(opts, grpc.UnaryInterceptor(ContextPropagationInterceptor()))
 	}
 
-	ctx := context.Background()
+	/* ctx := context.Background()
 	if _, shutdownList, ok := configOTL(ctx, serviceName); ok {
 		opts = append(opts, grpc.StatsHandler(otelgrpc.NewServerHandler()))
 
@@ -278,7 +273,7 @@ func (s *Server) Run() error {
 		log.Info("Successfully initialized OpenTelemetry")
 	} else {
 		log.Error("Failed to initialize OpenTelemetry")
-	}
+	} */
 
 	srv := grpc.NewServer(opts...)
 	pb.RegisterSearchServer(srv, s)
@@ -383,7 +378,7 @@ func (s *Server) Nearby(ctx context.Context, req *pb.NearbyRequest) (*pb.SearchR
 }
 
 func main() {
-	var ok error
+	/* var ok error
 	maxQueueGuage, ok = otel.GetMeterProvider().Meter(serviceName).Int64Gauge("max_queue",
 		metric.WithDescription("Maximum queue length for each RPC method"))
 	if ok != nil {
@@ -401,7 +396,7 @@ func main() {
 	if ok != nil {
 		log.Error("Failed to create accepted_rpc counter")
 		panic("Failed to create accepted_rpc counter")
-	}
+	} */
 	srv := &Server{}
 	if err := srv.Run(); err != nil {
 		log.Error(fmt.Sprintf("failed to run: %v", err))

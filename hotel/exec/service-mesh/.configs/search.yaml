@@ -12,16 +12,14 @@ mapping:
     downstreams:
       - geo.Geo/Nearby
       - rate.Rate/GetRates
-    min_max_concurrency: 10
-    limit: 13
 ring_size: 1000
-buffer_count: 1000
-buffer_size: 200000
-num_threads: 2
+buffer_count: 16384
+buffer_size: 80000
+num_threads: 1
 egress_listener_port: 4005
 ingress_listener_port: 3005
 ingress_upstream_host: 172.17.0.1
 ingress_upstream_port: 2005
-ppm_limit: 13
 report_latency: True
+ppm_limit: 2
 name: search

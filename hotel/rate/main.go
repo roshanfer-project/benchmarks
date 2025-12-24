@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"hotel"
 	breakwaterinit "hotel/breakwater-init"
 	dagorinit "hotel/dagor_init"
 	oteltool "hotel/otel_tool"
@@ -16,24 +17,17 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	bw "hotel/breakwater"
 	"hotel/dagor"
 
-	"github.com/bradfitz/gomemcache/memcache"
 	"github.com/google/uuid"
 	"github.com/pennsail/rajomon"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
-	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/stats/opentelemetry"
 )
@@ -48,8 +42,10 @@ type Server struct {
 
 	uuid string
 
-	MongoClient *mongo.Client
-	MemcClient  *memcache.Client
+	// In-memory data stores
+	ratePlans []*pb.RatePlan    // all rate plans
+	memcache  map[string][]byte // key: hotelId, value: newline-separated JSON RatePlans
+	mu        sync.RWMutex      // protects all in-memory stores
 }
 
 func configOTL(ctx context.Context, serviceName string) (grpc.ServerOption, []func(context.Context) error, bool) {
@@ -195,15 +191,7 @@ func (s *Server) Run() error {
 
 	s.uuid = uuid.New().String()
 
-	opts := []grpc.ServerOption{
-		grpc.KeepaliveParams(keepalive.ServerParameters{
-			Timeout: 120 * time.Second,
-		}),
-		grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
-			PermitWithoutStream: true,
-		}),
-		//grpc.UnaryInterceptor(tracingInterceptor),
-	}
+	opts := hotel.DefaultServerOptions()
 
 	var priceTable *rajomon.PriceTable = nil
 	if utils.GetEnvVar("rajomon", false) == "true" {
@@ -236,7 +224,7 @@ func (s *Server) Run() error {
 			breakwaterd.UnaryInterceptor))
 	}
 
-	if (utils.GetEnvVar("sidecar", false) == "true") && (utils.GetEnvVar("queuing_export", false) == "true") {
+	/* if (utils.GetEnvVar("sidecar", false) == "true") && (utils.GetEnvVar("queuing_export", false) == "true") {
 		opts = append(opts, grpc.UnaryInterceptor(CountersInterceptor()))
 	}
 
@@ -244,9 +232,9 @@ func (s *Server) Run() error {
 		opts = append(opts, grpc.ChainUnaryInterceptor(
 			CountersInterceptor(),
 			AcceptedRPCInterceptor()))
-	}
+	} */
 
-	ctx := context.Background()
+	/* ctx := context.Background()
 	if _, shutdownList, ok := configOTL(ctx, serviceName); ok {
 		opts = append(opts, grpc.StatsHandler(otelgrpc.NewServerHandler()))
 
@@ -260,7 +248,7 @@ func (s *Server) Run() error {
 		log.Info("Successfully initialized OpenTelemetry")
 	} else {
 		log.Error("Failed to initialize OpenTelemetry")
-	}
+	} */
 
 	srv := grpc.NewServer(opts...)
 
@@ -275,6 +263,7 @@ func (s *Server) Run() error {
 }
 
 func (s *Server) GetRates(ctx context.Context, req *pb.Request) (*pb.Result, error) {
+	utils.BusyLoop(100)
 	res := new(pb.Result)
 
 	ratePlans := make(RatePlans, 0)
@@ -291,77 +280,83 @@ func (s *Server) GetRates(ctx context.Context, req *pb.Request) (*pb.Result, err
 	//memSpan.SetTag("span.kind", "client")
 	memSpan.SetAttributes(attribute.String("span.kind", "client"))
 
-	resMap, err := s.MemcClient.GetMulti(hotelIds)
+	// Get from memcache
+	s.mu.RLock()
+	resMap := make(map[string][]byte)
+	for _, hotelId := range hotelIds {
+		if val, ok := s.memcache[hotelId]; ok {
+			resMap[hotelId] = val
+		}
+	}
+	s.mu.RUnlock()
+
 	//memSpan.Finish()
 	memSpan.End()
 
 	var wg sync.WaitGroup
 	var mutex sync.Mutex
-	if err != nil && err != memcache.ErrCacheMiss {
-		log.Error(fmt.Sprintf("Memmcached error while trying to get hotel [id: %v]= %s", hotelIds, err.Error()))
-	} else {
-		for hotelId, item := range resMap {
-			rateStrs := strings.Split(string(item.Value), "\n")
-			log.Debug("memc hit, hotelId = %s,rate strings: %v", hotelId, rateStrs)
 
-			for _, rateStr := range rateStrs {
-				if len(rateStr) != 0 {
-					rateP := new(pb.RatePlan)
-					json.Unmarshal([]byte(rateStr), rateP)
-					ratePlans = append(ratePlans, rateP)
+	for hotelId, item := range resMap {
+		rateStrs := strings.Split(string(item), "\n")
+		log.Debug("memc hit, hotelId = %s,rate strings: %v", hotelId, rateStrs)
+
+		for _, rateStr := range rateStrs {
+			if len(rateStr) != 0 {
+				rateP := new(pb.RatePlan)
+				json.Unmarshal([]byte(rateStr), rateP)
+				ratePlans = append(ratePlans, rateP)
+			}
+		}
+
+		delete(rateMap, hotelId)
+	}
+
+	wg.Add(len(rateMap))
+	for hotelId := range rateMap {
+		go func(id string) {
+			log.Debug(fmt.Sprintf("memc miss, hotelId = %s", id))
+			log.Debug("memcached miss, set up mongo connection")
+
+			//mongoSpan, _ := opentracing.StartSpanFromContext(ctx, "mongo_rate")
+			_, mongoSpan := tracer.Start(ctx, "mongo_rate")
+			//mongoSpan.SetTag("span.kind", "client")
+			mongoSpan.SetAttributes(attribute.String("span.kind", "client"))
+
+			// memcached miss, get from in-memory store
+			s.mu.RLock()
+			tmpRatePlans := make(RatePlans, 0)
+			for _, r := range s.ratePlans {
+				if r.HotelId == id {
+					tmpRatePlans = append(tmpRatePlans, r)
+				}
+			}
+			s.mu.RUnlock()
+
+			//mongoSpan.Finish()
+			mongoSpan.End()
+
+			memcStr := ""
+			for _, r := range tmpRatePlans {
+				mutex.Lock()
+				ratePlans = append(ratePlans, r)
+				mutex.Unlock()
+				rateJson, err := json.Marshal(r)
+				if err != nil {
+					log.Error("Failed to marshal plan with error", "error", err)
+				} else {
+					memcStr = memcStr + string(rateJson) + "\n"
 				}
 			}
 
-			delete(rateMap, hotelId)
-		}
+			// Update memcache
+			if len(memcStr) > 0 {
+				s.mu.Lock()
+				s.memcache[id] = []byte(memcStr)
+				s.mu.Unlock()
+			}
 
-		wg.Add(len(rateMap))
-		for hotelId := range rateMap {
-			go func(id string) {
-				log.Debug(fmt.Sprintf("memc miss, hotelId = %s", id))
-				log.Debug("memcached miss, set up mongo connection")
-
-				//mongoSpan, _ := opentracing.StartSpanFromContext(ctx, "mongo_rate")
-				_, mongoSpan := tracer.Start(ctx, "mongo_rate")
-				//mongoSpan.SetTag("span.kind", "client")
-				mongoSpan.SetAttributes(attribute.String("span.kind", "client"))
-
-				// memcached miss, set up mongo connection
-				collection := s.MongoClient.Database("rate-db").Collection("inventory")
-				curr, err := collection.Find(context.TODO(), bson.D{})
-				if err != nil {
-					log.Error(fmt.Sprintf("Failed get rate data: %s", err.Error()))
-				}
-
-				tmpRatePlans := make(RatePlans, 0)
-				curr.All(context.TODO(), &tmpRatePlans)
-				if err != nil {
-					log.Error(fmt.Sprintf("Failed get rate data: %s", err.Error()))
-				}
-
-				//mongoSpan.Finish()
-				mongoSpan.End()
-
-				memcStr := ""
-				if err != nil {
-					log.Error("Tried to find hotelId [%v], but got error", id, err.Error())
-				} else {
-					for _, r := range tmpRatePlans {
-						mutex.Lock()
-						ratePlans = append(ratePlans, r)
-						mutex.Unlock()
-						rateJson, err := json.Marshal(r)
-						if err != nil {
-							log.Error("Failed to marshal plan with error", "error", err)
-						}
-						memcStr = memcStr + string(rateJson) + "\n"
-					}
-				}
-				go s.MemcClient.Set(&memcache.Item{Key: id, Value: []byte(memcStr)})
-
-				defer wg.Done()
-			}(hotelId)
-		}
+			defer wg.Done()
+		}(hotelId)
 	}
 	wg.Wait()
 
@@ -387,7 +382,8 @@ func (r RatePlans) Less(i, j int) bool {
 
 func main() {
 	log.Info("Reading config...")
-	var ok error
+	tracer = otel.GetTracerProvider().Tracer(serviceName)
+	/* var ok error
 	maxQueueGuage, ok = otel.GetMeterProvider().Meter(serviceName).Int64Gauge("max_queue",
 		metric.WithDescription("Maximum queue length for each RPC method"))
 	if ok != nil {
@@ -405,19 +401,13 @@ func main() {
 	if ok != nil {
 		log.Error("Failed to create accepted_rpc counter")
 		panic("Failed to create accepted_rpc counter")
-	}
-	log.Info("Initializing DB connection...")
-	mongoClient, mongoClose := initializeDatabase(utils.GetEnvVar("RateMongoAddress", true))
-	defer mongoClose()
-
-	log.Info(fmt.Sprintf("Read profile memcashed address: %v", utils.GetEnvVar("RateMemcAddress", true)))
-	log.Info("Initializing Memcashed client...")
-	memcClient := utils.NewMemCClient2(utils.GetEnvVar("RateMemcAddress", true))
-	log.Info("Success")
+	} */
+	log.Info("Initializing in-memory data stores...")
+	ratePlans := initializeDatabase()
 
 	srv := &Server{
-		MongoClient: mongoClient,
-		MemcClient:  memcClient,
+		ratePlans: ratePlans,
+		memcache:  make(map[string][]byte),
 	}
 
 	log.Info("Starting server...")
@@ -440,47 +430,47 @@ type RatePlan struct {
 	RoomType *RoomType `bson:"roomType"`
 }
 
-func initializeDatabase(url string) (*mongo.Client, func()) {
+func initializeDatabase() []*pb.RatePlan {
 	log.Info("Generating test data...")
 
-	newRatePlans := []interface{}{
-		RatePlan{
-			"1",
-			"RACK",
-			"2015-04-09",
-			"2015-04-10",
-			&RoomType{
-				109.00,
-				"KNG",
-				"King sized bed",
-				109.00,
-				123.17,
+	ratePlans := []*pb.RatePlan{
+		{
+			HotelId: "1",
+			Code:    "RACK",
+			InDate:  "2015-04-09",
+			OutDate: "2015-04-10",
+			RoomType: &pb.RoomType{
+				BookableRate:       109.00,
+				Code:               "KNG",
+				RoomDescription:    "King sized bed",
+				TotalRate:          109.00,
+				TotalRateInclusive: 123.17,
 			},
 		},
-		RatePlan{
-			"2",
-			"RACK",
-			"2015-04-09",
-			"2015-04-10",
-			&RoomType{
-				139.00,
-				"QN",
-				"Queen sized bed",
-				139.00,
-				153.09,
+		{
+			HotelId: "2",
+			Code:    "RACK",
+			InDate:  "2015-04-09",
+			OutDate: "2015-04-10",
+			RoomType: &pb.RoomType{
+				BookableRate:       139.00,
+				Code:               "QN",
+				RoomDescription:    "Queen sized bed",
+				TotalRate:          139.00,
+				TotalRateInclusive: 153.09,
 			},
 		},
-		RatePlan{
-			"3",
-			"RACK",
-			"2015-04-09",
-			"2015-04-10",
-			&RoomType{
-				109.00,
-				"KNG",
-				"King sized bed",
-				109.00,
-				123.17,
+		{
+			HotelId: "3",
+			Code:    "RACK",
+			InDate:  "2015-04-09",
+			OutDate: "2015-04-10",
+			RoomType: &pb.RoomType{
+				BookableRate:       109.00,
+				Code:               "KNG",
+				RoomDescription:    "King sized bed",
+				TotalRate:          109.00,
+				TotalRateInclusive: 123.17,
 			},
 		},
 	}
@@ -515,44 +505,24 @@ func initializeDatabase(url string) (*mongo.Client, func()) {
 			rateInc = 258.00
 		}
 
-		newRatePlans = append(
-			newRatePlans,
-			RatePlan{
-				hotelID,
-				"RACK",
-				"2015-04-09",
-				endDate,
-				&RoomType{
-					rate,
-					"KNG",
-					"King sized bed",
-					rate,
-					rateInc,
+		ratePlans = append(
+			ratePlans,
+			&pb.RatePlan{
+				HotelId: hotelID,
+				Code:    "RACK",
+				InDate:  "2015-04-09",
+				OutDate: endDate,
+				RoomType: &pb.RoomType{
+					BookableRate:       rate,
+					Code:               "KNG",
+					RoomDescription:    "King sized bed",
+					TotalRate:          rate,
+					TotalRateInclusive: rateInc,
 				},
 			},
 		)
 	}
 
-	uri := fmt.Sprintf("mongodb://%s", url)
-	log.Info(fmt.Sprintf("Attempting connection to %v", uri))
-
-	opts := options.Client().ApplyURI(uri)
-	client, err := mongo.Connect(context.TODO(), opts)
-	if err != nil {
-		log.Error(err.Error())
-	}
-	log.Info("Successfully connected to MongoDB")
-
-	collection := client.Database("rate-db").Collection("inventory")
-	_, err = collection.InsertMany(context.TODO(), newRatePlans)
-	if err != nil {
-		log.Error(err.Error())
-	}
-	log.Info("Successfully inserted test data into rate DB")
-
-	return client, func() {
-		if err := client.Disconnect(context.TODO()); err != nil {
-			log.Error(err.Error())
-		}
-	}
+	log.Info("Successfully initialized in-memory rate data stores")
+	return ratePlans
 }
