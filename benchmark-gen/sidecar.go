@@ -131,18 +131,28 @@ func generateIngressSidecarConfig(genConfig *GeneratedConfig, outputDir string, 
 		sb.WriteString(mappingContent.String())
 	}
 
-	// Common config
-	sb.WriteString("ring_size: 4000\n")
-	sb.WriteString("buffer_count: 2000\n")
-	sb.WriteString("buffer_size: 10000\n")
+	// Common config with overrides
+	override := getSidecarConfigOverride(genConfig, "ingress")
+	ringSize := getIntValue(override.RingSize, 4000)
+	bufferCount := getIntValue(override.BufferCount, 2000)
+	bufferSize := getIntValue(override.BufferSize, 10000)
 	// Set num_threads to the number of frontend services exposed by ingress
 	numThreads := len(frontends)
 	if numThreads == 0 {
 		numThreads = 1 // Default to 1 if no frontends (shouldn't happen, but be safe)
 	}
+	if override.NumThreads != nil {
+		numThreads = *override.NumThreads
+	}
+	ingressPoolConnections := getIntValue(override.IngressPoolConnections, 100)
+	frontendPoolConnections := getIntValue(override.FrontendPoolConnections, 100)
+	
+	sb.WriteString(fmt.Sprintf("ring_size: %d\n", ringSize))
+	sb.WriteString(fmt.Sprintf("buffer_count: %d\n", bufferCount))
+	sb.WriteString(fmt.Sprintf("buffer_size: %d\n", bufferSize))
 	sb.WriteString(fmt.Sprintf("num_threads: %d\n", numThreads))
-	sb.WriteString("ingress_pool_connections: 100\n")
-	sb.WriteString("frontend_pool_connections: 100\n")
+	sb.WriteString(fmt.Sprintf("ingress_pool_connections: %d\n", ingressPoolConnections))
+	sb.WriteString(fmt.Sprintf("frontend_pool_connections: %d\n", frontendPoolConnections))
 
 	// Ingress-specific ports
 	// For ingress, egress_listener_port is the port that receives external traffic
@@ -238,13 +248,21 @@ func generateFrontendSidecarConfig(genConfig *GeneratedConfig, outputDir, servic
 		sb.WriteString(mappingContent.String())
 	}
 
-	// Common config
-	sb.WriteString("ring_size: 1000\n")
-	sb.WriteString("buffer_count: 1000\n")
-	sb.WriteString("buffer_size: 80000\n")
-	sb.WriteString("num_threads: 1\n")
-	sb.WriteString("ingress_pool_connections: 100\n")
-	sb.WriteString("frontend_pool_connections: 150\n")
+	// Common config with overrides
+	override := getSidecarConfigOverride(genConfig, serviceName)
+	ringSize := getIntValue(override.RingSize, 1000)
+	bufferCount := getIntValue(override.BufferCount, 1000)
+	bufferSize := getIntValue(override.BufferSize, 80000)
+	numThreads := getIntValue(override.NumThreads, 1)
+	ingressPoolConnections := getIntValue(override.IngressPoolConnections, 100)
+	frontendPoolConnections := getIntValue(override.FrontendPoolConnections, 150)
+	
+	sb.WriteString(fmt.Sprintf("ring_size: %d\n", ringSize))
+	sb.WriteString(fmt.Sprintf("buffer_count: %d\n", bufferCount))
+	sb.WriteString(fmt.Sprintf("buffer_size: %d\n", bufferSize))
+	sb.WriteString(fmt.Sprintf("num_threads: %d\n", numThreads))
+	sb.WriteString(fmt.Sprintf("ingress_pool_connections: %d\n", ingressPoolConnections))
+	sb.WriteString(fmt.Sprintf("frontend_pool_connections: %d\n", frontendPoolConnections))
 	sb.WriteString(fmt.Sprintf("egress_listener_port: %d\n", ports.EgressPort))
 	sb.WriteString(fmt.Sprintf("ingress_listener_port: %d\n", ports.IngressPort))
 	sb.WriteString("ingress_upstream_host: 127.0.0.1\n")
@@ -301,13 +319,21 @@ func generateBackendSidecarConfig(genConfig *GeneratedConfig, outputDir, service
 		sb.WriteString(mappingContent.String())
 	}
 
-	// Common config
-	sb.WriteString("ring_size: 1000\n")
-	sb.WriteString("buffer_count: 1000\n")
-	sb.WriteString("buffer_size: 80000\n")
-	sb.WriteString("num_threads: 1\n")
-	sb.WriteString("ingress_pool_connections: 100\n")
-	sb.WriteString("frontend_pool_connections: 100\n")
+	// Common config with overrides
+	override := getSidecarConfigOverride(genConfig, serviceName)
+	ringSize := getIntValue(override.RingSize, 1000)
+	bufferCount := getIntValue(override.BufferCount, 1000)
+	bufferSize := getIntValue(override.BufferSize, 80000)
+	numThreads := getIntValue(override.NumThreads, 1)
+	ingressPoolConnections := getIntValue(override.IngressPoolConnections, 100)
+	frontendPoolConnections := getIntValue(override.FrontendPoolConnections, 100)
+	
+	sb.WriteString(fmt.Sprintf("ring_size: %d\n", ringSize))
+	sb.WriteString(fmt.Sprintf("buffer_count: %d\n", bufferCount))
+	sb.WriteString(fmt.Sprintf("buffer_size: %d\n", bufferSize))
+	sb.WriteString(fmt.Sprintf("num_threads: %d\n", numThreads))
+	sb.WriteString(fmt.Sprintf("ingress_pool_connections: %d\n", ingressPoolConnections))
+	sb.WriteString(fmt.Sprintf("frontend_pool_connections: %d\n", frontendPoolConnections))
 	sb.WriteString(fmt.Sprintf("egress_listener_port: %d\n", ports.EgressPort))
 	sb.WriteString(fmt.Sprintf("ingress_listener_port: %d\n", ports.IngressPort))
 	sb.WriteString("ingress_upstream_host: 127.0.0.1\n")
@@ -330,4 +356,23 @@ func generateBackendSidecarConfig(genConfig *GeneratedConfig, outputDir, service
 	return os.WriteFile(file, []byte(sb.String()), 0644)
 }
 
+// getSidecarConfigOverride retrieves sidecar config override for a given service name
+// Returns an empty SidecarConfigOverride if no override exists
+func getSidecarConfigOverride(genConfig *GeneratedConfig, serviceName string) SidecarConfigOverride {
+	if genConfig.Roshanfer == nil || genConfig.Roshanfer.SidecarConfig == nil {
+		return SidecarConfigOverride{}
+	}
+	if override, ok := genConfig.Roshanfer.SidecarConfig[serviceName]; ok {
+		return override
+	}
+	return SidecarConfigOverride{}
+}
+
+// getIntValue returns the value if pointer is not nil, otherwise returns default
+func getIntValue(ptr *int, defaultValue int) int {
+	if ptr != nil {
+		return *ptr
+	}
+	return defaultValue
+}
 

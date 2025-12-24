@@ -30,9 +30,19 @@ type Edge struct {
 }
 
 type RoshanferConfig struct {
-	Limits map[string]LimitConfig `yaml:"limits"`
-	SLOs   map[string]int         `yaml:"slos,omitempty"` // endpoint -> SLO in ms
-	PPM    map[string]int         `yaml:"ppm"`            // service -> PPM limit
+	Limits       map[string]LimitConfig      `yaml:"limits"`
+	SLOs         map[string]int             `yaml:"slos,omitempty"`         // endpoint -> SLO in ms
+	PPM          map[string]int              `yaml:"ppm"`                    // service -> PPM limit
+	SidecarConfig map[string]SidecarConfigOverride `yaml:"sidecar_config,omitempty"` // service -> sidecar config overrides
+}
+
+type SidecarConfigOverride struct {
+	RingSize              *int `yaml:"ring_size,omitempty"`
+	BufferCount           *int `yaml:"buffer_count,omitempty"`
+	BufferSize            *int `yaml:"buffer_size,omitempty"`
+	NumThreads            *int `yaml:"num_threads,omitempty"`
+	IngressPoolConnections *int `yaml:"ingress_pool_connections,omitempty"`
+	FrontendPoolConnections *int `yaml:"frontend_pool_connections,omitempty"`
 }
 
 type LimitConfig struct {

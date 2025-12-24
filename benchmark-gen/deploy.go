@@ -137,15 +137,15 @@ func deploy(inputFile, outputDir, configFile, mode string) error {
 		}
 		// If namespace is still terminating after 30 seconds, try to force delete it
 		if !deleted {
-		fmt.Printf("Namespace %s is stuck in Terminating state, attempting to force delete...\n", deployConfig.Namespace)
-		// First try to remove finalizers
-		patchCmd := buildKubectlCommand(kubectlCmd, useSudo, deployConfig.Kubeconfig, "patch", "namespace", deployConfig.Namespace, "-p", `{"metadata":{"finalizers":[]}}`, "--type=merge")
-		patchCmd.Run() // Ignore errors
-		forceDeleteCmd := buildKubectlCommand(kubectlCmd, useSudo, deployConfig.Kubeconfig, "delete", "namespace", deployConfig.Namespace, "--force", "--grace-period=0", "--ignore-not-found=true")
+			fmt.Printf("Namespace %s is stuck in Terminating state, attempting to force delete...\n", deployConfig.Namespace)
+			// First try to remove finalizers
+			patchCmd := buildKubectlCommand(kubectlCmd, useSudo, deployConfig.Kubeconfig, "patch", "namespace", deployConfig.Namespace, "-p", `{"metadata":{"finalizers":[]}}`, "--type=merge")
+			patchCmd.Run() // Ignore errors
+			forceDeleteCmd := buildKubectlCommand(kubectlCmd, useSudo, deployConfig.Kubeconfig, "delete", "namespace", deployConfig.Namespace, "--force", "--grace-period=0", "--ignore-not-found=true")
 			forceDeleteCmd.Run() // Ignore errors, just try
-		// Wait a bit more and verify deletion
-		time.Sleep(3 * time.Second)
-		verifyCmd := buildKubectlCommand(kubectlCmd, useSudo, deployConfig.Kubeconfig, "get", "namespace", deployConfig.Namespace, "--ignore-not-found=true", "-o", "jsonpath={.status.phase}")
+			// Wait a bit more and verify deletion
+			time.Sleep(3 * time.Second)
+			verifyCmd := buildKubectlCommand(kubectlCmd, useSudo, deployConfig.Kubeconfig, "get", "namespace", deployConfig.Namespace, "--ignore-not-found=true", "-o", "jsonpath={.status.phase}")
 			verifyPhase, _ := verifyCmd.Output()
 			verifyPhaseStr := strings.TrimSpace(string(verifyPhase))
 			if len(verifyPhaseStr) == 0 {
@@ -503,7 +503,7 @@ func destroy(outputDir, configFile, mode string) error {
 	// Wait for namespace deletion to complete and handle stuck namespaces
 	fmt.Printf("Waiting for namespace %s to be deleted...\n", deployConfig.Namespace)
 	deleted := false
-		for i := 0; i < 60; i++ {
+	for i := 0; i < 60; i++ {
 		time.Sleep(100 * time.Millisecond)
 		checkCmd := buildKubectlCommand(kubectlCmd, useSudo, deployConfig.Kubeconfig, "get", "namespace", deployConfig.Namespace, "--ignore-not-found=true", "-o", "jsonpath={.status.phase}")
 		phase, err := checkCmd.Output()
