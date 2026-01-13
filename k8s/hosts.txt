@@ -1,0 +1,10 @@
+# First line is the server (control plane)
+# Subsequent lines are agents (workers)
+# Example:
+# node1
+# node2
+# node3
+
+farzad11@amd019.utah.cloudlab.us
+farzad11@amd001.utah.cloudlab.us
+farzad11@amd008.utah.cloudlab.us
