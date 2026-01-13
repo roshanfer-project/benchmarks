@@ -1,0 +1,70 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sidecar-configs
+  namespace: default
+data:
+  ingress.yaml: |
+    routing:
+      app:
+        upstream:
+          host: app # Service name in K8s
+          port: 3007
+        slo: 15
+        priority: 0
+      app2:
+        upstream:
+          host: app
+          port: 3007
+        slo: 22
+        priority: 1
+      app3:
+        upstream:
+          host: app
+          port: 3007
+        slo: 36
+        priority: 2
+    mapping:
+      app:
+        downstreams: [app]
+        listen_port: 3000
+      app2:
+        downstreams: [app2]
+        listen_port: 3008
+      app3:
+        downstreams: [app3]
+        listen_port: 3009
+    ring_size: 12000
+    buffer_count: 16384
+    buffer_size: 10000
+    num_threads: 3
+    ingress_pool_connections: 20
+    egress_listener_port: 3000
+    ingress_listener_port: 4000
+    ingress_upstream_host: localhost # Loopback
+    ingress_upstream_port: 2000
+    is_ingress: True
+    is_frontend: False
+    report_latency: True
+    name: ingress
+
+  app.yaml: |
+    mapping:
+      app:
+      app2:
+      app3:
+    ring_size: 10000
+    buffer_count: 16384
+    buffer_size: 80000
+    num_threads: 1
+    frontend_pool_connections: 100
+    egress_listener_port: 4007
+    ingress_listener_port: 3007
+    ingress_upstream_host: localhost # App container in the same pod
+    ingress_upstream_port: 2007
+    is_ingress: False
+    is_frontend: True
+    report_latency: True
+    per_endpoint_limit: 10
+    ppm_limit: 10
+    name: app
