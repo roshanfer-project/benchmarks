@@ -1,52 +1,44 @@
-apiVersion: apps/v1
-kind: Deployment
+apiVersion: v1
+kind: Pod
 metadata:
   name: ingress
   labels:
     app: ingress
 spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: ingress
-  template:
-    metadata:
-      labels:
-        app: ingress
-    spec:
-      containers:
-      - name: sidecar
-        image: sidecar-sidecar:latest
-        env:
-        - name: PROC_NAME
-          value: "ingress-sidecar"
-        - name: GLOG_logtostderr
-          value: "1"
-        resources:
-          requests:
-            cpu: "6"
-          limits:
-            cpu: "6"
-        volumeMounts:
-        - name: config-volume
-          mountPath: /config.yaml
-          subPath: ingress.yaml
+  restartPolicy: Never
+  containers:
+  - name: sidecar
+    image: sidecar-sidecar:latest
+    env:
+    - name: PROC_NAME
+      value: "ingress-sidecar"
+    - name: GLOG_logtostderr
+      value: "1"
+    resources:
+      requests:
+        cpu: "6"
+      limits:
+        cpu: "6"
+    volumeMounts:
+    - name: config-volume
+      mountPath: /config.yaml
+      subPath: ingress.yaml
 #        - name: usr-local-lib
 #          mountPath: /usr/local/lib
 #          readOnly: true
 #        - name: lib-x86-64
 #          mountPath: /lib/x86_64-linux-gnu
 #          readOnly: true
-      volumes:
-      - name: config-volume
-        configMap:
-          name: sidecar-configs
-      - name: usr-local-lib
-        hostPath:
-          path: /usr/local/lib
-      - name: lib-x86-64
-        hostPath:
-          path: /lib/x86_64-linux-gnu
+  volumes:
+  - name: config-volume
+    configMap:
+      name: sidecar-configs
+  - name: usr-local-lib
+    hostPath:
+      path: /usr/local/lib
+  - name: lib-x86-64
+    hostPath:
+      path: /lib/x86_64-linux-gnu
 ---
 apiVersion: v1
 kind: Service

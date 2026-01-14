@@ -1,65 +1,57 @@
-apiVersion: apps/v1
-kind: Deployment
+apiVersion: v1
+kind: Pod
 metadata:
   name: app
   labels:
     app: app
 spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: app
-  template:
-    metadata:
-      labels:
-        app: app
-    spec:
-      containers:
-      - name: app
-        image: test1-app:latest
-        resources:
-          requests:
-            cpu: "5"
-          limits:
-            cpu: "5"
-        envFrom:
-        - configMapRef:
-            name: test1-config
-        ports:
-        - containerPort: 2007
-      
-      - name: sidecar
-        image: sidecar-sidecar:latest
-        env:
-        - name: PROC_NAME
-          value: "app-sidecar"
-        - name: GLOG_logtostderr
-          value: "1"
-        resources:
-          requests:
-            cpu: "2"
-          limits:
-            cpu: "2"
-        volumeMounts:
-        - name: config-volume
-          mountPath: /config.yaml
-          subPath: app.yaml
+  restartPolicy: Never
+  containers:
+  - name: app
+    image: test1-app:latest
+    resources:
+      requests:
+        cpu: "5"
+      limits:
+        cpu: "5"
+    envFrom:
+    - configMapRef:
+        name: test1-config
+    ports:
+    - containerPort: 2007
+  
+  - name: sidecar
+    image: sidecar-sidecar:latest
+    env:
+    - name: PROC_NAME
+      value: "app-sidecar"
+    - name: GLOG_logtostderr
+      value: "1"
+    resources:
+      requests:
+        cpu: "2"
+      limits:
+        cpu: "2"
+    volumeMounts:
+    - name: config-volume
+      mountPath: /config.yaml
+      subPath: app.yaml
 #        - name: usr-local-lib
 #          mountPath: /usr/local/lib
 #          readOnly: true
 #        - name: lib-x86-64
 #          mountPath: /lib/x86_64-linux-gnu
 #          readOnly: true
-      volumes:
-      - name: config-volume
-        configMap:
-          name: sidecar-configs
-      - name: usr-local-lib
-        hostPath:
-          path: /usr/local/lib
-      - name: lib-x86-64
-        hostPath:
-          path: /lib/x86_64-linux-gnu
+  volumes:
+  - name: config-volume
+    configMap:
+      name: sidecar-configs
+  - name: usr-local-lib
+    hostPath:
+      path: /usr/local/lib
+  - name: lib-x86-64
+    hostPath:
+      path: /lib/x86_64-linux-gnu
 ---
 apiVersion: v1
 kind: Service
