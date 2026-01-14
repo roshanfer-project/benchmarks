@@ -36,12 +36,6 @@ spec:
     - name: config-volume
       mountPath: /config.yaml
       subPath: app.yaml
-#        - name: usr-local-lib
-#          mountPath: /usr/local/lib
-#          readOnly: true
-#        - name: lib-x86-64
-#          mountPath: /lib/x86_64-linux-gnu
-#          readOnly: true
   volumes:
   - name: config-volume
     configMap:
