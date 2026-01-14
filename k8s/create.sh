@@ -79,6 +79,35 @@ ssh_exec() {
 }
 
 
+# --- COMMON SETUP (All Nodes) ---
+log_info "Starting common setup on all nodes..."
+for entry in "${HOSTS[@]}"; do
+    parse_host_entry "$entry"
+    node_user="$CURRENT_USER"
+    node_host="$CURRENT_HOST"
+    
+    log_info "Configuring $node_host ($node_user)..."
+
+    # 1. Copy SSH Keys
+    log_info "  Copying SSH keys..."
+    ssh_exec "$node_user" "$node_host" "mkdir -p ~/.ssh && chmod 700 ~/.ssh"
+    scp $SSH_OPTS ~/.ssh/id_ed25519 "$node_user@$node_host:~/.ssh/"
+    scp $SSH_OPTS ~/.ssh/id_ed25519.pub "$node_user@$node_host:~/.ssh/"
+    ssh_exec "$node_user" "$node_host" "chmod 600 ~/.ssh/id_ed25519 && chmod 644 ~/.ssh/id_ed25519.pub"
+    
+    # 2. Install Go
+    log_info "  Installing Go..."
+    # Pipe the local install script to the remote bash
+    cat "$SCRIPT_DIR/install_go.sh" | ssh_exec "$node_user" "$node_host" "bash -s"
+
+
+    # 3. Clone experiments
+    log_info "  Cloning experiments..."
+    ssh_exec "$node_user" "$node_host" "ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null"
+    ssh_exec "$node_user" "$node_host" "git clone git@github.com:farzad1132/roshanfer-experments.git"
+
+done
+
 # --- SERVER INSTALLATION ---
 log_info "Installing K3s Server on $SERVER_HOST..."
 
