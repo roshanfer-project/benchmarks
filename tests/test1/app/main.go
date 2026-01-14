@@ -12,7 +12,6 @@ import (
 	"strings"
 	"test1/utils"
 
-	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc/metadata"
 )
 
@@ -33,15 +32,12 @@ var app3PostRepeat int
 
 var listenPort int
 var sidecar bool
-var tracer trace.Tracer
 
 var log = utils.GetLogger("app")
 
 func tracingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := getContextWithRpcId(r)
-		ctx, span := tracer.Start(ctx, r.Method+" "+r.URL.Path)
-		defer span.End()
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
