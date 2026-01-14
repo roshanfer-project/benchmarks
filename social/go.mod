@@ -1,6 +1,6 @@
 module social
 
-go 1.24.2
+go 1.25
 
 require (
 	github.com/alexflint/go-arg v1.6.0
