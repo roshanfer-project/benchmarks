@@ -5,6 +5,6 @@
 # node2
 # node3
 
-farzad11@amd019.utah.cloudlab.us
-farzad11@amd001.utah.cloudlab.us
-farzad11@amd008.utah.cloudlab.us
+farzad11@c220g2-011109.wisc.cloudlab.us
+farzad11@c220g2-011101.wisc.cloudlab.us
+farzad11@c220g2-011102.wisc.cloudlab.us
