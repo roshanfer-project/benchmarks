@@ -3,7 +3,7 @@
 echo "Destroying test1 deployment..."
 
 # Delete Deployments
-kubectl delete deployment app ingress --ignore-not-found
+kubectl delete pod app ingress --ignore-not-found
 
 # Delete Services
 kubectl delete service app ingress --ignore-not-found

@@ -107,7 +107,30 @@ fi
 
 # 6. Apply to K8s
 echo "Applying manifests..."
-kubectl apply -f "$TMP_DIR"
+# Apply ConfigMap
+if [ -f "$TMP_DIR/configmap.yaml" ]; then
+    kubectl apply -f "$TMP_DIR/configmap.yaml"
+fi
+
+# Apply Sidecar Configs if present
+if [ -f "$TMP_DIR/sidecar-configs.yaml" ]; then
+    kubectl apply -f "$TMP_DIR/sidecar-configs.yaml"
+fi
+
+# Apply App
+if [ -f "$TMP_DIR/app.yaml" ]; then
+    kubectl apply -f "$TMP_DIR/app.yaml"
+    echo "Waiting for app pod to be ready..."
+    kubectl wait --for=condition=ready pod/app --timeout=5s
+fi
+
+# Apply Ingress if present
+if [ -f "$TMP_DIR/ingress.yaml" ]; then
+    echo "Applying ingress..."
+    kubectl apply -f "$TMP_DIR/ingress.yaml"
+    echo "Waiting for ingress pod to be ready..."
+    kubectl wait --for=condition=ready pod/ingress --timeout=5s
+fi
 
 # Cleanup
 rm -rf "$TMP_DIR"
