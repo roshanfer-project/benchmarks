@@ -42,6 +42,13 @@ echo "Tag: $TAG"
 cd "$ROOT_DIR"
 
 if [ "$SKIP_BUILD" = false ]; then
+    if ! command -v docker &> /dev/null; then
+        echo "Warning: docker command not found. Skipping build."
+        SKIP_BUILD=true
+    fi
+fi
+
+if [ "$SKIP_BUILD" = false ]; then
     # 1. Build Sidecar Binary
     if [ -d "sidecar" ]; then
         echo "Entering sidecar directory to build..."

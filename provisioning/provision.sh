@@ -3,7 +3,7 @@ set -e
 
 # Get script directory
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
-HOSTS_FILE="$SCRIPT_DIR/hosts.txt"
+HOSTS_FILE="${HOSTS_FILE:-"$SCRIPT_DIR/hosts.txt"}"
 CONFIG_FILE="$SCRIPT_DIR/../k8s/config.env" # Re-use k8s config if available, or just for SSH_OPTS
 
 # Colors
@@ -59,6 +59,12 @@ for entry in "${HOSTS[@]}"; do
     
     log_info "Provisioning $node_host ($node_user)..."
 
+    # Check if already provisioned
+    if ssh_exec "$node_user" "$node_host" "[ -f .roshanfer_provisioned ]"; then
+         log_success "  Host $node_host already provisioned (found .roshanfer_provisioned). Skipping."
+         continue
+    fi
+
     # 1. SSH Keys Setup
     log_info "  [1/4] Setting up SSH keys..."
     ssh_exec "$node_user" "$node_host" "mkdir -p ~/.ssh && chmod 700 ~/.ssh"
@@ -96,17 +102,20 @@ for entry in "${HOSTS[@]}"; do
     ssh_exec "$node_user" "$node_host" "$CLONE_CMD"
     
     # Initialize submodules
-    log_info "        Initializing submodules..."
-    ssh_exec "$node_user" "$node_host" "cd $DIR_NAME && git submodule update --init --recursive"
+    log_info "        Initializing submodules (rwg only)..."
+    ssh_exec "$node_user" "$node_host" "cd $DIR_NAME && git submodule update --init --recursive rwg"
 
     # Build rwg
     log_info "        Building rwg..."
-    ssh_exec "$node_user" "$node_host" "source ~/.bashrc && cd $DIR_NAME/rwg && go build ."
+    ssh_exec "$node_user" "$node_host" "cd $DIR_NAME/rwg && /usr/local/go/bin/go build ."
 
 
     # 4. High Performance Setup
     log_info "  [4/4] Configuring high performance settings..."
     cat "$SCRIPT_DIR/high_perf.sh" | ssh_exec "$node_user" "$node_host" "sudo bash -s"
+
+    # Mark as provisioned
+    ssh_exec "$node_user" "$node_host" "touch .roshanfer_provisioned"
 
     log_success "Finished provisioning $node_host"
 done

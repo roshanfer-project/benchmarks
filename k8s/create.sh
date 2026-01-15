@@ -4,7 +4,7 @@ set -e
 # Get script directory
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 CONFIG_FILE="$SCRIPT_DIR/config.env"
-HOSTS_FILE="$SCRIPT_DIR/hosts.txt"
+HOSTS_FILE="${HOSTS_FILE:-"$SCRIPT_DIR/hosts.txt"}"
 
 # Colors for output
 GREEN='\033[0;32m'
@@ -78,6 +78,36 @@ ssh_exec() {
     ssh $SSH_OPTS "$user@$host" "$cmd"
 }
 
+# --- CHECK EXISTING CLUSTER ---
+check_cluster_ready() {
+    export KUBECONFIG="$SCRIPT_DIR/kubeconfig"
+    if [ ! -f "$KUBECONFIG" ]; then return 1; fi
+    
+    if ! kubectl get nodes &> /dev/null; then return 1; fi
+    
+    CURRENT_NODES=$(kubectl get nodes --no-headers | wc -l)
+    EXPECTED_NODES=${#HOSTS[@]}
+    
+    if [ "$CURRENT_NODES" -ge "$EXPECTED_NODES" ]; then
+        # Optional: Check if nodes are truly Ready
+        READY_NODES=$(kubectl get nodes --no-headers | grep "Ready" | wc -l)
+        if [ "$READY_NODES" -ge "$EXPECTED_NODES" ]; then
+            return 0
+        fi
+    fi
+    return 1
+}
+
+if check_cluster_ready; then
+    log_success "Cluster verified ready. Skipping setup."
+    exit 0
+else
+    log_info "Cluster not ready or missing. Cleaning up before installation..."
+    # Run delete.sh to ensure clean slate
+    if [ -f "$SCRIPT_DIR/delete.sh" ]; then
+        "$SCRIPT_DIR/delete.sh"
+    fi
+fi
 
 # --- COMMON SETUP (All Nodes) ---
 # Note: Common provisioning (SSH keys, Go, Git Clone) is now handled by ../provisioning/provision.sh
