@@ -86,32 +86,10 @@ ssh $SSH_OPTS "$SERVER_USER@$SERVER_HOST" "sudo killall -9 k3s 2>/dev/null || tr
 ssh $SSH_OPTS "$SERVER_USER@$SERVER_HOST" "sudo systemctl stop kubelet 2>/dev/null && sudo systemctl disable kubelet 2>/dev/null || true"
 
 
-# --- COMMON CLEANUP (All Nodes) ---
-echo "Cleaning up common resources on all nodes..."
-for entry in "${HOSTS[@]}"; do
-    parse_host_entry "$entry"
-    node_user="$CURRENT_USER"
-    node_host="$CURRENT_HOST"
-    
-    echo "  Cleaning up $node_host ($node_user)..."
+# --- PROVISIONING CLEANUP ---
+# Skipped: Provisioning (Go, Git, SSH keys) is preserved as requested.
+# If you want to full wipe, manually delete the repo and /usr/local/go
 
-    # 1. Remove Git Repo
-    ssh $SSH_OPTS "$node_user@$node_host" "rm -rf ~/roshanfer-experments"
-
-    # 2. Remove Go
-    ssh $SSH_OPTS "$node_user@$node_host" "sudo rm -rf /usr/local/go"
-    
-    # 3. Clean Shell Configs
-    # Remove lines added by install_go.sh. We search for the marker or content.
-    CLEAN_RC_CMD="sed -i '/# Go configuration/d' ~/.bashrc ~/.zshrc ~/.profile 2>/dev/null; \
-                  sed -i '/export PATH=.*\/usr\/local\/go\/bin/d' ~/.bashrc ~/.zshrc ~/.profile 2>/dev/null"
-    ssh $SSH_OPTS "$node_user@$node_host" "$CLEAN_RC_CMD"
-
-    # 4. Remove SSH Keys
-    # Removing any SSH keys present as requested
-    ssh $SSH_OPTS "$node_user@$node_host" "rm -f ~/.ssh/id_*"
-    ssh $SSH_OPTS "$node_user@$node_host" "rm -f ~/.ssh/known_hosts"
-done
 
 echo "Cleaning up local kubeconfig..."
 
