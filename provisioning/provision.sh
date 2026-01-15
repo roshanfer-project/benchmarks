@@ -99,6 +99,11 @@ for entry in "${HOSTS[@]}"; do
     log_info "        Initializing submodules..."
     ssh_exec "$node_user" "$node_host" "cd $DIR_NAME && git submodule update --init --recursive"
 
+    # Build rwg
+    log_info "        Building rwg..."
+    ssh_exec "$node_user" "$node_host" "source ~/.bashrc && cd $DIR_NAME/rwg && go build ."
+
+
     # 4. High Performance Setup
     log_info "  [4/4] Configuring high performance settings..."
     cat "$SCRIPT_DIR/high_perf.sh" | ssh_exec "$node_user" "$node_host" "sudo bash -s"
