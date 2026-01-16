@@ -3,7 +3,7 @@ set -e
 
 # Usage: ./deploy.sh [sidecar|plain] [--skip-build]
 # Default settings
-MODE="sidecar"
+MODE="${SYSTEM:-sidecar}"
 SKIP_BUILD=false
 # Default TAG generation, can be overridden by env var
 TAG=${TAG:-$(date +%Y-%m-%d)}
