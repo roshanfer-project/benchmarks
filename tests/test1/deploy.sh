@@ -128,7 +128,7 @@ fi
 if [ -f "$TMP_DIR/app.yaml" ]; then
     kubectl apply -f "$TMP_DIR/app.yaml"
     echo "Waiting for app pod to be ready..."
-    kubectl wait --for=condition=ready pod/app --timeout=5s
+    kubectl wait --for=condition=ready pod/app --timeout=30s
 fi
 
 # Apply Ingress if present
@@ -136,7 +136,7 @@ if [ -f "$TMP_DIR/ingress.yaml" ]; then
     echo "Applying ingress..."
     kubectl apply -f "$TMP_DIR/ingress.yaml"
     echo "Waiting for ingress pod to be ready..."
-    kubectl wait --for=condition=ready pod/ingress --timeout=5s
+    kubectl wait --for=condition=ready pod/ingress --timeout=30s
 fi
 
 # Cleanup
