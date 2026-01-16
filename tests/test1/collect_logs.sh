@@ -16,8 +16,9 @@ for pod in $APP_PODS; do
     # If there are sidecars (envoy/sidecar), collect those too if accessible
     # (Assuming single container or default container. If sidecar, users might want -c sidecar)
     # Check containers
-    kubectl logs "$pod" -c sidecar > "$OUTPUT_DIR/${pod}-sidecar.log" 2>&1 || true
-    kubectl logs "$pod" -c app > "$OUTPUT_DIR/${pod}-app.log" 2>&1 || true
+    # Try to collect sidecar logs, suppress error if container missing
+    kubectl logs "$pod" -c sidecar > "$OUTPUT_DIR/${pod}-sidecar.log" 2>&1 || rm -f "$OUTPUT_DIR/${pod}-sidecar.log"
+    kubectl logs "$pod" -c app > "$OUTPUT_DIR/${pod}-app.log" 2>&1 || rm -f "$OUTPUT_DIR/${pod}-app.log"
 done
 
 # Collect Ingress Logs
