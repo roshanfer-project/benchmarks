@@ -47,43 +47,57 @@ AGENT_ENTRIES=("${HOSTS[@]:1}")
 
 SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
 
-echo "Uninstalling Agents..."
+# Universal cleanup function
+cleanup_node() {
+    local user=$1
+    local host=$2
+    local role=$3 # Just for logging
+
+    echo "Cleaning up $role node: $host (User: $user)..."
+
+    # 1. Try BOTH uninstall scripts (handle role switches)
+    ssh $SSH_OPTS "$user@$host" "
+        if [ -f /usr/local/bin/k3s-uninstall.sh ]; then /usr/local/bin/k3s-uninstall.sh; fi
+        if [ -f /usr/local/bin/k3s-agent-uninstall.sh ]; then /usr/local/bin/k3s-agent-uninstall.sh; fi
+    " || echo "  Warning: specific uninstall scripts failed or missing."
+
+    # 2. Kill Processes & Services (BOTH server and agent types)
+    echo "  Killing processes and stopping services..."
+    ssh $SSH_OPTS "$user@$host" "
+        sudo systemctl stop k3s k3s-agent 2>/dev/null || true
+        sudo systemctl disable k3s k3s-agent 2>/dev/null || true
+        sudo systemctl reset-failed k3s k3s-agent 2>/dev/null || true
+        sudo killall -9 k3s 2>/dev/null || true
+    "
+
+    # 3. Clean Directories & Routes (Fixes 'i/o timeout' due to stale host-gw routes)
+    # Added forceful unmount loops
+    echo "  Cleaning up directories and stale routes..."
+    ssh $SSH_OPTS "$user@$host" "
+        # Unmount stuborn dirs
+        for mount in \$(mount | grep -E '/var/lib/kubelet|/run/k3s' | awk '{print \$3}'); do sudo umount -l \$mount; done
+        
+        # Remove dirs
+        sudo rm -rf /var/lib/rancher /var/lib/kubelet /etc/rancher /etc/cni/net.d /var/lib/cni /run/k3s /run/flannel /etc/systemd/system/k3s.service /etc/systemd/system/k3s-agent.service
+        
+        # Flush routes
+        sudo ip route flush $CLUSTER_CIDR
+    "
+
+    # 4. Run safe flush
+    echo "  Flushing iptables/conntrack/ipset..."
+    scp $SSH_OPTS "$SCRIPT_DIR/safe_flush_rules.sh" "$user@$host:/tmp/safe_flush_rules.sh"
+    ssh $SSH_OPTS "$user@$host" "chmod +x /tmp/safe_flush_rules.sh && sudo /tmp/safe_flush_rules.sh && rm /tmp/safe_flush_rules.sh"
+}
+
+# --- UNINSTALL AGENTS ---
 for entry in "${AGENT_ENTRIES[@]}"; do
     parse_host_entry "$entry"
-    agent_user="$CURRENT_USER"
-    agent_host="$CURRENT_HOST"
-
-    echo "  Connecting to $agent_host (User: $agent_user)..."
-    
-    # Patch the uninstall script to prevent it from killing the network (skip iptables cleanup)
-    ssh $SSH_OPTS "$agent_user@$agent_host" "if [ -f /usr/local/bin/k3s-agent-uninstall.sh ]; then sudo sed -i 's/iptables-save/# iptables-save/g' /usr/local/bin/k3s-agent-uninstall.sh && sudo sed -i 's/iptables-restore/# iptables-restore/g' /usr/local/bin/k3s-agent-uninstall.sh; fi"
-    ssh $SSH_OPTS "$agent_user@$agent_host" "/usr/local/bin/k3s-agent-uninstall.sh" || echo "  Warning: Uninstall failed on $agent_host or assumed already clean."
-    
-    # Run safe flush
-    echo "  Cleaning up iptables on $agent_host..."
-    scp $SSH_OPTS "$SCRIPT_DIR/safe_flush_rules.sh" "$agent_user@$agent_host:/tmp/safe_flush_rules.sh"
-    ssh $SSH_OPTS "$agent_user@$agent_host" "chmod +x /tmp/safe_flush_rules.sh && sudo /tmp/safe_flush_rules.sh && rm /tmp/safe_flush_rules.sh"
-    
-    # Force kill any stuck processes
-    ssh $SSH_OPTS "$agent_user@$agent_host" "sudo killall -9 k3s 2>/dev/null || true"
-    # Stop legacy kubelet if present (kubespray leftovers)
-    ssh $SSH_OPTS "$agent_user@$agent_host" "sudo systemctl stop kubelet 2>/dev/null && sudo systemctl disable kubelet 2>/dev/null || true"
+    cleanup_node "$CURRENT_USER" "$CURRENT_HOST" "Agent"
 done
 
-echo "Uninstalling Server..."
-echo "  Connecting to $SERVER_HOST (User: $SERVER_USER)..."
-# Patch the uninstall script to prevent it from killing the network (skip iptables cleanup)
-ssh $SSH_OPTS "$SERVER_USER@$SERVER_HOST" "if [ -f /usr/local/bin/k3s-uninstall.sh ]; then sudo sed -i 's/iptables-save/# iptables-save/g' /usr/local/bin/k3s-uninstall.sh && sudo sed -i 's/iptables-restore/# iptables-restore/g' /usr/local/bin/k3s-uninstall.sh; fi"
-ssh $SSH_OPTS "$SERVER_USER@$SERVER_HOST" "/usr/local/bin/k3s-uninstall.sh" || echo "  Warning: Uninstall failed on $SERVER_HOST or assumed already clean."
-
-# Run safe flush on server
-echo "  Cleaning up iptables on $SERVER_HOST..."
-scp $SSH_OPTS "$SCRIPT_DIR/safe_flush_rules.sh" "$SERVER_USER@$SERVER_HOST:/tmp/safe_flush_rules.sh"
-ssh $SSH_OPTS "$SERVER_USER@$SERVER_HOST" "chmod +x /tmp/safe_flush_rules.sh && sudo /tmp/safe_flush_rules.sh && rm /tmp/safe_flush_rules.sh"
-
-# Force kill any stuck processes
-ssh $SSH_OPTS "$SERVER_USER@$SERVER_HOST" "sudo killall -9 k3s 2>/dev/null || true"
-ssh $SSH_OPTS "$SERVER_USER@$SERVER_HOST" "sudo systemctl stop kubelet 2>/dev/null && sudo systemctl disable kubelet 2>/dev/null || true"
+# --- UNINSTALL SERVER ---
+cleanup_node "$SERVER_USER" "$SERVER_HOST" "Server"
 
 
 # --- PROVISIONING CLEANUP ---

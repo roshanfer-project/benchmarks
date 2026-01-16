@@ -26,8 +26,18 @@ iptables -t raw -X
 ip link delete cni0 2>/dev/null || true
 ip link delete flannel.1 2>/dev/null || true
 ip link delete flannel-v6.1 2>/dev/null || true
-# ip link delete cilium_host 2>/dev/null || true
-# ip link delete cilium_net 2>/dev/null || true
 # ip link delete cilium_vxlan 2>/dev/null || true
+
+# 4. Flush ipsets (prevent stale service lookups)
+if command -v ipset &> /dev/null; then
+    ipset flush || true
+    ipset destroy || true
+fi
+
+# 5. Flush conntrack (prevent stale connection caching causing timeouts)
+if command -v conntrack &> /dev/null; then
+    conntrack -F || true
+fi
+
 
 echo "Iptables flushed and network interfaces cleaned. SSH should remain active."
