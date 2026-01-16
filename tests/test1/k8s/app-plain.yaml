@@ -32,10 +32,10 @@ spec:
   - name: http-tcp
     port: 3000
     targetPort: 3000
-    nodePort: 30000
+    nodePort: 3000
     protocol: TCP
   - name: http-udp
     port: 3000
     targetPort: 3000
-    nodePort: 30000
+    nodePort: 3000
     protocol: UDP
