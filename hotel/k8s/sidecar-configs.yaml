@@ -1,0 +1,199 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sidecar-configs
+  namespace: default
+data:
+  ingress.yaml: |
+    routing:
+      hotels:
+        upstream:
+          host: hotel-frontend
+          port: 3007
+        slo: 68
+        priority: 2
+      reservation:
+        upstream:
+          host: hotel-frontend
+          port: 3007
+        slo: 32
+        priority: 1
+    mapping:
+      hotels:
+        downstreams:
+          - hotels
+        listen_port: 3000
+      reservation:
+        downstreams:
+          - reservation
+        listen_port: 3009
+    ring_size: 12000
+    buffer_count: 16384
+    buffer_size: 10000
+    ingress_pool_connections: 100
+    num_threads: 2
+    egress_listener_port: 3000
+    ingress_listener_port: 4000
+    ingress_upstream_host: localhost
+    ingress_upstream_port: 2000
+    is_ingress: True
+    is_frontend: False
+    report_latency: True
+    name: ingress
+
+  frontend.yaml: |
+    routing:
+      search.Search/Nearby:
+        upstream:
+          host: hotel-search
+          port: 3005
+      protobuf.Profile/GetProfiles:
+        upstream:
+          host: hotel-profile
+          port: 3001
+      reservation.Reservation/MakeReservation:
+        upstream:
+          host: hotel-reservation
+          port: 3002
+      reservation.Reservation/CheckAvailability:
+        upstream:
+          host: hotel-reservation
+          port: 3002
+      user.User/CheckUser:
+        upstream:
+          host: hotel-user
+          port: 3006
+    mapping:
+      hotels: 
+        downstreams:
+          - search.Search/Nearby
+          - protobuf.Profile/GetProfiles
+          - reservation.Reservation/CheckAvailability
+      reservation:
+        downstreams:
+          - reservation.Reservation/MakeReservation
+          - user.User/CheckUser
+    ring_size: 4000
+    buffer_count: 16384
+    buffer_size: 80000
+    frontend_pool_connections: 100
+    num_threads: 1
+    egress_listener_port: 4007
+    ingress_listener_port: 3007
+    ingress_upstream_host: localhost
+    ingress_upstream_port: 2007
+    is_ingress: False
+    is_frontend: True
+    report_latency: True
+    per_endpoint_limit: 4
+    ppm_limit: 8
+    name: frontend
+
+  search.yaml: |
+    routing:
+      geo.Geo/Nearby:
+        upstream:
+          host: hotel-geo
+          port: 3004
+      rate.Rate/GetRates:
+        upstream:
+          host: hotel-rate
+          port: 3003
+    mapping:
+      search.Search/Nearby:
+        downstreams:
+          - geo.Geo/Nearby
+          - rate.Rate/GetRates
+    ring_size: 1000
+    buffer_count: 16384
+    buffer_size: 80000
+    num_threads: 1
+    egress_listener_port: 4005
+    ingress_listener_port: 3005
+    ingress_upstream_host: localhost
+    ingress_upstream_port: 2005
+    report_latency: True
+    per_endpoint_limit: 2
+    ppm_limit: 4
+    name: search
+
+  geo.yaml: |
+    mapping:
+      geo.Geo/Nearby:
+    ring_size: 1000
+    buffer_count: 16384
+    buffer_size: 50000
+    num_threads: 1
+    egress_listener_port: 4004
+    ingress_listener_port: 3004
+    ingress_upstream_host: localhost
+    ingress_upstream_port: 2004
+    report_latency: True
+    per_endpoint_limit: 2
+    ppm_limit: 2
+    name: geo
+
+  rate.yaml: |
+    mapping:
+      rate.Rate/GetRates:
+    ring_size: 1000
+    buffer_count: 16384
+    buffer_size: 60000
+    num_threads: 1
+    egress_listener_port: 4003
+    ingress_listener_port: 3003
+    ingress_upstream_host: localhost
+    ingress_upstream_port: 2003
+    report_latency: True
+    per_endpoint_limit: 4
+    ppm_limit: 4
+    name: rate
+
+  profile.yaml: |
+    mapping:
+      protobuf.Profile/GetProfiles:
+    ring_size: 1000
+    buffer_count: 16384
+    buffer_size: 50000
+    num_threads: 1
+    egress_listener_port: 4001
+    ingress_listener_port: 3001
+    ingress_upstream_host: localhost
+    ingress_upstream_port: 2001
+    report_latency: True
+    per_endpoint_limit: 2
+    ppm_limit: 2
+    name: profile
+
+  reservation.yaml: |
+    mapping:
+      reservation.Reservation/MakeReservation:
+      reservation.Reservation/CheckAvailability:
+    ring_size: 1000
+    buffer_count: 16384
+    buffer_size: 50000
+    num_threads: 1
+    egress_listener_port: 4002
+    ingress_listener_port: 3002
+    ingress_upstream_host: localhost
+    ingress_upstream_port: 2002
+    report_latency: True
+    per_endpoint_limit: 2
+    ppm_limit: 2
+    name: reservation
+
+  user.yaml: |
+    mapping:
+      user.User/CheckUser:
+    ring_size: 1000
+    buffer_count: 16384
+    buffer_size: 50000
+    num_threads: 1
+    egress_listener_port: 4006
+    ingress_listener_port: 3006
+    ingress_upstream_host: localhost
+    ingress_upstream_port: 2006
+    per_endpoint_limit: 2
+    ppm_limit: 2
+    report_latency: True
+    name: user

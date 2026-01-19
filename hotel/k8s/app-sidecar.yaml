@@ -1,0 +1,503 @@
+# Frontend
+apiVersion: v1
+kind: Pod
+metadata:
+  name: frontend
+  labels:
+    app: frontend
+spec:
+  restartPolicy: Never
+  containers:
+  - name: app
+    image: frontend:latest
+    resources:
+      requests:
+        cpu: "2"
+      limits:
+        cpu: "2"
+    envFrom:
+    - configMapRef:
+        name: hotel-config
+    ports:
+    - containerPort: 2007
+  
+  - name: sidecar
+    image: sidecar-sidecar:latest
+    env:
+    - name: PROC_NAME
+      value: "frontend-sidecar"
+    - name: GLOG_logtostderr
+      value: "1"
+    resources:
+      requests:
+        cpu: "2"
+      limits:
+        cpu: "2"
+    volumeMounts:
+    - name: config-volume
+      mountPath: /config.yaml
+      subPath: frontend.yaml
+    ports:
+    - containerPort: 3007
+  
+  volumes:
+  - name: config-volume
+    configMap:
+      name: sidecar-configs
+  - name: usr-local-lib
+    hostPath:
+      path: /usr/local/lib
+  - name: lib-x86-64
+    hostPath:
+      path: /lib/x86_64-linux-gnu
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hotel-frontend
+  labels:
+    app: frontend
+spec:
+  selector:
+    app: frontend
+  ports:
+  - name: sidecar-grpc
+    port: 3007
+    targetPort: 3007
+    protocol: TCP
+  - name: sidecar-grpc-udp
+    port: 3007
+    targetPort: 3007
+    protocol: UDP
+
+---
+# Profile
+apiVersion: v1
+kind: Pod
+metadata:
+  name: profile
+  labels:
+    app: profile
+spec:
+  restartPolicy: Never
+  containers:
+  - name: app
+    image: profile:latest
+    resources:
+      requests:
+        cpu: "1"
+      limits:
+        cpu: "1"
+    envFrom:
+    - configMapRef:
+        name: hotel-config
+    ports:
+    - containerPort: 2001
+  
+  - name: sidecar
+    image: sidecar-sidecar:latest
+    env:
+    - name: PROC_NAME
+      value: "profile-sidecar"
+    - name: GLOG_logtostderr
+      value: "1"
+    resources:
+      requests:
+        cpu: "2"
+      limits:
+        cpu: "2"
+    volumeMounts:
+    - name: config-volume
+      mountPath: /config.yaml
+      subPath: profile.yaml
+    ports:
+    - containerPort: 3001
+
+  volumes:
+  - name: config-volume
+    configMap:
+      name: sidecar-configs
+  - name: usr-local-lib
+    hostPath:
+      path: /usr/local/lib
+  - name: lib-x86-64
+    hostPath:
+      path: /lib/x86_64-linux-gnu
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hotel-profile
+  labels:
+    app: profile
+spec:
+  selector:
+    app: profile
+  ports:
+  - name: sidecar-grpc
+    port: 3001
+    targetPort: 3001
+    protocol: TCP
+  - name: sidecar-grpc-udp
+    port: 3001
+    targetPort: 3001
+    protocol: UDP
+
+---
+# Search
+apiVersion: v1
+kind: Pod
+metadata:
+  name: search
+  labels:
+    app: search
+spec:
+  restartPolicy: Never
+  containers:
+  - name: app
+    image: search:latest
+    resources:
+      requests:
+        cpu: "1"
+      limits:
+        cpu: "1"
+    envFrom:
+    - configMapRef:
+        name: hotel-config
+    ports:
+    - containerPort: 2005
+  
+  - name: sidecar
+    image: sidecar-sidecar:latest
+    env:
+    - name: PROC_NAME
+      value: "search-sidecar"
+    - name: GLOG_logtostderr
+      value: "1"
+    resources:
+      requests:
+        cpu: "2"
+      limits:
+        cpu: "2"
+    volumeMounts:
+    - name: config-volume
+      mountPath: /config.yaml
+      subPath: search.yaml
+    ports:
+    - containerPort: 3005
+
+  volumes:
+  - name: config-volume
+    configMap:
+      name: sidecar-configs
+  - name: usr-local-lib
+    hostPath:
+      path: /usr/local/lib
+  - name: lib-x86-64
+    hostPath:
+      path: /lib/x86_64-linux-gnu
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hotel-search
+  labels:
+    app: search
+spec:
+  selector:
+    app: search
+  ports:
+  - name: sidecar-grpc
+    port: 3005
+    targetPort: 3005
+    protocol: TCP
+  - name: sidecar-grpc-udp
+    port: 3005
+    targetPort: 3005
+    protocol: UDP
+
+---
+# Geo
+apiVersion: v1
+kind: Pod
+metadata:
+  name: geo
+  labels:
+    app: geo
+spec:
+  restartPolicy: Never
+  containers:
+  - name: app
+    image: geo:latest
+    resources:
+      requests:
+        cpu: "1"
+      limits:
+        cpu: "1"
+    envFrom:
+    - configMapRef:
+        name: hotel-config
+    ports:
+    - containerPort: 2004
+  
+  - name: sidecar
+    image: sidecar-sidecar:latest
+    env:
+    - name: PROC_NAME
+      value: "geo-sidecar"
+    - name: GLOG_logtostderr
+      value: "1"
+    resources:
+      requests:
+        cpu: "2"
+      limits:
+        cpu: "2"
+    volumeMounts:
+    - name: config-volume
+      mountPath: /config.yaml
+      subPath: geo.yaml
+    ports:
+    - containerPort: 3004
+
+  volumes:
+  - name: config-volume
+    configMap:
+      name: sidecar-configs
+  - name: usr-local-lib
+    hostPath:
+      path: /usr/local/lib
+  - name: lib-x86-64
+    hostPath:
+      path: /lib/x86_64-linux-gnu
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hotel-geo
+  labels:
+    app: geo
+spec:
+  selector:
+    app: geo
+  ports:
+  - name: sidecar-grpc
+    port: 3004
+    targetPort: 3004
+    protocol: TCP
+  - name: sidecar-grpc-udp
+    port: 3004
+    targetPort: 3004
+    protocol: UDP
+
+---
+# Rate
+apiVersion: v1
+kind: Pod
+metadata:
+  name: rate
+  labels:
+    app: rate
+spec:
+  restartPolicy: Never
+  containers:
+  - name: app
+    image: rate:latest
+    resources:
+      requests:
+        cpu: "2"
+      limits:
+        cpu: "2"
+    envFrom:
+    - configMapRef:
+        name: hotel-config
+    ports:
+    - containerPort: 2003
+  
+  - name: sidecar
+    image: sidecar-sidecar:latest
+    env:
+    - name: PROC_NAME
+      value: "rate-sidecar"
+    - name: GLOG_logtostderr
+      value: "1"
+    resources:
+      requests:
+        cpu: "2"
+      limits:
+        cpu: "2"
+    volumeMounts:
+    - name: config-volume
+      mountPath: /config.yaml
+      subPath: rate.yaml
+    ports:
+    - containerPort: 3003
+
+  volumes:
+  - name: config-volume
+    configMap:
+      name: sidecar-configs
+  - name: usr-local-lib
+    hostPath:
+      path: /usr/local/lib
+  - name: lib-x86-64
+    hostPath:
+      path: /lib/x86_64-linux-gnu
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hotel-rate
+  labels:
+    app: rate
+spec:
+  selector:
+    app: rate
+  ports:
+  - name: sidecar-grpc
+    port: 3003
+    targetPort: 3003
+    protocol: TCP
+  - name: sidecar-grpc-udp
+    port: 3003
+    targetPort: 3003
+    protocol: UDP
+
+---
+# Reservation
+apiVersion: v1
+kind: Pod
+metadata:
+  name: reservation
+  labels:
+    app: reservation
+spec:
+  restartPolicy: Never
+  containers:
+  - name: app
+    image: reservation:latest
+    resources:
+      requests:
+        cpu: "1"
+      limits:
+        cpu: "1"
+    envFrom:
+    - configMapRef:
+        name: hotel-config
+    ports:
+    - containerPort: 2002
+  
+  - name: sidecar
+    image: sidecar-sidecar:latest
+    env:
+    - name: PROC_NAME
+      value: "reservation-sidecar"
+    - name: GLOG_logtostderr
+      value: "1"
+    resources:
+      requests:
+        cpu: "2"
+      limits:
+        cpu: "2"
+    volumeMounts:
+    - name: config-volume
+      mountPath: /config.yaml
+      subPath: reservation.yaml
+    ports:
+    - containerPort: 3002
+
+  volumes:
+  - name: config-volume
+    configMap:
+      name: sidecar-configs
+  - name: usr-local-lib
+    hostPath:
+      path: /usr/local/lib
+  - name: lib-x86-64
+    hostPath:
+      path: /lib/x86_64-linux-gnu
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hotel-reservation
+  labels:
+    app: reservation
+spec:
+  selector:
+    app: reservation
+  ports:
+  - name: sidecar-grpc
+    port: 3002
+    targetPort: 3002
+    protocol: TCP
+  - name: sidecar-grpc-udp
+    port: 3002
+    targetPort: 3002
+    protocol: UDP
+
+---
+# User
+apiVersion: v1
+kind: Pod
+metadata:
+  name: user
+  labels:
+    app: user
+spec:
+  restartPolicy: Never
+  containers:
+  - name: app
+    image: user:latest
+    resources:
+      requests:
+        cpu: "1"
+      limits:
+        cpu: "1"
+    envFrom:
+    - configMapRef:
+        name: hotel-config
+    ports:
+    - containerPort: 2006
+  
+  - name: sidecar
+    image: sidecar-sidecar:latest
+    env:
+    - name: PROC_NAME
+      value: "user-sidecar"
+    - name: GLOG_logtostderr
+      value: "1"
+    resources:
+      requests:
+        cpu: "2"
+      limits:
+        cpu: "2"
+    volumeMounts:
+    - name: config-volume
+      mountPath: /config.yaml
+      subPath: user.yaml
+    ports:
+    - containerPort: 3006
+
+  volumes:
+  - name: config-volume
+    configMap:
+      name: sidecar-configs
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hotel-user
+  labels:
+    app: user
+spec:
+  selector:
+    app: user
+  ports:
+  - name: sidecar-grpc
+    port: 3006
+    targetPort: 3006
+    protocol: TCP
+  - name: sidecar-grpc-udp
+    port: 3006
+    targetPort: 3006
+    protocol: UDP
