@@ -196,5 +196,14 @@ echo "Kubeconfig is installed in ~/.kube/config."
 echo "You can run 'kubectl get nodes' immediately."
 kubectl get nodes
 
+log_info "Waiting up to 10 seconds for all pods to be ready..."
+if ! kubectl wait --for=condition=Ready pod --all --all-namespaces --timeout=10s; then
+    log_error "Timeout: Not all pods are ready."
+    echo "Current Pod Status:"
+    kubectl get pods --all-namespaces
+    exit 1
+fi
+log_success "All initial pods are ready."
+
 
 
