@@ -4,7 +4,7 @@ set -e
 # Get script directory
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 CONFIG_FILE="$SCRIPT_DIR/config.env"
-HOSTS_FILE="$SCRIPT_DIR/hosts.txt"
+HOSTS_FILE="${HOSTS_FILE:-"$SCRIPT_DIR/hosts.txt"}"
 
 # Requirements
 if [ ! -f "$CONFIG_FILE" ]; then
