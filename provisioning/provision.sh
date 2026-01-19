@@ -29,6 +29,15 @@ if [ ! -f "$HOSTS_FILE" ]; then
     exit 1
 fi
 
+FORCE_PROVISION="false"
+while [[ "$#" -gt 0 ]]; do
+    case $1 in
+        -f|--force) FORCE_PROVISION="true" ;;
+        *) echo "Unknown parameter passed: $1"; exit 1 ;;
+    esac
+    shift
+done
+
 mapfile -t HOSTS < <(grep -vE '^\s*#|^\s*$' "$HOSTS_FILE")
 
 # Helper to parse "user@host"
@@ -60,8 +69,8 @@ for entry in "${HOSTS[@]}"; do
     log_info "Provisioning $node_host ($node_user)..."
 
     # Check if already provisioned
-    if ssh_exec "$node_user" "$node_host" "[ -f .roshanfer_provisioned ]"; then
-         log_success "  Host $node_host already provisioned (found .roshanfer_provisioned). Skipping."
+    if [ "$FORCE_PROVISION" != "true" ] && ssh_exec "$node_user" "$node_host" "[ -f .roshanfer_provisioned ]"; then
+         log_success "  Host $node_host already provisioned (found .roshanfer_provisioned). Skipping (-f to force)."
          continue
     fi
 
