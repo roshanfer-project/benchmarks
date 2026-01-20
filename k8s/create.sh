@@ -197,7 +197,7 @@ echo "You can run 'kubectl get nodes' immediately."
 kubectl get nodes
 
 log_info "Waiting up to 10 seconds for all pods to be ready..."
-if ! kubectl wait --for=condition=Ready pod --all --all-namespaces --timeout=10s; then
+if ! kubectl wait --for=condition=Ready pod --all --all-namespaces --timeout=30s; then
     log_error "Timeout: Not all pods are ready."
     echo "Current Pod Status:"
     kubectl get pods --all-namespaces
