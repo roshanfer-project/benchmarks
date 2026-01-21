@@ -4,7 +4,7 @@ set -e
 # Usage: ./deploy.sh [sidecar|plain] [--skip-build]
 # Default settings
 MODE="${SYSTEM:-sidecar}"
-SKIP_BUILD=false
+SKIP_BUILD=true
 REGISTRY=${REGISTRY:-farzad1132}
 TAG=${TAG:-$(date +%Y-%m-%d)}
 
@@ -13,7 +13,6 @@ for arg in "$@"; do
     case $arg in
         sidecar) MODE="sidecar";;
         plain) MODE="plain";;
-        --skip-build) SKIP_BUILD=true;;
     esac
 done
 
@@ -24,26 +23,6 @@ echo "Tag: $TAG"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
-if [ "$SKIP_BUILD" = false ]; then
-    # 1. Build Sidecar
-    echo "Building Sidecar..."
-    cd "$ROOT_DIR/sidecar"
-    ./build.sh Release
-    docker build -f Dockerfile -t "${REGISTRY}/sidecar-sidecar:${TAG}" .
-    docker push "${REGISTRY}/sidecar-sidecar:${TAG}"
-    cd "$ROOT_DIR"
-
-    # 2. Build Hotel Services
-    echo "Building Hotel Services..."
-    SERVICES=("frontend" "geo" "profile" "rate" "reservation" "search" "user")
-    
-    for SERVICE in "${SERVICES[@]}"; do
-        echo "Building $SERVICE..."
-        # Build using the unified Dockerfile in benchmarks/hotel
-        docker build --build-arg SERVICE=$SERVICE -f hotel/Dockerfile -t "${REGISTRY}/hotel-${SERVICE}:${TAG}" hotel
-        docker push "${REGISTRY}/hotel-${SERVICE}:${TAG}"
-    done
-fi
 
 # 3. Prepare Manifests
 DEPLOY_DIR="hotel/k8s"
