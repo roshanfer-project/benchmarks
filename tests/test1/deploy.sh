@@ -17,9 +17,6 @@ for arg in "$@"; do
         plain)
             MODE="plain"
             ;;
-        --skip-build)
-            SKIP_BUILD=true
-            ;;
     esac
 done
 
@@ -41,45 +38,6 @@ echo "Tag: $TAG"
 
 cd "$ROOT_DIR"
 
-if [ "$SKIP_BUILD" = false ]; then
-    if ! command -v docker &> /dev/null; then
-        echo "Warning: docker command not found. Skipping build."
-        SKIP_BUILD=true
-    fi
-fi
-
-if [ "$SKIP_BUILD" = false ]; then
-    # 1. Build Sidecar Binary
-    if [ -d "sidecar" ]; then
-        echo "Entering sidecar directory to build..."
-        cd sidecar
-        
-        if [ -f "build.sh" ]; then
-            echo "Building sidecar binary..."
-            ./build.sh Release
-        else
-            echo "Warning: build.sh not found in sidecar directory."
-        fi
-
-        # 2. Build Sidecar Docker Image (Context is sidecar directory)
-        echo "Building sidecar docker image..."
-        docker build -f Dockerfile -t "${REGISTRY}/sidecar-sidecar:${TAG}" .
-        
-        cd "$ROOT_DIR"
-    else
-        echo "Error: sidecar directory not found."
-        exit 1
-    fi
-
-    # 3. Build App Docker Image
-    echo "Building app docker image..."
-    docker build -f tests/test1/app/Dockerfile -t "${REGISTRY}/test1-app:${TAG}" tests/test1
-
-    # 4. Push Images
-    echo "Pushing images..."
-    docker push "${REGISTRY}/sidecar-sidecar:${TAG}"
-    docker push "${REGISTRY}/test1-app:${TAG}"
-fi
 
 # 5. Prepare Manifests
 DEPLOY_DIR="tests/test1/k8s"
