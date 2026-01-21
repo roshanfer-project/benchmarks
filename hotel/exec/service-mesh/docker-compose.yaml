@@ -158,22 +158,22 @@ services:
     privileged: true
     cpuset: "10,11"
   
-#  user-sidecar:
-#    image: sidecar-sidecar:latest
-#    container_name: user-sidecar
-#    restart: no
-#    environment:
-#      - PROC_NAME=user-sidecar
-#      - GLOG_logtostderr=1
-##      - GLOG_v=1
-##      - GLOG_vmodule=stats=1
-##      - GLOG_vmodule=ingress=2,state=2
-#    volumes:
-#      - ./.configs/user.yaml:/config.yaml
-#      - /usr/local/lib:/usr/local/lib:ro
-#      - /lib/x86_64-linux-gnu:/lib/x86_64-linux-gnu:ro
-#    ports:
-#      - "4006:4006" # egress_listener_port
-#      - "3006:3006"   # ingress_listener_port
-#    privileged: true
-#    cpuset: "13,14"
+  user-sidecar:
+    image: sidecar-sidecar:latest
+    container_name: user-sidecar
+    restart: no
+    environment:
+      - PROC_NAME=user-sidecar
+      - GLOG_logtostderr=1
+#      - GLOG_v=1
+#      - GLOG_vmodule=stats=1
+#      - GLOG_vmodule=ingress=2,state=2
+    volumes:
+      - ./.configs/user.yaml:/config.yaml
+      - /usr/local/lib:/usr/local/lib:ro
+      - /lib/x86_64-linux-gnu:/lib/x86_64-linux-gnu:ro
+    ports:
+      - "4006:4006" # egress_listener_port
+      - "3006:3006"   # ingress_listener_port
+    privileged: true
+    cpuset: "13,14"

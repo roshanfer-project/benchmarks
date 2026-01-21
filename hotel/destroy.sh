@@ -3,10 +3,14 @@
 echo "Destroying Hotel Benchmark deployment..."
 
 # Delete Pods
-kubectl delete pod frontend search profile geo rate reservation user ingress --ignore-not-found
+kubectl delete pod frontend search profile geo rate reservation user ingress \
+    mongodb-geo mongodb-profile mongodb-rate mongodb-reservation mongodb-user \
+    memcached-rate memcached-profile memcached-reserve --ignore-not-found
 
 # Delete Services
-kubectl delete service hotel-frontend hotel-search hotel-profile hotel-geo hotel-rate hotel-reservation hotel-user ingress --ignore-not-found
+kubectl delete service hotel-frontend hotel-search hotel-profile hotel-geo hotel-rate hotel-reservation hotel-user ingress \
+    mongodb-geo mongodb-profile mongodb-rate mongodb-reservation mongodb-user \
+    memcached-rate memcached-profile memcached-reserve --ignore-not-found
 
 # Delete ConfigMaps
 kubectl delete configmap hotel-config sidecar-configs --ignore-not-found

@@ -10,6 +10,12 @@ import (
 	rajomoninit "hotel/rajomon_init"
 	pb "hotel/reservation/proto"
 	"hotel/utils"
+
+	"github.com/bradfitz/gomemcache/memcache"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
+
 	"net"
 	"strconv"
 	"strings"
@@ -41,11 +47,8 @@ type Server struct {
 
 	uuid string
 
-	// In-memory data stores
-	reservations map[string][]reservation // key: hotelId_inDate_outDate
-	numbers      map[string]int           // key: hotelId, value: capacity
-	memcache     map[string][]byte        // key: memcache key, value: cached value
-	mu           sync.RWMutex             // protects all in-memory stores
+	MemcClient  *memcache.Client
+	MongoClient *mongo.Client
 }
 
 func configOTL(ctx context.Context, serviceName string) (grpc.ServerOption, []func(context.Context) error, bool) {
@@ -291,52 +294,79 @@ func (s *Server) MakeReservation(ctx context.Context, req *pb.Request) (*pb.Resu
 
 		// first check memc
 		memc_key := hotelId + "_" + inDate.String()[0:10] + "_" + outdate
-		s.mu.RLock()
-		cachedVal, memcHit := s.memcache[memc_key]
-		s.mu.RUnlock()
-
-		if memcHit {
+		cachedVal, err := s.MemcClient.Get(memc_key)
+		if err == nil {
 			// memcached hit
-			count, _ = strconv.Atoi(string(cachedVal))
+			count, _ = strconv.Atoi(string(cachedVal.Value))
 			log.Debug("memcached hit %s = %d", memc_key, count)
 			memc_date_num_map[memc_key] = count + int(req.RoomNumber)
-		} else {
-			// memcached miss - check reservations
-			log.Debug("memcached miss")
-			resKey := hotelId + "_" + indate + "_" + outdate
-			s.mu.RLock()
-			reserve := s.reservations[resKey]
-			s.mu.RUnlock()
+
+		} else if err == memcache.ErrCacheMiss {
+			// memcached miss
+			//log.Debug("memcached miss")
+			reserve := make([]reservation, 0)
+			//mongoSpan, _ := opentracing.StartSpanFromContext(ctx, "mongo_reservation")
+			_, mongoSpan := tracer.Start(ctx, "mongo_reservation")
+			//mongoSpan.SetTag("span.kind", "client")
+			mongoSpan.SetAttributes(attribute.String("span.kind", "client"))
+
+			collection := s.MongoClient.Database("reservation-db").Collection("reservation")
+			curr, err := collection.Find(context.TODO(), bson.D{{Key: "hotelId", Value: hotelId}, {Key: "inDate", Value: indate}, {Key: "outDate", Value: outdate}})
+
+			if err != nil {
+				log.Error("Failed get reservation data", "error", err)
+			}
+			curr.All(context.TODO(), &reserve)
+			if err != nil {
+				log.Error(fmt.Sprintf("Failed get reservation data: %s", err.Error()))
+			}
+
+			//mongoSpan.Finish()
+			mongoSpan.End()
 
 			for _, r := range reserve {
 				count += r.Number
 			}
 
 			memc_date_num_map[memc_key] = count + int(req.RoomNumber)
+
+		} else {
+			log.Error("Memcached error", "error", err)
 		}
 
 		// check capacity
 		// check memc capacity
 		memc_cap_key := hotelId + "_cap"
-		s.mu.RLock()
-		cachedCapVal, capMemcHit := s.memcache[memc_cap_key]
-		s.mu.RUnlock()
-
+		cachedCapVal, err := s.MemcClient.Get(memc_cap_key)
 		hotel_cap := 0
-		if capMemcHit {
+
+		if err == nil {
 			// memcached hit
-			hotel_cap, _ = strconv.Atoi(string(cachedCapVal))
+			hotel_cap, _ = strconv.Atoi(string(cachedCapVal.Value))
 			log.Debug(fmt.Sprintf("memcached hit %s = %d", memc_cap_key, hotel_cap))
-		} else {
-			// memcached miss - check numbers
-			s.mu.RLock()
-			hotel_cap = s.numbers[hotelId]
-			s.mu.RUnlock()
+		} else if err == memcache.ErrCacheMiss {
+			// memcached miss
+			var num number
+			//mongoSpan, _ := opentracing.StartSpanFromContext(ctx, "mongo_number")
+			_, mongoSpan := tracer.Start(ctx, "mongo_number")
+			//mongoSpan.SetTag("span.kind", "client")
+			mongoSpan.SetAttributes(attribute.String("span.kind", "client"))
+
+			collection := s.MongoClient.Database("reservation-db").Collection("number")
+			err := collection.FindOne(context.TODO(), bson.D{{Key: "hotelId", Value: hotelId}}).Decode(&num)
+
+			//mongoSpan.Finish()
+			mongoSpan.End()
+
+			if err != nil {
+				log.Error("Failed get number data", "error", err)
+			}
+			hotel_cap = int(num.Number)
 
 			// write to memcache
-			s.mu.Lock()
-			s.memcache[memc_cap_key] = []byte(strconv.Itoa(hotel_cap))
-			s.mu.Unlock()
+			s.MemcClient.Set(&memcache.Item{Key: memc_cap_key, Value: []byte(strconv.Itoa(hotel_cap))})
+		} else {
+			log.Error("Memcached error", "error", err)
 		}
 
 		if count+int(req.RoomNumber) > hotel_cap {
@@ -346,11 +376,9 @@ func (s *Server) MakeReservation(ctx context.Context, req *pb.Request) (*pb.Resu
 	}
 
 	// only update reservation number cache after check succeeds
-	s.mu.Lock()
 	for key, val := range memc_date_num_map {
-		s.memcache[key] = []byte(strconv.Itoa(val))
+		s.MemcClient.Set(&memcache.Item{Key: key, Value: []byte(strconv.Itoa(val))})
 	}
-	s.mu.Unlock()
 
 	inDate, _ = time.Parse(
 		time.RFC3339,
@@ -358,22 +386,31 @@ func (s *Server) MakeReservation(ctx context.Context, req *pb.Request) (*pb.Resu
 
 	indate = inDate.String()[0:10]
 
-	// Insert reservations
-	s.mu.Lock()
 	for inDate.Before(outDate) {
 		inDate = inDate.AddDate(0, 0, 1)
 		outdate := inDate.String()[0:10]
-		resKey := hotelId + "_" + indate + "_" + outdate
-		s.reservations[resKey] = append(s.reservations[resKey], reservation{
+		//mongoSpan, _ := opentracing.StartSpanFromContext(ctx, "mongo_insert")
+		_, mongoSpan := tracer.Start(ctx, "mongo_insert")
+		//mongoSpan.SetTag("span.kind", "client")
+		mongoSpan.SetAttributes(attribute.String("span.kind", "client"))
+
+		collection := s.MongoClient.Database("reservation-db").Collection("reservation")
+		_, err := collection.InsertOne(context.TODO(), reservation{
 			HotelId:      hotelId,
 			CustomerName: req.CustomerName,
 			InDate:       indate,
 			OutDate:      outdate,
 			Number:       int(req.RoomNumber),
 		})
+		if err != nil {
+			log.Error("Failed insert reservation data", "error", err)
+		}
+
+		//mongoSpan.Finish()
+		mongoSpan.End()
+
 		indate = outdate
 	}
-	s.mu.Unlock()
 
 	res.HotelId = append(res.HotelId, hotelId)
 
@@ -399,51 +436,70 @@ func (s *Server) CheckAvailability(ctx context.Context, req *pb.Request) (*pb.Re
 	_, capMemSpan := tracer.Start(ctx, "memcached_capacity_get_multi_number")
 	//capMemSpan.SetTag("span.kind", "client")
 	capMemSpan.SetAttributes(attribute.String("span.kind", "client"))
-
-	// Get capacities from memcache
-	s.mu.RLock()
-	cacheMemRes := make(map[string][]byte)
-	for _, key := range hotelMemKeys {
-		if val, ok := s.memcache[key]; ok {
-			cacheMemRes[key] = val
-		}
-	}
-	s.mu.RUnlock()
-
+	cacheMemRes, err := s.MemcClient.GetMulti(hotelMemKeys)
 	capMemSpan.End()
 
 	misKeys := []string{}
 	// gather cache miss key to query
-	for key := range keysMap {
-		if _, ok := cacheMemRes[key]; !ok {
-			misKeys = append(misKeys, key)
+	if err != nil && err != memcache.ErrCacheMiss {
+		log.Error("Memcached error", "error", err)
+	} else {
+		for key := range keysMap {
+			if _, ok := cacheMemRes[key]; !ok {
+				misKeys = append(misKeys, key)
+			}
 		}
 	}
 
 	// store whole capacity result in cacheCap
 	cacheCap := make(map[string]int)
 	for k, v := range cacheMemRes {
-		hotelCap, _ := strconv.Atoi(string(v))
+		hotelCap, _ := strconv.Atoi(string(v.Value))
 		hotelId := strings.Split(k, "_")[0]
 		cacheCap[hotelId] = hotelCap
 	}
 
-	// Fill in missing capacities from numbers store
+	// query mongoDb to update cache miss
+	// if len(misKeys) > 0 {
+	// 	//capMongoSpan, _ := opentracing.StartSpanFromContext(ctx, "mongodb_capacity_get_multi_number")
+	// 	_, capMongoSpan := tracer.Start(ctx, "mongodb_capacity_get_multi_number")
+	// 	//capMongoSpan.SetTag("span.kind", "client")
+	// 	capMongoSpan.SetAttributes(attribute.String("span.kind", "client"))
+	// 	// there's no getMulti in mongoDB ...
+	// 	// so we have to loop through misKeys
+	// 	for _, k := range misKeys {
+	// 		hotelId := strings.Split(k, "_")[0]
+	// 		var num number
+	// 		collection := s.MongoClient.Database("reservation-db").Collection("number")
+	// 		err := collection.FindOne(context.TODO(), bson.D{{Key: "hotelId", Value: hotelId}}).Decode(&num)
+	// 		if err != nil {
+	// 			log.Error("Failed get number data", "error", err)
+	// 		}
+	// 		cacheCap[hotelId] = int(num.Number)
+	// 		// update memcache
+	// 		s.MemcClient.Set(&memcache.Item{Key: k, Value: []byte(strconv.Itoa(int(num.Number)))})
+	// 	}
+	// 	//capMongoSpan.Finish()
+	// 	capMongoSpan.End()
+	// }
 	if len(misKeys) > 0 {
 		_, capMongoSpan := tracer.Start(ctx, "mongodb_capacity_get_multi_number")
 		capMongoSpan.SetAttributes(attribute.String("span.kind", "client"))
 
-		s.mu.Lock()
+		// there's no getMulti in mongoDB ...
+		// so we have to loop through misKeys
 		for _, k := range misKeys {
 			hotelId := strings.Split(k, "_")[0]
-			if cap, ok := s.numbers[hotelId]; ok {
-				cacheCap[hotelId] = cap
-				// update memcache
-				s.memcache[hotelId+"_cap"] = []byte(strconv.Itoa(cap))
+			var num number
+			collection := s.MongoClient.Database("reservation-db").Collection("number")
+			err := collection.FindOne(context.TODO(), bson.D{{Key: "hotelId", Value: hotelId}}).Decode(&num)
+			if err != nil {
+				log.Error("Failed get number data", "error", err)
 			}
+			cacheCap[hotelId] = int(num.Number)
+			// update memcache
+			s.MemcClient.Set(&memcache.Item{Key: k, Value: []byte(strconv.Itoa(int(num.Number)))})
 		}
-		s.mu.Unlock()
-
 		capMongoSpan.End()
 	}
 
@@ -480,24 +536,19 @@ func (s *Server) CheckAvailability(ctx context.Context, req *pb.Request) (*pb.Re
 	ch := make(chan taskRes)
 	//reserveMemSpan.SetTag("span.kind", "client")
 	reserveMemSpan.SetAttributes(attribute.String("span.kind", "client"))
-
-	// Get reservation counts from memcache
-	s.mu.RLock()
-	itemsMap := make(map[string][]byte)
-	for _, key := range reqCommand {
-		if val, ok := s.memcache[key]; ok {
-			itemsMap[key] = val
-		}
-	}
-	s.mu.RUnlock()
-
+	// check memcached to see if we have enough rooms
+	itemsMap, err := s.MemcClient.GetMulti(reqCommand)
 	reserveMemSpan.End()
+
+	if err != nil && err != memcache.ErrCacheMiss {
+		log.Error("Memcached error", "error", err)
+	}
 
 	// go through reservation count from memcached
 	go func() {
 		for k, v := range itemsMap {
 			id := strings.Split(k, "_")[0]
-			val, _ := strconv.Atoi(string(v))
+			val, _ := strconv.Atoi(string(v.Value))
 			var res bool
 			if cap, ok := cacheCap[id]; ok && val+int(req.RoomNumber) <= cap {
 				res = true
@@ -522,30 +573,44 @@ func (s *Server) CheckAvailability(ctx context.Context, req *pb.Request) (*pb.Re
 				defer wg.Done()
 
 				queryItem := queryMap[comm]
-				resKey := queryItem["hotelId"] + "_" + queryItem["startDate"] + "_" + queryItem["endDate"]
 
+				//reserveMongoSpan, _ := opentracing.StartSpanFromContext(ctx, "mongodb_capacity_get_multi_number"+comm)
 				_, reserveMongoSpan := tracer.Start(ctx, "mongodb_capacity_get_multi_number"+comm)
+				//reserveMongoSpan.SetTag("span.kind", "client")
 				reserveMongoSpan.SetAttributes(attribute.String("span.kind", "client"))
 
-				s.mu.RLock()
-				reserve := s.reservations[resKey]
-				s.mu.RUnlock()
+				// memcached miss, check mongoDB
+				collection := s.MongoClient.Database("reservation-db").Collection("reservation")
 
+				var reserve []reservation
+				filter := bson.D{{Key: "hotelId", Value: queryItem["hotelId"]}, {Key: "inDate", Value: queryItem["startDate"]}, {Key: "outDate", Value: queryItem["endDate"]}}
+				curr, err := collection.Find(context.TODO(), filter)
+				if err != nil {
+					log.Error(fmt.Sprintf("Failed get reservation data: %v", err))
+				}
+				curr.All(context.TODO(), &reserve)
+				if err != nil {
+					log.Error(fmt.Sprintf("Failed get reservation data: %v", err))
+				}
+				//reserveMongoSpan.Finish()
 				reserveMongoSpan.End()
 
+				if err != nil {
+					log.Error("Tried to find hotelId reservation error",
+						"hotelId", queryItem["hotelId"],
+						"startDate", queryItem["startDate"],
+						"endDate", queryItem["endDate"],
+						"error", err.Error())
+				}
 				var count int
 				for _, r := range reserve {
 					log.Error(fmt.Sprintf("reservation check reservation number = %s", queryItem["hotelId"]))
 					count += r.Number
 				}
-
 				// update memcached
-				s.mu.Lock()
-				s.memcache[comm] = []byte(strconv.Itoa(count))
-				s.mu.Unlock()
-
+				go s.MemcClient.Set(&memcache.Item{Key: comm, Value: []byte(strconv.Itoa(count))})
 				var res bool
-				if cap, ok := cacheCap[queryItem["hotelId"]]; ok && count+int(req.RoomNumber) <= cap {
+				if count+int(req.RoomNumber) <= cacheCap[queryItem["hotelId"]] {
 					res = true
 				}
 				ch <- taskRes{
@@ -613,13 +678,18 @@ func main() {
 		log.Error("Failed to create queue_length histogram")
 		panic("Failed to create queue_length histogram")
 	} */
-	log.Info("Initializing in-memory data stores...")
-	reservations, numbers := initializeDatabase()
+	log.Info("Initializing DB connection...")
+	mongoClient, mongoClose := initializeDatabase(utils.GetEnvVar("ReserveMongoAddress", true))
+	defer mongoClose()
+
+	log.Info(fmt.Sprintf("Read profile memcashed address: %v", utils.GetEnvVar("ReserveMemcAddress", true)))
+	log.Info("Initializing Memcashed client...")
+	memcClient := utils.NewMemCClient2(utils.GetEnvVar("ReserveMemcAddress", true))
+	log.Info("Success")
 
 	srv := &Server{
-		reservations: reservations,
-		numbers:      numbers,
-		memcache:     make(map[string][]byte),
+		MongoClient: mongoClient,
+		MemcClient:  memcClient,
 	}
 
 	log.Info("Starting server...")
@@ -639,25 +709,21 @@ type Number struct {
 	Number  int    `bson:"numberOfRoom"`
 }
 
-func initializeDatabase() (map[string][]reservation, map[string]int) {
+func initializeDatabase(url string) (*mongo.Client, func()) {
 	log.Info("Generating test data...")
 
-	reservations := make(map[string][]reservation)
-	numbers := make(map[string]int)
-
-	// Initialize reservations
-	resKey := "4_2015-04-09_2015-04-10"
-	reservations[resKey] = []reservation{
-		{"4", "Alice", "2015-04-09", "2015-04-10", 1},
+	newReservations := []interface{}{
+		Reservation{"4", "Alice", "2015-04-09", "2015-04-10", 1},
 	}
 
-	// Initialize numbers
-	numbers["1"] = 200
-	numbers["2"] = 200
-	numbers["3"] = 200
-	numbers["4"] = 200
-	numbers["5"] = 200
-	numbers["6"] = 200
+	newNumbers := []interface{}{
+		Number{"1", 200},
+		Number{"2", 200},
+		Number{"3", 200},
+		Number{"4", 200},
+		Number{"5", 200},
+		Number{"6", 200},
+	}
 
 	for i := 7; i <= 80; i++ {
 		hotelID := strconv.Itoa(i)
@@ -669,9 +735,37 @@ func initializeDatabase() (map[string][]reservation, map[string]int) {
 			roomNumber = 250
 		}
 
-		numbers[hotelID] = roomNumber
+		newNumbers = append(newNumbers, Number{hotelID, roomNumber})
 	}
 
-	log.Info("Successfully initialized in-memory reservation data stores")
-	return reservations, numbers
+	uri := fmt.Sprintf("mongodb://%s", url)
+	log.Info(fmt.Sprintf("Attempting connection to %v", uri))
+
+	opts := options.Client().ApplyURI(uri)
+	client, err := mongo.Connect(context.TODO(), opts)
+	if err != nil {
+		log.Error(err.Error())
+	}
+	log.Info("Successfully connected to MongoDB")
+
+	database := client.Database("reservation-db")
+	resCollection := database.Collection("reservation")
+	numCollection := database.Collection("number")
+
+	_, err = resCollection.InsertMany(context.TODO(), newReservations)
+	if err != nil {
+		log.Error(err.Error())
+	}
+
+	_, err = numCollection.InsertMany(context.TODO(), newNumbers)
+	if err != nil {
+		log.Error(err.Error())
+	}
+	log.Info("Successfully inserted test data into reservation DB")
+
+	return client, func() {
+		if err := client.Disconnect(context.TODO()); err != nil {
+			log.Error(err.Error())
+		}
+	}
 }

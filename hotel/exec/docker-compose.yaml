@@ -88,129 +88,129 @@ services:
 #    - COLLECTOR_ZIPKIN_HOST_PORT=9411       # To collect envoy's traces
 ##    cpuset: "45"
 
-#  memcached-rate:
-#    image: memcached:latest
-#    hostname: user-memcached
-#    environment:
-#      - MEMCACHED_CACHE_SIZE=128
-#      - MEMCACHED_THREADS=2
-#    logging:
-#      options:
-#        max-size: 50m
-#    ports:
-#      - "10003:11211"
-#    restart: always
-#    deploy:
-#      replicas: 1
-#      restart_policy:
-#        condition: any
-#    cpuset: "44"
+  memcached-rate:
+    image: memcached:latest
+    hostname: user-memcached
+    environment:
+      - MEMCACHED_CACHE_SIZE=128
+      - MEMCACHED_THREADS=2
+    logging:
+      options:
+        max-size: 50m
+    ports:
+      - "10003:11211"
+    restart: always
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: any
+    cpuset: "44"
   
-#  memcached-profile:
-#    image: memcached:latest
-#    hostname: user-memcached
-#    environment:
-#      - MEMCACHED_CACHE_SIZE=128
-#      - MEMCACHED_THREADS=2
-#    logging:
-#      options:
-#        max-size: 50m
-#    ports:
-#      - "10001:11211"
-#    restart: always
-#    deploy:
-#      replicas: 1
-#      restart_policy:
-#        condition: any
-#    cpuset: "44"
+  memcached-profile:
+    image: memcached:latest
+    hostname: user-memcached
+    environment:
+      - MEMCACHED_CACHE_SIZE=128
+      - MEMCACHED_THREADS=2
+    logging:
+      options:
+        max-size: 50m
+    ports:
+      - "10001:11211"
+    restart: always
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: any
+    cpuset: "44"
     
-#  memcached-reserve:
-#    image: memcached:latest
-#    hostname: user-memcached
-#    environment:
-#      - MEMCACHED_CACHE_SIZE=128
-#      - MEMCACHED_THREADS=2
-#    logging:
-#      options:
-#        max-size: 50m
-#    ports:
-#      - "10002:11211"
-#    restart: always
-#    deploy:
-#      replicas: 1
-#      restart_policy:
-#        condition: any
-#    cpuset: "43"
+  memcached-reserve:
+    image: memcached:latest
+    hostname: user-memcached
+    environment:
+      - MEMCACHED_CACHE_SIZE=128
+      - MEMCACHED_THREADS=2
+    logging:
+      options:
+        max-size: 50m
+    ports:
+      - "10002:11211"
+    restart: always
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: any
+    cpuset: "43"
   
-#  mongodb-geo:
-#    image: mongo:5.0
-#    hostname: geo-db
-#    volumes:
-#      - geo:/data/db
-#    restart: always
-#    ports:
-#      - "20004:27017"
-#    deploy:
-#      replicas: 1
-#      restart_policy:
-#        condition: any
-#    cpuset: "43"
+  mongodb-geo:
+    image: mongo:5.0
+    hostname: geo-db
+    volumes:
+      - geo:/data/db
+    restart: always
+    ports:
+      - "20004:27017"
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: any
+    cpuset: "43"
 
-#  mongodb-profile:
-#    image: mongo:5.0
-#    hostname: profile-db
-#    volumes:
-#      - profile:/data/db
-#    restart: always
-#    ports:
-#      - "20001:27017"
-#    deploy:
-#      replicas: 1
-#      restart_policy:
-#        condition: any
-#    cpuset: "42"
+  mongodb-profile:
+    image: mongo:5.0
+    hostname: profile-db
+    volumes:
+      - profile:/data/db
+    restart: always
+    ports:
+      - "20001:27017"
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: any
+    cpuset: "42"
 
-#  mongodb-rate:
-#    image: mongo:5.0
-#    hostname: rate-db
-#    volumes:
-#      - rate:/data/db
-#    restart: always
-#    ports:
-#      - "20003:27017"
-#    deploy:
-#      replicas: 1
-#      restart_policy:
-#        condition: any
-#    cpuset: "42"
+  mongodb-rate:
+    image: mongo:5.0
+    hostname: rate-db
+    volumes:
+      - rate:/data/db
+    restart: always
+    ports:
+      - "20003:27017"
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: any
+    cpuset: "42"
   
-#  mongodb-reservation:
-#    image: mongo:5.0
-#    hostname: reservation-db
-#    volumes:
-#      - reservation:/data/db
-#    restart: always
-#    ports:
-#      - "20002:27017"
-#    deploy:
-#      replicas: 1
-#      restart_policy:
-#        condition: any
-#    cpuset: "41"
+  mongodb-reservation:
+    image: mongo:5.0
+    hostname: reservation-db
+    volumes:
+      - reservation:/data/db
+    restart: always
+    ports:
+      - "20002:27017"
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: any
+    cpuset: "41"
   
-#  mongodb-user:
-#    image: mongo:5.0
-#    hostname: user-db
-#    volumes:
-#      - user:/data/db
-#    ports:
-#      - "20006:27017"
-#    restart: always
-#    deploy:
-#      replicas: 1
-#      restart_policy:
-#        condition: any
-#    cpuset: "41"
+  mongodb-user:
+    image: mongo:5.0
+    hostname: user-db
+    volumes:
+      - user:/data/db
+    ports:
+      - "20006:27017"
+    restart: always
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: any
+    cpuset: "41"
 
 volumes:
   geo:

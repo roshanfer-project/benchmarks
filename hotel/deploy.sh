@@ -35,6 +35,7 @@ if [ "$MODE" == "plain" ]; then
     
     # App Manifests
     cp "${DEPLOY_DIR}/app-plain.yaml" "$TMP_DIR/app.yaml"
+    cp "${DEPLOY_DIR}/db.yaml" "$TMP_DIR/"
     
     # Image Replacement
     for SERVICE in "frontend" "geo" "profile" "rate" "reservation" "search" "user"; do
@@ -45,6 +46,7 @@ else # sidecar
     # ConfigMap
     kubectl create configmap hotel-config --from-env-file=hotel/sidecar.env --dry-run=client -o yaml > "$TMP_DIR/configmap.yaml"
     cp "${DEPLOY_DIR}/sidecar-configs.yaml" "$TMP_DIR/"
+    cp "${DEPLOY_DIR}/db.yaml" "$TMP_DIR/"
 
     # App Manifests
     cp "${DEPLOY_DIR}/app-sidecar.yaml" "$TMP_DIR/app.yaml"
@@ -69,6 +71,15 @@ kubectl apply -f "$TMP_DIR/configmap.yaml"
 if [ "$MODE" == "sidecar" ]; then
     kubectl apply -f "$TMP_DIR/sidecar-configs.yaml"
 fi
+
+# Apply DBs
+echo "Deploying Databases..."
+kubectl apply -f "$TMP_DIR/db.yaml"
+echo "Waiting for Databases to be ready..."
+# Wait for some key DBs
+kubectl wait --for=condition=ready pod/mongodb-geo --timeout=60s
+kubectl wait --for=condition=ready pod/mongodb-profile --timeout=60s
+kubectl wait --for=condition=ready pod/memcached-profile --timeout=60s
 
 # Function to apply specific resource from a multi-doc yaml
 apply_service() {
