@@ -1,0 +1,215 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sidecar-configs
+data:
+  compose.yaml: |
+    routing:
+      protobuf.PostStorage/StorePost:
+        upstream:
+          host: posts-sidecar
+          port: 3003
+      protobuf.UserTimeline/WriteUserTimeline:
+        upstream:
+          host: user-sidecar
+          port: 3001
+      protobuf.HomeTimeline/WriteHomeTimeline:
+        upstream:
+          host: home-sidecar
+          port: 3002
+    mapping:
+      protobuf.ComposePost/ComposePost:
+        downstreams:
+          - protobuf.PostStorage/StorePost
+          - protobuf.UserTimeline/WriteUserTimeline
+          - protobuf.HomeTimeline/WriteHomeTimeline
+    ring_size: 1000
+    buffer_count: 1024
+    buffer_size: 80000
+    num_threads: 1
+    egress_listener_port: 4005
+    ingress_listener_port: 3005
+    ingress_upstream_host: 172.17.0.1
+    ingress_upstream_port: 2005
+    cpu_count: 1
+    over_commitment: 0
+    report_latency: True
+    name: compose
+
+  graph.yaml: |
+    mapping:
+      protobuf.SocialGraph/GetFollowers:
+    ring_size: 1000
+    buffer_count: 1024
+    buffer_size: 50000
+    num_threads: 1
+    egress_listener_port: 4004
+    ingress_listener_port: 3004
+    ingress_upstream_host: 172.17.0.1
+    ingress_upstream_port: 2004
+    cpu_count: 1
+    over_commitment: 0
+    extra_limit: 2
+    report_latency: False
+    name: graph
+
+  home.yaml: |
+    routing:
+      protobuf.PostStorage/ReadPosts:
+        upstream:
+          host: posts-sidecar
+          port: 3003
+      protobuf.SocialGraph/GetFollowers:
+        upstream:
+          host: graph-sidecar
+          port: 3004
+    mapping:
+      protobuf.HomeTimeline/ReadHomeTimeline:
+        downstreams:
+          - protobuf.PostStorage/ReadPosts
+      protobuf.HomeTimeline/WriteHomeTimeline:
+        downstreams:
+          - protobuf.SocialGraph/GetFollowers
+    ring_size: 1000
+    buffer_count: 1024
+    buffer_size: 80000
+    num_threads: 1
+    egress_listener_port: 4002
+    ingress_listener_port: 3002
+    ingress_upstream_host: 172.17.0.1
+    ingress_upstream_port: 2002
+    cpu_count: 1
+    over_commitment: 0
+    extra_limit: 2
+    report_latency: True
+    name: home
+
+  ingress.yaml: |
+    routing:
+      compose:
+        upstream:
+          host: nginx-sidecar
+          port: 3007
+        slo: 16
+        priority: 1
+      home:
+        upstream:
+          host: nginx-sidecar
+          port: 3007
+        slo: 20
+        priority: 0
+      user:
+        upstream:
+          host: nginx-sidecar
+          port: 3007
+        slo: 20
+        priority: 0
+    mapping:
+      compose:
+        downstreams:
+          - compose
+        listen_port: 3000
+      home:
+        downstreams:
+          - home
+        listen_port: 3008
+      user:
+        downstreams:
+          - user
+        listen_port: 3009
+    ring_size: 4000
+    buffer_count: 16384
+    buffer_size: 10000
+    ingress_pool_connections: 100
+    num_threads: 3
+    egress_listener_port: 3000
+    ingress_listener_port: 4000
+    ingress_upstream_host: 172.17.0.1
+    ingress_upstream_port: 2000
+    is_ingress: True
+    is_frontend: False
+    report_latency: True
+    name: ingress
+
+  nginx.yaml: |
+    routing:
+      protobuf.ComposePost/ComposePost:
+        upstream:
+          host: compose-sidecar
+          port: 3005
+      protobuf.HomeTimeline/ReadHomeTimeline:
+        upstream:
+          host: home-sidecar
+          port: 3002
+      protobuf.UserTimeline/ReadUserTimeline:
+        upstream:
+          host: user-sidecar
+          port: 3001
+    mapping:
+      compose:
+        downstreams:
+          - protobuf.ComposePost/ComposePost
+      home:
+        downstreams:
+          - protobuf.HomeTimeline/ReadHomeTimeline
+      user:
+        downstreams:
+          - protobuf.UserTimeline/ReadUserTimeline
+    ring_size: 1000
+    buffer_count: 4096
+    buffer_size: 80000
+    frontend_pool_connections: 100
+    num_threads: 2
+    egress_listener_port: 4007
+    ingress_listener_port: 3007
+    ingress_upstream_host: 172.17.0.1
+    ingress_upstream_port: 2007
+    is_ingress: False
+    is_frontend: True
+    cpu_count: 2
+    over_commitment: 0
+    report_latency: True
+    name: nginx
+
+  posts.yaml: |
+    mapping:
+      protobuf.PostStorage/StorePost:
+      protobuf.PostStorage/ReadPosts:
+    ring_size: 1000
+    buffer_count: 1024
+    buffer_size: 80000
+    num_threads: 1
+    egress_listener_port: 4003
+    ingress_listener_port: 3003
+    ingress_upstream_host: 172.17.0.1
+    ingress_upstream_port: 2003
+    cpu_count: 1
+    over_commitment: 0
+    extra_limit: 2
+    report_latency: True
+    name: posts
+
+  user.yaml: |
+    routing:
+      protobuf.PostStorage/ReadPosts:
+        upstream:
+          host: posts-sidecar
+          port: 3003
+    mapping:
+      protobuf.UserTimeline/ReadUserTimeline:
+        downstreams:
+            - protobuf.PostStorage/ReadPosts
+      protobuf.UserTimeline/WriteUserTimeline:
+    ring_size: 1000
+    buffer_count: 1024
+    buffer_size: 80000
+    num_threads: 1
+    egress_listener_port: 4001
+    ingress_listener_port: 3001
+    ingress_upstream_host: 172.17.0.1
+    ingress_upstream_port: 2001
+    cpu_count: 1
+    over_commitment: 0
+    extra_limit: 2
+    report_latency: True
+    name: user
