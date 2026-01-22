@@ -6,7 +6,6 @@ metadata:
   labels:
     app: frontend
 spec:
-  restartPolicy: Never
   containers:
   - name: app
     image: frontend:latest
@@ -15,6 +14,9 @@ spec:
         cpu: "2"
       limits:
         cpu: "2"
+    env:
+    - name: GOMAXPROCS
+      value: "2"
     envFrom:
     - configMapRef:
         name: hotel-config
@@ -28,6 +30,8 @@ spec:
       value: "frontend-sidecar"
     - name: GLOG_logtostderr
       value: "1"
+#    - name: GLOG_vmodule
+#      value: "stats=1,credit_queue=1"
     resources:
       requests:
         cpu: "2"
@@ -44,12 +48,6 @@ spec:
   - name: config-volume
     configMap:
       name: sidecar-configs
-  - name: usr-local-lib
-    hostPath:
-      path: /usr/local/lib
-  - name: lib-x86-64
-    hostPath:
-      path: /lib/x86_64-linux-gnu
 ---
 apiVersion: v1
 kind: Service
@@ -79,7 +77,6 @@ metadata:
   labels:
     app: profile
 spec:
-  restartPolicy: Never
   containers:
   - name: app
     image: profile:latest
@@ -88,6 +85,9 @@ spec:
         cpu: "1"
       limits:
         cpu: "1"
+    env:
+    - name: GOMAXPROCS
+      value: "1"
     envFrom:
     - configMapRef:
         name: hotel-config
@@ -101,6 +101,8 @@ spec:
       value: "profile-sidecar"
     - name: GLOG_logtostderr
       value: "1"
+#    - name: GLOG_vmodule
+#      value: "stats=1,credit_queue=1"
     resources:
       requests:
         cpu: "2"
@@ -117,12 +119,6 @@ spec:
   - name: config-volume
     configMap:
       name: sidecar-configs
-  - name: usr-local-lib
-    hostPath:
-      path: /usr/local/lib
-  - name: lib-x86-64
-    hostPath:
-      path: /lib/x86_64-linux-gnu
 ---
 apiVersion: v1
 kind: Service
@@ -152,7 +148,6 @@ metadata:
   labels:
     app: search
 spec:
-  restartPolicy: Never
   containers:
   - name: app
     image: search:latest
@@ -161,6 +156,9 @@ spec:
         cpu: "1"
       limits:
         cpu: "1"
+    env:
+    - name: GOMAXPROCS
+      value: "1"
     envFrom:
     - configMapRef:
         name: hotel-config
@@ -174,6 +172,8 @@ spec:
       value: "search-sidecar"
     - name: GLOG_logtostderr
       value: "1"
+#    - name: GLOG_vmodule
+#      value: "stats=1,credit_queue=1"
     resources:
       requests:
         cpu: "2"
@@ -190,12 +190,6 @@ spec:
   - name: config-volume
     configMap:
       name: sidecar-configs
-  - name: usr-local-lib
-    hostPath:
-      path: /usr/local/lib
-  - name: lib-x86-64
-    hostPath:
-      path: /lib/x86_64-linux-gnu
 ---
 apiVersion: v1
 kind: Service
@@ -225,7 +219,6 @@ metadata:
   labels:
     app: geo
 spec:
-  restartPolicy: Never
   containers:
   - name: app
     image: geo:latest
@@ -234,6 +227,9 @@ spec:
         cpu: "1"
       limits:
         cpu: "1"
+    env:
+    - name: GOMAXPROCS
+      value: "1"
     envFrom:
     - configMapRef:
         name: hotel-config
@@ -247,6 +243,8 @@ spec:
       value: "geo-sidecar"
     - name: GLOG_logtostderr
       value: "1"
+#    - name: GLOG_vmodule
+#      value: "stats=1,credit_queue=1"
     resources:
       requests:
         cpu: "2"
@@ -263,12 +261,6 @@ spec:
   - name: config-volume
     configMap:
       name: sidecar-configs
-  - name: usr-local-lib
-    hostPath:
-      path: /usr/local/lib
-  - name: lib-x86-64
-    hostPath:
-      path: /lib/x86_64-linux-gnu
 ---
 apiVersion: v1
 kind: Service
@@ -298,7 +290,6 @@ metadata:
   labels:
     app: rate
 spec:
-  restartPolicy: Never
   containers:
   - name: app
     image: rate:latest
@@ -307,6 +298,9 @@ spec:
         cpu: "2"
       limits:
         cpu: "2"
+    env:
+    - name: GOMAXPROCS
+      value: "2"
     envFrom:
     - configMapRef:
         name: hotel-config
@@ -320,6 +314,8 @@ spec:
       value: "rate-sidecar"
     - name: GLOG_logtostderr
       value: "1"
+#    - name: GLOG_vmodule
+#      value: "stats=1,credit_queue=1"
     resources:
       requests:
         cpu: "2"
@@ -336,12 +332,6 @@ spec:
   - name: config-volume
     configMap:
       name: sidecar-configs
-  - name: usr-local-lib
-    hostPath:
-      path: /usr/local/lib
-  - name: lib-x86-64
-    hostPath:
-      path: /lib/x86_64-linux-gnu
 ---
 apiVersion: v1
 kind: Service
@@ -371,7 +361,6 @@ metadata:
   labels:
     app: reservation
 spec:
-  restartPolicy: Never
   containers:
   - name: app
     image: reservation:latest
@@ -380,6 +369,9 @@ spec:
         cpu: "1"
       limits:
         cpu: "1"
+    env:
+    - name: GOMAXPROCS
+      value: "1"
     envFrom:
     - configMapRef:
         name: hotel-config
@@ -393,6 +385,8 @@ spec:
       value: "reservation-sidecar"
     - name: GLOG_logtostderr
       value: "1"
+#    - name: GLOG_vmodule
+#      value: "stats=1,credit_queue=1"
     resources:
       requests:
         cpu: "2"
@@ -409,12 +403,6 @@ spec:
   - name: config-volume
     configMap:
       name: sidecar-configs
-  - name: usr-local-lib
-    hostPath:
-      path: /usr/local/lib
-  - name: lib-x86-64
-    hostPath:
-      path: /lib/x86_64-linux-gnu
 ---
 apiVersion: v1
 kind: Service
@@ -444,7 +432,6 @@ metadata:
   labels:
     app: user
 spec:
-  restartPolicy: Never
   containers:
   - name: app
     image: user:latest
@@ -453,6 +440,9 @@ spec:
         cpu: "1"
       limits:
         cpu: "1"
+    env:
+    - name: GOMAXPROCS
+      value: "1"
     envFrom:
     - configMapRef:
         name: hotel-config
@@ -466,6 +456,8 @@ spec:
       value: "user-sidecar"
     - name: GLOG_logtostderr
       value: "1"
+#    - name: GLOG_vmodule
+#      value: "stats=1,credit_queue=1"
     resources:
       requests:
         cpu: "2"

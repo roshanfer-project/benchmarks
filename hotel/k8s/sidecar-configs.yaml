@@ -10,14 +10,14 @@ data:
         upstream:
           host: hotel-frontend
           port: 3007
-        slo: 68
-        priority: 2
+        slo: 22
+        priority: 1
       reservation:
         upstream:
           host: hotel-frontend
           port: 3007
-        slo: 32
-        priority: 1
+        slo: 18
+        priority: 0
     mapping:
       hotels:
         downstreams:
@@ -85,8 +85,8 @@ data:
     is_ingress: False
     is_frontend: True
     report_latency: True
-    per_endpoint_limit: 4
-    ppm_limit: 8
+    cpu_count: 2
+    over_commitment: 0
     name: frontend
 
   search.yaml: |
@@ -113,8 +113,8 @@ data:
     ingress_upstream_host: localhost
     ingress_upstream_port: 2005
     report_latency: True
-    per_endpoint_limit: 2
-    ppm_limit: 4
+    cpu_count: 1
+    over_commitment: 0
     name: search
 
   geo.yaml: |
@@ -129,8 +129,8 @@ data:
     ingress_upstream_host: localhost
     ingress_upstream_port: 2004
     report_latency: True
-    per_endpoint_limit: 2
-    ppm_limit: 2
+    cpu_count: 1
+    over_commitment: 0
     name: geo
 
   rate.yaml: |
@@ -145,8 +145,8 @@ data:
     ingress_upstream_host: localhost
     ingress_upstream_port: 2003
     report_latency: True
-    per_endpoint_limit: 4
-    ppm_limit: 4
+    cpu_count: 2
+    over_commitment: 0
     name: rate
 
   profile.yaml: |
@@ -161,8 +161,8 @@ data:
     ingress_upstream_host: localhost
     ingress_upstream_port: 2001
     report_latency: True
-    per_endpoint_limit: 2
-    ppm_limit: 2
+    cpu_count: 1
+    over_commitment: 0
     name: profile
 
   reservation.yaml: |
@@ -178,8 +178,8 @@ data:
     ingress_upstream_host: localhost
     ingress_upstream_port: 2002
     report_latency: True
-    per_endpoint_limit: 2
-    ppm_limit: 2
+    cpu_count: 1
+    over_commitment: 0
     name: reservation
 
   user.yaml: |
@@ -193,7 +193,7 @@ data:
     ingress_listener_port: 3006
     ingress_upstream_host: localhost
     ingress_upstream_port: 2006
-    per_endpoint_limit: 2
-    ppm_limit: 2
+    cpu_count: 1
+    over_commitment: 0
     report_latency: True
     name: user

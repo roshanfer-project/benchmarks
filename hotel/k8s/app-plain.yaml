@@ -15,6 +15,9 @@ spec:
         cpu: "2"
       limits:
         cpu: "2"
+    env:
+    - name: GOMAXPROCS
+      value: "2"
     envFrom:
     - configMapRef:
         name: hotel-config
@@ -61,6 +64,9 @@ spec:
         cpu: "1"
       limits:
         cpu: "1"
+    env:
+    - name: GOMAXPROCS
+      value: "1"
     envFrom:
     - configMapRef:
         name: hotel-config
@@ -104,6 +110,9 @@ spec:
         cpu: "1"
       limits:
         cpu: "1"
+    env:
+    - name: GOMAXPROCS
+      value: "1"
     envFrom:
     - configMapRef:
         name: hotel-config
@@ -147,6 +156,9 @@ spec:
         cpu: "1"
       limits:
         cpu: "1"
+    env:
+    - name: GOMAXPROCS
+      value: "1"
     envFrom:
     - configMapRef:
         name: hotel-config
@@ -190,6 +202,9 @@ spec:
         cpu: "2"
       limits:
         cpu: "2"
+    env:
+    - name: GOMAXPROCS
+      value: "2"
     envFrom:
     - configMapRef:
         name: hotel-config
@@ -233,6 +248,9 @@ spec:
         cpu: "1"
       limits:
         cpu: "1"
+    env:
+    - name: GOMAXPROCS
+      value: "1"
     envFrom:
     - configMapRef:
         name: hotel-config
@@ -276,6 +294,9 @@ spec:
         cpu: "1"
       limits:
         cpu: "1"
+    env:
+    - name: GOMAXPROCS
+      value: "1"
     envFrom:
     - configMapRef:
         name: hotel-config
