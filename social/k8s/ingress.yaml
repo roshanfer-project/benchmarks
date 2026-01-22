@@ -23,8 +23,15 @@ spec:
       mountPath: /config.yaml
       subPath: ingress.yaml
     ports:
-    - containerPort: 4000
     - containerPort: 3000
+    - containerPort: 3000
+      protocol: UDP
+    - containerPort: 3008
+    - containerPort: 3009
+    - containerPort: 3008
+      protocol: UDP
+    - containerPort: 3009
+      protocol: UDP
   
   volumes:
   - name: config-volume
@@ -48,3 +55,28 @@ spec:
     targetPort: 3000
     nodePort: 3000
     protocol: TCP
+  - name: sidecar-grpc-udp
+    port: 3000
+    targetPort: 3000
+    nodePort: 3000
+    protocol: UDP
+  - name: home-api
+    port: 3008
+    targetPort: 3008
+    nodePort: 3008
+    protocol: TCP
+  - name: home-api-udp
+    port: 3008
+    targetPort: 3008
+    nodePort: 3008
+    protocol: UDP
+  - name: user-api
+    port: 3009
+    targetPort: 3009
+    nodePort: 3009
+    protocol: TCP
+  - name: user-api-udp
+    port: 3009
+    targetPort: 3009
+    nodePort: 3009
+    protocol: UDP

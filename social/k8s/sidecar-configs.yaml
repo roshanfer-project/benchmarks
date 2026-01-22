@@ -7,15 +7,15 @@ data:
     routing:
       protobuf.PostStorage/StorePost:
         upstream:
-          host: posts-sidecar
+          host: social-posts
           port: 3003
       protobuf.UserTimeline/WriteUserTimeline:
         upstream:
-          host: user-sidecar
+          host: social-user
           port: 3001
       protobuf.HomeTimeline/WriteHomeTimeline:
         upstream:
-          host: home-sidecar
+          host: social-home
           port: 3002
     mapping:
       protobuf.ComposePost/ComposePost:
@@ -29,7 +29,7 @@ data:
     num_threads: 1
     egress_listener_port: 4005
     ingress_listener_port: 3005
-    ingress_upstream_host: 172.17.0.1
+    ingress_upstream_host: localhost
     ingress_upstream_port: 2005
     cpu_count: 1
     over_commitment: 0
@@ -45,7 +45,7 @@ data:
     num_threads: 1
     egress_listener_port: 4004
     ingress_listener_port: 3004
-    ingress_upstream_host: 172.17.0.1
+    ingress_upstream_host: localhost
     ingress_upstream_port: 2004
     cpu_count: 1
     over_commitment: 0
@@ -57,11 +57,11 @@ data:
     routing:
       protobuf.PostStorage/ReadPosts:
         upstream:
-          host: posts-sidecar
+          host: social-posts
           port: 3003
       protobuf.SocialGraph/GetFollowers:
         upstream:
-          host: graph-sidecar
+          host: social-graph
           port: 3004
     mapping:
       protobuf.HomeTimeline/ReadHomeTimeline:
@@ -76,7 +76,7 @@ data:
     num_threads: 1
     egress_listener_port: 4002
     ingress_listener_port: 3002
-    ingress_upstream_host: 172.17.0.1
+    ingress_upstream_host: localhost
     ingress_upstream_port: 2002
     cpu_count: 1
     over_commitment: 0
@@ -88,21 +88,21 @@ data:
     routing:
       compose:
         upstream:
-          host: nginx-sidecar
+          host: social-nginx
           port: 3007
-        slo: 16
+        slo: 72
         priority: 1
       home:
         upstream:
-          host: nginx-sidecar
+          host: social-nginx
           port: 3007
-        slo: 20
+        slo: 22
         priority: 0
       user:
         upstream:
-          host: nginx-sidecar
+          host: social-nginx
           port: 3007
-        slo: 20
+        slo: 22
         priority: 0
     mapping:
       compose:
@@ -124,7 +124,7 @@ data:
     num_threads: 3
     egress_listener_port: 3000
     ingress_listener_port: 4000
-    ingress_upstream_host: 172.17.0.1
+    ingress_upstream_host: localhost
     ingress_upstream_port: 2000
     is_ingress: True
     is_frontend: False
@@ -135,15 +135,15 @@ data:
     routing:
       protobuf.ComposePost/ComposePost:
         upstream:
-          host: compose-sidecar
+          host: social-compose
           port: 3005
       protobuf.HomeTimeline/ReadHomeTimeline:
         upstream:
-          host: home-sidecar
+          host: social-home
           port: 3002
       protobuf.UserTimeline/ReadUserTimeline:
         upstream:
-          host: user-sidecar
+          host: social-user
           port: 3001
     mapping:
       compose:
@@ -159,10 +159,10 @@ data:
     buffer_count: 4096
     buffer_size: 80000
     frontend_pool_connections: 100
-    num_threads: 2
+    num_threads: 1
     egress_listener_port: 4007
     ingress_listener_port: 3007
-    ingress_upstream_host: 172.17.0.1
+    ingress_upstream_host: localhost
     ingress_upstream_port: 2007
     is_ingress: False
     is_frontend: True
@@ -181,7 +181,7 @@ data:
     num_threads: 1
     egress_listener_port: 4003
     ingress_listener_port: 3003
-    ingress_upstream_host: 172.17.0.1
+    ingress_upstream_host: localhost
     ingress_upstream_port: 2003
     cpu_count: 1
     over_commitment: 0
@@ -193,12 +193,12 @@ data:
     routing:
       protobuf.PostStorage/ReadPosts:
         upstream:
-          host: posts-sidecar
+          host: social-posts
           port: 3003
     mapping:
       protobuf.UserTimeline/ReadUserTimeline:
         downstreams:
-            - protobuf.PostStorage/ReadPosts
+          - protobuf.PostStorage/ReadPosts
       protobuf.UserTimeline/WriteUserTimeline:
     ring_size: 1000
     buffer_count: 1024
@@ -206,7 +206,7 @@ data:
     num_threads: 1
     egress_listener_port: 4001
     ingress_listener_port: 3001
-    ingress_upstream_host: 172.17.0.1
+    ingress_upstream_host: localhost
     ingress_upstream_port: 2001
     cpu_count: 1
     over_commitment: 0
