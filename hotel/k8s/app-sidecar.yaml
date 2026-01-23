@@ -11,12 +11,12 @@ spec:
     image: frontend:latest
     resources:
       requests:
-        cpu: "2"
+        cpu: "4"
       limits:
-        cpu: "2"
+        cpu: "4"
     env:
     - name: GOMAXPROCS
-      value: "2"
+      value: "4"
     envFrom:
     - configMapRef:
         name: hotel-config
@@ -295,12 +295,12 @@ spec:
     image: rate:latest
     resources:
       requests:
-        cpu: "2"
+        cpu: "3"
       limits:
-        cpu: "2"
+        cpu: "3"
     env:
     - name: GOMAXPROCS
-      value: "2"
+      value: "3"
     envFrom:
     - configMapRef:
         name: hotel-config

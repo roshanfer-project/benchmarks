@@ -11,7 +11,7 @@ data:
           host: hotel-frontend
           port: 3007
         slo: 22
-        priority: 1
+        priority: 0
       reservation:
         upstream:
           host: hotel-frontend
@@ -30,7 +30,7 @@ data:
     ring_size: 12000
     buffer_count: 16384
     buffer_size: 10000
-    ingress_pool_connections: 100
+    ingress_pool_connections: 150
     num_threads: 2
     egress_listener_port: 3000
     ingress_listener_port: 4000
@@ -76,7 +76,7 @@ data:
     ring_size: 4000
     buffer_count: 16384
     buffer_size: 80000
-    frontend_pool_connections: 100
+    frontend_pool_connections: 200
     num_threads: 1
     egress_listener_port: 4007
     ingress_listener_port: 3007
@@ -85,8 +85,8 @@ data:
     is_ingress: False
     is_frontend: True
     report_latency: True
-    cpu_count: 2
-    over_commitment: 0
+    cpu_count: 4
+    over_commitment: 1
     name: frontend
 
   search.yaml: |
@@ -114,7 +114,7 @@ data:
     ingress_upstream_port: 2005
     report_latency: True
     cpu_count: 1
-    over_commitment: 0
+    over_commitment: 1
     name: search
 
   geo.yaml: |
@@ -131,6 +131,7 @@ data:
     report_latency: True
     cpu_count: 1
     over_commitment: 0
+    extra_limit: 3
     name: geo
 
   rate.yaml: |
@@ -145,8 +146,9 @@ data:
     ingress_upstream_host: localhost
     ingress_upstream_port: 2003
     report_latency: True
-    cpu_count: 2
+    cpu_count: 3
     over_commitment: 0
+    extra_limit: 6
     name: rate
 
   profile.yaml: |
@@ -163,6 +165,7 @@ data:
     report_latency: True
     cpu_count: 1
     over_commitment: 0
+    extra_limit: 6
     name: profile
 
   reservation.yaml: |
@@ -180,6 +183,7 @@ data:
     report_latency: True
     cpu_count: 1
     over_commitment: 0
+    extra_limit: 6
     name: reservation
 
   user.yaml: |
@@ -195,5 +199,6 @@ data:
     ingress_upstream_port: 2006
     cpu_count: 1
     over_commitment: 0
+    extra_limit: 3
     report_latency: True
     name: user
