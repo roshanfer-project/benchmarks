@@ -131,7 +131,7 @@ data:
     report_latency: True
     cpu_count: 1
     over_commitment: 0
-    extra_limit: 3
+    extra_limit: 6
     name: geo
 
   rate.yaml: |
@@ -148,7 +148,7 @@ data:
     report_latency: True
     cpu_count: 3
     over_commitment: 0
-    extra_limit: 6
+    extra_limit: 8
     name: rate
 
   profile.yaml: |
@@ -165,7 +165,7 @@ data:
     report_latency: True
     cpu_count: 1
     over_commitment: 0
-    extra_limit: 6
+    extra_limit: 8
     name: profile
 
   reservation.yaml: |
@@ -183,7 +183,7 @@ data:
     report_latency: True
     cpu_count: 1
     over_commitment: 0
-    extra_limit: 6
+    extra_limit: 8
     name: reservation
 
   user.yaml: |
