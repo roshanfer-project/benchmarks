@@ -65,8 +65,8 @@ func (s *Server) Run() error {
 	log.Info("Initializing gRPC server...")
 
 	opts := hotel.DefaultServerOptions()
-	dagor_flag := utils.GetEnvVar("dagor", false) == "true"
-	rajomon_flag := utils.GetEnvVar("rajomon", false) == "true"
+	dagor_flag = utils.GetEnvVar("dagor", false) == "true"
+	rajomon_flag = utils.GetEnvVar("rajomon", false) == "true"
 
 	if !dagor_flag && !rajomon_flag {
 		panic("Either Rajomon or Dagor must be enabled")
