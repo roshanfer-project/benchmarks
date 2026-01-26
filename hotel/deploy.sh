@@ -13,6 +13,8 @@ for arg in "$@"; do
     case $arg in
         sidecar) MODE="sidecar";;
         plain) MODE="plain";;
+        rajomon) MODE="rajomon";;
+        dagor) MODE="dagor";;
     esac
 done
 
@@ -42,7 +44,10 @@ if [ "$MODE" == "plain" ]; then
         sed -i "s|${SERVICE}:latest|${REGISTRY}/hotel-${SERVICE}:${TAG}|g" "${TMP_DIR}/app.yaml"
     done
 
-else # sidecar
+
+
+elif [ "$MODE" == "sidecar" ]; then
+    # Sidecar
     # ConfigMap
     kubectl create configmap hotel-config --from-env-file=hotel/sidecar.env --dry-run=client -o yaml > "$TMP_DIR/configmap.yaml"
     cp "${DEPLOY_DIR}/sidecar-configs.yaml" "$TMP_DIR/"
@@ -61,6 +66,53 @@ else # sidecar
     
     sed -i "s|sidecar-sidecar:latest|${REGISTRY}/sidecar-sidecar:${TAG}|g" "${TMP_DIR}/app.yaml"
     sed -i "s|sidecar-sidecar:latest|${REGISTRY}/sidecar-sidecar:${TAG}|g" "${TMP_DIR}/ingress.yaml"
+else
+    # rajomon or dagor
+    # ConfigMap
+    if [ "$MODE" == "rajomon" ]; then
+        # Default values for Rajomon Config
+        PRICE_UPDATE_RATE=${priceUpdateRate}
+        LATENCY_THRESHOLD=${latencyThreshold}
+        TOKEN_UPDATE_RATE=${tokenUpdateRate}
+        PRICE_STEP=${priceStep}
+        TOKEN_UPDATE_STEP=${tokenUpdateStep}
+
+        echo "Using Rajomon Config:"
+        echo "  priceUpdateRate=$PRICE_UPDATE_RATE"
+        echo "  latencyThreshold=$LATENCY_THRESHOLD"
+        echo "  tokenUpdateRate=$TOKEN_UPDATE_RATE"
+        echo "  priceStep=$PRICE_STEP"
+        echo "  tokenUpdateStep=$TOKEN_UPDATE_STEP"
+
+        # Merge env file and dynamic vars into a temp file to avoid kubectl error
+        # "from-env-file cannot be combined with from-file or from-literal"
+        cat hotel/rajomon.env > "$TMP_DIR/rajomon_merged.env"
+        echo "" >> "$TMP_DIR/rajomon_merged.env"
+        echo "priceUpdateRate=$PRICE_UPDATE_RATE" >> "$TMP_DIR/rajomon_merged.env"
+        echo "latencyThreshold=$LATENCY_THRESHOLD" >> "$TMP_DIR/rajomon_merged.env"
+        echo "tokenUpdateRate=$TOKEN_UPDATE_RATE" >> "$TMP_DIR/rajomon_merged.env"
+        echo "priceStep=$PRICE_STEP" >> "$TMP_DIR/rajomon_merged.env"
+        echo "tokenUpdateStep=$TOKEN_UPDATE_STEP" >> "$TMP_DIR/rajomon_merged.env"
+
+        kubectl create configmap hotel-config \
+            --from-env-file="$TMP_DIR/rajomon_merged.env" \
+            --dry-run=client -o yaml > "$TMP_DIR/configmap.yaml"
+    else
+        kubectl create configmap hotel-config --from-env-file=hotel/dagor.env --dry-run=client -o yaml > "$TMP_DIR/configmap.yaml"
+    fi
+    
+    # App Manifests
+    cp "${DEPLOY_DIR}/app-grpc.yaml" "$TMP_DIR/app.yaml"
+    cp "${DEPLOY_DIR}/db.yaml" "$TMP_DIR/"
+
+    # Image Replacement
+    # Common services
+    for SERVICE in "geo" "profile" "rate" "reservation" "search" "user"; do
+        sed -i "s|${SERVICE}:latest|${REGISTRY}/hotel-${SERVICE}:${TAG}|g" "${TMP_DIR}/app.yaml"
+    done
+    # New services
+    sed -i "s|frontend-grpc:latest|${REGISTRY}/hotel-frontend-grpc:${TAG}|g" "${TMP_DIR}/app.yaml"
+    sed -i "s|rajomon-client:latest|${REGISTRY}/hotel-rajomon-client:${TAG}|g" "${TMP_DIR}/app.yaml"
 fi
 
 # 4. Apply Manifests with Order
@@ -121,9 +173,19 @@ if [ -f "$TMP_DIR/app.yaml" ]; then
     kubectl wait --for=condition=ready pod/search --timeout=30s
     
     # Root
-    apply_service "frontend" "$TMP_DIR/app.yaml"
-    echo "Waiting for Frontend service to be ready..."
-    kubectl wait --for=condition=ready pod/frontend --timeout=30s
+    if [ "$MODE" == "rajomon" ] || [ "$MODE" == "dagor" ]; then
+         apply_service "frontend-grpc" "$TMP_DIR/app.yaml"
+         echo "Waiting for Frontend GRPC..."
+         kubectl wait --for=condition=ready pod/frontend-grpc --timeout=30s
+         
+         apply_service "rajomon-client" "$TMP_DIR/app.yaml"
+         echo "Waiting for Rajomon Client..."
+         kubectl wait --for=condition=ready pod/rajomon-client --timeout=30s
+    else
+         apply_service "frontend" "$TMP_DIR/app.yaml"
+         echo "Waiting for Frontend service to be ready..."
+         kubectl wait --for=condition=ready pod/frontend --timeout=30s
+    fi
 fi
 
 # Ingress

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"hotel"
-	breakwaterinit "hotel/breakwater-init"
 	dagorinit "hotel/dagor_init"
 	oteltool "hotel/otel_tool"
 	rajomoninit "hotel/rajomon_init"
@@ -23,7 +22,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	bw "hotel/breakwater"
 	"hotel/dagor"
 
 	"github.com/google/uuid"
@@ -218,15 +216,6 @@ func (s *Server) Run() error {
 			dagorNode.UnaryInterceptorServer,
 			AcceptedRPCInterceptor()))
 		//opts = append(opts, grpc.UnaryInterceptor(dagorNode.UnaryInterceptorServer))
-	}
-
-	var breakwaterd *bw.Breakwater
-	if utils.GetEnvVar("breakwaterd", false) == "true" {
-		log.Info("breakwaterd is enabled, configuring breakwaterd interceptor")
-		breakwaterd = breakwaterinit.GetBreakwater(serviceName, false)
-		opts = append(opts, grpc.ChainUnaryInterceptor(
-			CountersInterceptor(),
-			breakwaterd.UnaryInterceptor))
 	}
 
 	/* if (utils.GetEnvVar("sidecar", false) == "true") && (utils.GetEnvVar("queuing_export", false) == "true") {

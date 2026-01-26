@@ -2,35 +2,42 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"hotel"
-	breakwaterinit "hotel/breakwater-init"
 	dagorinit "hotel/dagor_init"
 	rajomoninit "hotel/rajomon_init"
 	"hotel/utils"
-	"net"
-	"time"
+	"net/http"
+	"strconv"
 
 	oteltool "hotel/otel_tool"
 	pb "hotel/protobuf"
 
-	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/metadata"
-	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/stats/opentelemetry"
 )
 
 const serviceName = "client"
 
 var log = utils.GetLogger(serviceName)
+var tracer trace.Tracer
+var dagor bool
+var rajomon bool
 
 type Server struct {
-	pb.UnimplementedRajomonClientServer
-
 	frontendClient pb.FrontendServiceClient
+}
+
+func tracingMiddleware1(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx, span := tracer.Start(r.Context(), r.Method+" "+r.URL.Path)
+		defer span.End()
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
 }
 
 func configOTL(ctx context.Context, serviceName string) (grpc.ServerOption, []func(context.Context) error, bool) {
@@ -45,103 +52,50 @@ func configOTL(ctx context.Context, serviceName string) (grpc.ServerOption, []fu
 
 }
 
-var failedRPCCounter int64
-
-func FailRPCCounterInterceptor() grpc.UnaryServerInterceptor {
-	return func(ctx context.Context, req interface{},
-		_ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-		resp, err := handler(ctx, req)
-		if err != nil {
-			failedRPCCounter++
-		}
-		return resp, err
-	}
-}
-
 func (s *Server) Run() error {
 
-	log.Info("Initializing gRPC server...")
+	log.Info("Initializing client...")
+	var tracingMiddleware func(next http.Handler) http.Handler
+	tracingMiddleware = tracingMiddleware1
 
-	opts := []grpc.ServerOption{
-		grpc.KeepaliveParams(keepalive.ServerParameters{
-			Timeout: 120 * time.Second,
-		}),
-		grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
-			PermitWithoutStream: true,
-		}),
-		//grpc.UnaryInterceptor(tracingInterceptor),
+	rajomon = utils.GetEnvVar("rajomon", false) == "true"
+	dagor = utils.GetEnvVar("dagor", false) == "true"
+	if !rajomon && !dagor {
+		panic("Either Rajomon or Dagor must be enabled")
 	}
-
-	ctx := context.Background()
-	if _, shutdownList, ok := configOTL(ctx, serviceName); ok {
-		opts = append(opts, grpc.StatsHandler(otelgrpc.NewServerHandler()))
-
-		for _, f := range shutdownList {
-			defer func() {
-				if err := f(ctx); err != nil {
-					log.Error("main", "failed to shutdown OpenTelemetry provider", err)
-				}
-			}()
-		}
-		log.Info("Successfully initialized OpenTelemetry")
-	} else {
-		log.Error("Failed to initialize OpenTelemetry")
-	}
-
-	opts = append(opts, grpc.UnaryInterceptor(FailRPCCounterInterceptor()))
-
-	srv := grpc.NewServer(opts...)
-	pb.RegisterRajomonClientServer(srv, s)
-
-	// enable reflection
-	reflection.Register(srv)
-	log.Info("gRPC server initialized")
 
 	log.Info("Initializing gRPC clients...")
 
 	frontendEnv := utils.GetEnvVar("FrontendGRPCAddr", true)
 	var conn *grpc.ClientConn
 
-	if utils.GetEnvVar("rajomon", false) == "true" {
+	if rajomon {
 		log.Info("Rajomon is enabled, initializing Rajomon client...")
 		priceTable := rajomoninit.GetPriceTable(serviceName, true)
 		conn = hotel.GetRajomonClient(frontendEnv, grpc.WithUnaryInterceptor(priceTable.UnaryInterceptorEnduser))
-	} else if utils.GetEnvVar("dagor", false) == "true" {
+	} else if dagor {
 		log.Info("Dagor is enabled, initializing Dagor client...")
 		dagorNode := dagorinit.GetDagorNode(serviceName, false, true)
 		conn = hotel.GetConn(frontendEnv, grpc.WithUnaryInterceptor(dagorNode.UnaryInterceptorClient))
-	} else if utils.GetEnvVar("breakwater", false) == "true" {
-		log.Info("Breakwater is enabled, initializing Breakwater client...")
-		breakwater := breakwaterinit.GetBreakwater(serviceName, true)
-		conn = hotel.GetConn(frontendEnv, grpc.WithUnaryInterceptor(breakwater.UnaryInterceptorClient))
-	} else if utils.GetEnvVar("breakwaterd", false) == "true" {
-		log.Info("BreakwaterD is enabled, initializing BreakwaterD client...")
-		breakwaterd := breakwaterinit.GetBreakwater(serviceName, true)
-		conn = hotel.GetConn(frontendEnv, grpc.WithUnaryInterceptor(breakwaterd.UnaryInterceptorClient))
-	} else {
-		panic("Either Rajomon or Dagor or Breakwater must be enabled")
 	}
 	s.frontendClient = pb.NewFrontendServiceClient(conn)
+	mux := http.NewServeMux()
+	mux.Handle("/hotels", tracingMiddleware(http.HandlerFunc(s.searchHandler)))
+	mux.Handle("/reservation", tracingMiddleware(http.HandlerFunc(s.reservationHandler)))
+	tracer = otel.GetTracerProvider().Tracer(serviceName + "-tracer")
 
 	log.Info("Successful")
 
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", utils.StrToInt(utils.GetEnvVar("RajomonClientPort", true))))
-	if err != nil {
-		log.Error(fmt.Sprintf("failed to listen: %v", err))
+	srv := &http.Server{
+		Addr:    fmt.Sprintf(":%d", utils.StrToInt(utils.GetEnvVar("ClientPort", true))),
+		Handler: mux,
 	}
 
-	return srv.Serve(lis)
+	log.Info("Serving http")
+	return srv.ListenAndServe()
 }
 
 func main() {
-	failedRPCCounter = 0
-	// start a go routine to print failed RPC count every 10 seconds
-	go func() {
-		ticker := time.NewTicker(10 * time.Second)
-		for range ticker.C {
-			log.Info(fmt.Sprintf("Failed RPC count: %d", failedRPCCounter))
-		}
-	}()
 	src := &Server{}
 	if err := src.Run(); err != nil {
 		log.Error("Failed to run server: " + err.Error())
@@ -149,14 +103,78 @@ func main() {
 	}
 }
 
-func (s *Server) FrontendReservation(ctx context.Context, req *pb.FrontendReservationRequest) (*pb.FrontendReservationResponse, error) {
-	log.Debug("FrontendReservation RPC called")
-	ctx = metadata.AppendToOutgoingContext(ctx, "method", "reserve-hotel")
-	return s.frontendClient.FrontendReservation(ctx, req)
+func (s *Server) searchHandler(w http.ResponseWriter, r *http.Request) {
+	log.Debug("starts searchHandler")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
+	ctx := metadata.AppendToOutgoingContext(r.Context(), "method", "search-hotel")
+	resp, err := s.frontendClient.SearchHotels(ctx, &pb.SearchHotelsRequest{})
+	if err != nil {
+		log.Error("SearchHotels RPC failed: " + err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	response := geoJSONResponse(resp.Profiles)
+	responseBytes, err := json.Marshal(response)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// disable chunked encoding by setting Content-Length header
+	w.Header().Set("Content-Length", strconv.Itoa(len(responseBytes)))
+	w.Write(responseBytes)
 }
 
-func (s *Server) SearchHotels(ctx context.Context, req *pb.SearchHotelsRequest) (*pb.SearchHotelsResponse, error) {
-	log.Debug("SearchHotels RPC called")
-	ctx = metadata.AppendToOutgoingContext(ctx, "method", "search-hotel")
-	return s.frontendClient.SearchHotels(ctx, req)
+func (s *Server) reservationHandler(w http.ResponseWriter, r *http.Request) {
+	log.Debug("starts reservationHandler")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
+	ctx := metadata.AppendToOutgoingContext(r.Context(), "method", "reserve-hotel")
+	resp, err := s.frontendClient.FrontendReservation(ctx, &pb.FrontendReservationRequest{})
+	if err != nil {
+		log.Error("FrontendReservation RPC failed: " + err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	responseBytes, err := json.Marshal(resp)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// disable chunked encoding by setting Content-Length header
+	w.Header().Set("Content-Length", strconv.Itoa(len(responseBytes)))
+	w.Write(responseBytes)
+}
+
+func geoJSONResponse(hs []*pb.Hotel) map[string]interface{} {
+	fs := []interface{}{}
+
+	for _, h := range hs {
+		fs = append(fs, map[string]interface{}{
+			"type": "Feature",
+			"id":   h.Id,
+			/* "properties": map[string]string{
+				"name":         h.Name,
+				"phone_number": h.PhoneNumber,
+			},
+			"geometry": map[string]interface{}{
+				"type": "Point",
+				"coordinates": []float32{
+					h.Address.Lon,
+					h.Address.Lat,
+				},
+			}, */
+		})
+	}
+
+	return map[string]interface{}{
+		"type":     "FeatureCollection",
+		"features": fs,
+	}
 }

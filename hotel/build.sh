@@ -51,7 +51,7 @@ fi
 
 # 2. Build Hotel Services
 echo "Building Hotel Services..."
-SERVICES=("frontend" "geo" "profile" "rate" "reservation" "search" "user")
+SERVICES=("frontend" "geo" "profile" "rate" "reservation" "search" "user" "frontend-grpc" "rajomon-client")
 
 for SERVICE in "${SERVICES[@]}"; do
     echo "Building $SERVICE..."

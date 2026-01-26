@@ -21,6 +21,7 @@ WORKDIR /root/
 COPY --from=builder /app/main .
 # Copy static files for frontend if needed (frontend has static folder)
 COPY --from=builder /app/frontend/static ./static
+COPY --from=builder /app/rajomon_init /rajomon_init
 
 EXPOSE 8080
 

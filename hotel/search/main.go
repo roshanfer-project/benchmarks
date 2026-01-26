@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"hotel"
-	breakwaterinit "hotel/breakwater-init"
 	dagorinit "hotel/dagor_init"
 	geo "hotel/geo/proto"
 	oteltool "hotel/otel_tool"
@@ -16,7 +15,6 @@ import (
 	"sync"
 	"sync/atomic"
 
-	bw "hotel/breakwater"
 	"hotel/dagor"
 
 	"github.com/google/uuid"
@@ -229,16 +227,6 @@ func (s *Server) Run() error {
 			AcceptedRPCInterceptor()))
 	}
 
-	var breakwaterd *bw.Breakwater
-	if utils.GetEnvVar("breakwaterd", false) == "true" {
-		log.Info("breakwaterd is enabled, configuring breakwaterd interceptor")
-		breakwaterd = breakwaterinit.GetBreakwater(serviceName, false)
-		opts = append(opts, grpc.ChainUnaryInterceptor(
-			CountersInterceptor(),
-			ContextPropagationInterceptor(),
-			breakwaterd.UnaryInterceptor))
-	}
-
 	/* if (utils.GetEnvVar("sidecar", false) == "true") && (utils.GetEnvVar("queuing_export", false) == "true") {
 		opts = append(opts, grpc.ChainUnaryInterceptor(
 			CountersInterceptor(),
@@ -299,14 +287,7 @@ func (s *Server) Run() error {
 		options = append(options, grpc.WithUnaryInterceptor(dagorNode.UnaryInterceptorClient))
 	}
 
-	var geoOptions []grpc.DialOption
-	if breakwaterd != nil {
-		bwClient := breakwaterinit.GetBreakwater(serviceName, true)
-		geoOptions = append(options, grpc.WithUnaryInterceptor(bwClient.UnaryInterceptorClient))
-	} else {
-		geoOptions = options
-	}
-	conn := hotel.GetConn(utils.GetEnvVar(geoEnv, true), geoOptions...)
+	conn := hotel.GetConn(utils.GetEnvVar(geoEnv, true), options...)
 	s.geoClient = geo.NewGeoClient(conn)
 
 	var rateEnv string
@@ -315,14 +296,7 @@ func (s *Server) Run() error {
 	} else {
 		rateEnv = "RateAddr"
 	}
-	var rateOptions []grpc.DialOption
-	if breakwaterd != nil {
-		bwClient := breakwaterinit.GetBreakwater(serviceName, true)
-		rateOptions = append(options, grpc.WithUnaryInterceptor(bwClient.UnaryInterceptorClient))
-	} else {
-		rateOptions = options
-	}
-	conn = hotel.GetConn(utils.GetEnvVar(rateEnv, true), rateOptions...)
+	conn = hotel.GetConn(utils.GetEnvVar(rateEnv, true), options...)
 	s.rateClient = rate.NewRateClient(conn)
 
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", utils.StrToInt(utils.GetEnvVar("SearchPort", true))))

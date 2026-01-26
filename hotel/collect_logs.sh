@@ -9,7 +9,7 @@ mkdir -p "$OUTPUT_DIR"
 echo "Collecting logs to $OUTPUT_DIR..."
 
 # List of services in the hotel benchmark
-SERVICES="frontend profile search geo rate reservation user"
+SERVICES="frontend profile search geo rate reservation user frontend-grpc rajomon-client"
 
 # Collect Service Logs
 for svc in $SERVICES; do

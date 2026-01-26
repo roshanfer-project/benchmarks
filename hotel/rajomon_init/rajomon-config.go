@@ -1,15 +1,12 @@
 package rajomoninit
 
 import (
-	"bufio"
 	"hotel/utils"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/pennsail/rajomon"
-	"google.golang.org/grpc"
 	"gopkg.in/yaml.v2"
 )
 
@@ -144,64 +141,25 @@ func getCallGraph() map[string]map[string][]string {
 
 	return callGraph
 }
-func loadEnvFile(accepted map[string]interface{}) map[string]interface{} {
-	file, err := os.Open("../env-setter.env")
-	if err != nil {
-		log.Info("env-setter file not found")
-		return accepted
-	}
-	defer file.Close()
 
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		line := scanner.Text()
-		parts := strings.SplitN(line, "=", 2)
-		if len(parts) == 2 {
-			key := strings.TrimSpace(parts[0])
-			value := strings.TrimSpace(parts[1])
-			if _, ok := accepted[key]; ok {
-				if key == "priceUpdateRate" {
-					if floatValue, err := strconv.ParseFloat(value, 64); err == nil {
-						intValue := int64(floatValue)
-						accepted[key] = time.Duration(intValue) * time.Microsecond
-					} else {
-						panic(err)
-					}
-				} else if key == "latencyThreshold" {
-					if floatValue, err := strconv.ParseFloat(value, 64); err == nil {
-						intValue := int64(floatValue)
-						accepted[key] = time.Duration(intValue) * time.Microsecond
-					} else {
-						panic(err)
-					}
-				} else if key == "tokenUpdateRate" {
-					if floatValue, err := strconv.ParseFloat(value, 64); err == nil {
-						intValue := int64(floatValue)
-						accepted[key] = time.Duration(intValue) * time.Microsecond
-					} else {
-						panic(err)
-					}
-				} else if key == "priceStep" {
-					if floatValue, err := strconv.ParseFloat(value, 64); err == nil {
-						intValue := int64(floatValue)
-						accepted[key] = intValue
-					} else {
-						panic(err)
-					}
-				} else if key == "tokenUpdateStep" {
-					if floatValue, err := strconv.ParseFloat(value, 64); err == nil {
-						intValue := int64(floatValue)
-						accepted[key] = intValue
-					} else {
-						panic(err)
-					}
-				} else {
-					panic("Unsupported environment variable type")
-				}
-				log.Info("[loadEnvFile]", "key", key, "value", accepted[key])
-			}
-		}
-	}
+func loadEnvVars(accepted map[string]interface{}) map[string]interface{} {
+	// load required environemnt variables
+	var value string
+
+	value = utils.GetEnvVar("priceUpdateRate", true)
+	accepted["priceUpdateRate"] = time.Duration(int64(utils.ParseFloatString(value))) * time.Microsecond
+
+	value = utils.GetEnvVar("latencyThreshold", true)
+	accepted["latencyThreshold"] = time.Duration(int64(utils.ParseFloatString(value))) * time.Microsecond
+
+	value = utils.GetEnvVar("tokenUpdateRate", true)
+	accepted["tokenUpdateRate"] = time.Duration(int64(utils.ParseFloatString(value))) * time.Microsecond
+
+	value = utils.GetEnvVar("priceStep", true)
+	accepted["priceStep"] = int64(utils.ParseFloatString(value))
+
+	value = utils.GetEnvVar("tokenUpdateStep", true)
+	accepted["tokenUpdateStep"] = int64(utils.ParseFloatString(value))
 
 	return accepted
 }
@@ -230,7 +188,7 @@ func GetPriceTable(name string, enduser bool) *rajomon.PriceTable {
 		options["debug"] = true
 	}
 
-	options = loadEnvFile(options)
+	options = loadEnvVars(options)
 	log.Info("[GetPriceTable]", "options:", options)
 
 	priceTable := rajomon.NewRajomon(
@@ -240,60 +198,4 @@ func GetPriceTable(name string, enduser bool) *rajomon.PriceTable {
 	)
 
 	return priceTable
-}
-
-func getClientInterceptor(name string) grpc.DialOption {
-
-	if utils.GetEnvVar("RAJOMON_DEBUG", false) == "true" {
-		rajomonOptions["debug"] = true
-	}
-
-	log.Debug("[GetClientInterceptor]", "callgraph:", getCallGraph()[name])
-
-	priceTable := rajomon.NewRajomon(
-		name,
-		getCallGraph()[name],
-		rajomonOptions,
-	)
-
-	return grpc.WithUnaryInterceptor(priceTable.UnaryInterceptorClient)
-}
-
-func getServerInterceptor(name string) grpc.ServerOption {
-	if utils.GetEnvVar("RAJOMON_DEBUG", false) == "true" {
-		rajomonOptions["debug"] = true
-	}
-
-	upperName := strings.ToUpper(name)
-	if utils.GetEnvVar("RAJOMON_"+upperName+"_DEBUG", false) == "true" {
-		log.Debug("[GetServerInterceptor] turning on rajomon debug", "service", name)
-		rajomonOptions["debug"] = true
-	}
-
-	log.Debug("[GetServerInterceptor]", "callgraph:", getCallGraph()[name])
-
-	priceTable := rajomon.NewRajomon(
-		name,
-		getCallGraph()[name],
-		rajomonOptions,
-	)
-
-	return grpc.UnaryInterceptor(priceTable.UnaryInterceptor)
-}
-
-func getEndUserInterceptor(name string) grpc.DialOption {
-
-	if utils.GetEnvVar("RAJOMON_CLIENT_DEBUG", false) == "true" {
-		rajomonOptionsEnd["debug"] = true
-	}
-
-	log.Debug("[GetEndUserInterceptor]", "callgraph:", getCallGraph()[name])
-
-	priceTable := rajomon.NewRajomon(
-		"client",
-		getCallGraph()[name],
-		rajomonOptionsEnd,
-	)
-
-	return grpc.WithUnaryInterceptor(priceTable.UnaryInterceptorEnduser)
 }
