@@ -161,7 +161,9 @@ func (s *CounterState) PushMaxQueue() {
 }
 
 func (s *CounterState) IncrementAcceptedRPCCounter(method string) {
+	s.lock.Lock()
 	s.acceptedRPCCounter[method]++
+	s.lock.Unlock()
 }
 
 func (s *CounterState) PushAcceptedRPCCounter() {
@@ -174,7 +176,9 @@ func (s *CounterState) PushAcceptedRPCCounter() {
 }
 
 func (s *CounterState) IncrementFailedRPCCounter(method string) {
+	s.lock.Lock()
 	s.failedRPCCounter[method]++
+	s.lock.Unlock()
 }
 
 func (s *CounterState) PushFailedRPCCounter() {
