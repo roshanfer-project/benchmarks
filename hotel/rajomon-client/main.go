@@ -108,7 +108,13 @@ func (s *Server) searchHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 
 	ctx := metadata.AppendToOutgoingContext(r.Context(), "method", "search-hotel")
-	resp, err := s.frontendClient.SearchHotels(ctx, &pb.SearchHotelsRequest{})
+	arg := &pb.SearchHotelsRequest{
+		InDate:  r.URL.Query().Get("inDate"),
+		OutDate: r.URL.Query().Get("outDate"),
+		Lat:     float32(utils.ParseFloatString(r.URL.Query().Get("lat"))),
+		Lon:     float32(utils.ParseFloatString(r.URL.Query().Get("lon"))),
+	}
+	resp, err := s.frontendClient.SearchHotels(ctx, arg)
 	if err != nil {
 		log.Error("SearchHotels RPC failed: " + err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
@@ -133,7 +139,16 @@ func (s *Server) reservationHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 
 	ctx := metadata.AppendToOutgoingContext(r.Context(), "method", "reserve-hotel")
-	resp, err := s.frontendClient.FrontendReservation(ctx, &pb.FrontendReservationRequest{})
+	arg := &pb.FrontendReservationRequest{
+		HotelId:      r.URL.Query().Get("hotelId"),
+		InDate:       r.URL.Query().Get("inDate"),
+		OutDate:      r.URL.Query().Get("outDate"),
+		Number:       int32(utils.StrToInt(r.URL.Query().Get("number"))),
+		CustomerName: r.URL.Query().Get("customerName"),
+		Username:     r.URL.Query().Get("username"),
+		Password:     r.URL.Query().Get("password"),
+	}
+	resp, err := s.frontendClient.FrontendReservation(ctx, arg)
 	if err != nil {
 		log.Error("FrontendReservation RPC failed: " + err.Error())
 		w.WriteHeader(http.StatusInternalServerError)

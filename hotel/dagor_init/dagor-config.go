@@ -53,6 +53,11 @@ func GetDagorNode(name string, entry, enduser bool) *dagor.Dagor {
 		dagorParams.Debug = true
 	}
 
+	alpha := utils.GetEnvVar("Alpha", false)
+	if alpha != "" {
+		dagorParams.Alpha = utils.StrToFloat64(alpha)
+	}
+
 	node := dagor.NewDagorNode(dagorParams)
 
 	return node
