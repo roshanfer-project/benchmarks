@@ -73,6 +73,7 @@ func (s *Server) Run() error {
 	s.uuid = uuid.New().String()
 
 	opts := hotel.DefaultServerOptions()
+	counter := utils.NewCounterState(serviceName)
 
 	var priceTable *rajomon.PriceTable = nil
 	if utils.GetEnvVar("rajomon", false) == "true" {
@@ -80,6 +81,7 @@ func (s *Server) Run() error {
 		priceTable = rajomoninit.GetPriceTable(serviceName, false)
 		opts = append(opts, grpc.ChainUnaryInterceptor(
 			ContextPropagationInterceptor(),
+			counter.GetInterceptor(),
 			priceTable.UnaryInterceptor))
 	}
 
@@ -89,6 +91,7 @@ func (s *Server) Run() error {
 		dagorNode = dagorinit.GetDagorNode(serviceName, false, false)
 		opts = append(opts, grpc.ChainUnaryInterceptor(
 			ContextPropagationInterceptor(),
+			counter.GetInterceptor(),
 			dagorNode.UnaryInterceptorServer))
 	}
 
@@ -109,7 +112,17 @@ func (s *Server) Run() error {
 	} */
 
 	if utils.GetEnvVar("sidecar", false) == "true" {
-		opts = append(opts, grpc.UnaryInterceptor(ContextPropagationInterceptor()))
+		if utils.GetEnvVar("queuing_export", false) == "true" {
+			opts = append(opts, grpc.ChainUnaryInterceptor(
+				ContextPropagationInterceptor(),
+				counter.GetInterceptor()))
+		} else {
+			opts = append(opts, grpc.UnaryInterceptor(ContextPropagationInterceptor()))
+		}
+	} else if utils.GetEnvVar("plain", false) == "true" {
+		opts = append(opts, grpc.ChainUnaryInterceptor(
+			ContextPropagationInterceptor(),
+			counter.GetInterceptor()))
 	}
 
 	/* ctx := context.Background()

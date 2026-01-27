@@ -67,6 +67,7 @@ func (s *Server) Run() error {
 	opts := hotel.DefaultServerOptions()
 	dagor_flag = utils.GetEnvVar("dagor", false) == "true"
 	rajomon_flag = utils.GetEnvVar("rajomon", false) == "true"
+	counter := utils.NewCounterState(serviceName)
 
 	if !dagor_flag && !rajomon_flag {
 		panic("Either Rajomon or Dagor must be enabled")
@@ -78,6 +79,7 @@ func (s *Server) Run() error {
 		priceTable = rajomoninit.GetPriceTable(serviceName, false)
 		opts = append(opts, grpc.ChainUnaryInterceptor(
 			ContextPropagationInterceptor(),
+			counter.GetInterceptor(),
 			priceTable.UnaryInterceptor))
 	}
 
@@ -87,6 +89,7 @@ func (s *Server) Run() error {
 		dagorNode = dagorinit.GetDagorNode(serviceName, true, false)
 		opts = append(opts, grpc.ChainUnaryInterceptor(
 			ContextPropagationInterceptor(),
+			counter.GetInterceptor(),
 			dagorNode.UnaryInterceptorServer,
 		))
 	}

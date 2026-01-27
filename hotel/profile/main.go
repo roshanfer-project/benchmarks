@@ -64,6 +64,12 @@ func (s *Server) Run() error {
 	log.Info(fmt.Sprintf("in run s.IpAddr = %s, port = %d", "localhost", utils.StrToInt(utils.GetEnvVar("ProfilePort", true))))
 
 	opts := hotel.DefaultServerOptions()
+	counter := utils.NewCounterState(serviceName)
+	if utils.GetEnvVar("sidecar", false) == "true" && utils.GetEnvVar("queuing_export", false) == "true" {
+		opts = append(opts, grpc.UnaryInterceptor(counter.GetInterceptor()))
+	} else if utils.GetEnvVar("plain", false) == "true" {
+		opts = append(opts, grpc.UnaryInterceptor(counter.GetInterceptor()))
+	}
 
 	var priceTable *rajomon.PriceTable = nil
 	if utils.GetEnvVar("rajomon", false) == "true" {
@@ -71,6 +77,7 @@ func (s *Server) Run() error {
 		priceTable = rajomoninit.GetPriceTable(serviceName, false)
 		//opts = append(opts, grpc.UnaryInterceptor(priceTable.UnaryInterceptor))
 		opts = append(opts, grpc.ChainUnaryInterceptor(
+			counter.GetInterceptor(),
 			priceTable.UnaryInterceptor))
 	}
 
@@ -80,6 +87,7 @@ func (s *Server) Run() error {
 		dagorNode = dagorinit.GetDagorNode(serviceName, false, false)
 		//opts = append(opts, grpc.UnaryInterceptor(dagorNode.UnaryInterceptorServer))
 		opts = append(opts, grpc.ChainUnaryInterceptor(
+			counter.GetInterceptor(),
 			dagorNode.UnaryInterceptorServer))
 	}
 

@@ -49,7 +49,12 @@ if [ "$MODE" == "plain" ]; then
 elif [ "$MODE" == "sidecar" ]; then
     # Sidecar
     # ConfigMap
-    kubectl create configmap hotel-config --from-env-file=hotel/sidecar.env --dry-run=client -o yaml > "$TMP_DIR/configmap.yaml"
+    # Merge env file and dynamic vars into a temp file
+    cat hotel/sidecar.env > "$TMP_DIR/sidecar_merged.env"
+    echo "" >> "$TMP_DIR/sidecar_merged.env"
+    echo "queuing_export=${queuing_export}" >> "$TMP_DIR/sidecar_merged.env"
+
+    kubectl create configmap hotel-config --from-env-file="$TMP_DIR/sidecar_merged.env" --dry-run=client -o yaml > "$TMP_DIR/configmap.yaml"
     cp "${DEPLOY_DIR}/sidecar-configs.yaml" "$TMP_DIR/"
     cp "${DEPLOY_DIR}/db.yaml" "$TMP_DIR/"
 
@@ -132,6 +137,15 @@ echo "Waiting for Databases to be ready..."
 kubectl wait --for=condition=ready pod/mongodb-geo --timeout=60s
 kubectl wait --for=condition=ready pod/mongodb-profile --timeout=60s
 kubectl wait --for=condition=ready pod/memcached-profile --timeout=60s
+
+# Apply Prometheus
+echo "Deploying Prometheus and Pushgateway..."
+kubectl apply -f "${DEPLOY_DIR}/prometheus.yaml"
+kubectl wait --for=condition=ready pod -l app=prometheus-pushgateway --timeout=60s
+# We don't necessarily need to wait for Prometheus server to be ready for the app to start, 
+# but it's good practice.
+kubectl wait --for=condition=ready pod -l app=prometheus --timeout=60s
+
 
 # Function to apply specific resource from a multi-doc yaml
 apply_service() {

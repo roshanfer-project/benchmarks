@@ -81,6 +81,12 @@ func (s *Server) Run() error {
 	s.uuid = uuid.New().String()
 
 	opts := hotel.DefaultServerOptions()
+	counter := utils.NewCounterState(serviceName)
+	if utils.GetEnvVar("sidecar", false) == "true" && utils.GetEnvVar("queuing_export", false) == "true" {
+		opts = append(opts, grpc.UnaryInterceptor(counter.GetInterceptor()))
+	} else if utils.GetEnvVar("plain", false) == "true" {
+		opts = append(opts, grpc.UnaryInterceptor(counter.GetInterceptor()))
+	}
 
 	/* ctx := context.Background()
 	if _, shutdownList, ok := configOTL(ctx, "geo"); ok {
@@ -103,6 +109,7 @@ func (s *Server) Run() error {
 		log.Info("rajomon is enabled, configuring rajomon interceptor")
 		priceTable = rajomoninit.GetPriceTable(serviceName, false)
 		opts = append(opts, grpc.ChainUnaryInterceptor(
+			counter.GetInterceptor(),
 			priceTable.UnaryInterceptor,
 		))
 		//opts = append(opts, grpc.UnaryInterceptor(priceTable.UnaryInterceptor))
@@ -113,6 +120,7 @@ func (s *Server) Run() error {
 		log.Info("dagor is enabled, configuring dagor interceptor")
 		dagorNode = dagorinit.GetDagorNode(serviceName, false, false)
 		opts = append(opts, grpc.ChainUnaryInterceptor(
+			counter.GetInterceptor(),
 			dagorNode.UnaryInterceptorServer))
 		//opts = append(opts, grpc.UnaryInterceptor(dagorNode.UnaryInterceptorServer))
 	}
