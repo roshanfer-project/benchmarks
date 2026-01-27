@@ -147,7 +147,7 @@ func (s *CounterState) UpdateMaxQueue(method string) {
 	queueSize := s.inReq[method] - s.outReq[method]
 	if queueSize > s.maxQueue[method] {
 		s.maxQueue[method] = queueSize
-		logg.Info("max queue updated", "method", method, "queue_size", queueSize)
+		logg.Debug("max queue updated", "method", method, "queue_size", queueSize)
 	}
 }
 
@@ -157,7 +157,7 @@ func (s *CounterState) PushMaxQueue() {
 		s.maxQueueGauge.WithLabelValues(method).Set(float64(queueSize))
 	}
 	s.lock.Unlock()
-	logg.Info("max queue pushed", "max_queue", s.maxQueue)
+	logg.Debug("max queue pushed", "max_queue", s.maxQueue)
 }
 
 func (s *CounterState) IncrementAcceptedRPCCounter(method string) {
@@ -170,7 +170,7 @@ func (s *CounterState) PushAcceptedRPCCounter() {
 		s.acceptedRPCCounterGauge.WithLabelValues(method).Set(float64(count))
 	}
 	s.lock.Unlock()
-	logg.Info("accepted rpc counter pushed", "accepted_rpc_counter", s.acceptedRPCCounter)
+	logg.Debug("accepted rpc counter pushed", "accepted_rpc_counter", s.acceptedRPCCounter)
 }
 
 func (s *CounterState) IncrementFailedRPCCounter(method string) {
@@ -183,7 +183,7 @@ func (s *CounterState) PushFailedRPCCounter() {
 		s.failedRPCCounterGauge.WithLabelValues(method).Set(float64(count))
 	}
 	s.lock.Unlock()
-	logg.Info("failed rpc counter pushed", "failed_rpc_counter", s.failedRPCCounter)
+	logg.Debug("failed rpc counter pushed", "failed_rpc_counter", s.failedRPCCounter)
 }
 
 func (s *CounterState) PushAll() {
@@ -196,7 +196,7 @@ func (s *CounterState) PushAll() {
 		if err := push.New(s.promAddr, s.serviceName).Gatherer(s.registry).Push(); err != nil {
 			logg.Error("Could not push to Pushgateway", "error", err)
 		} else {
-			logg.Info("pushed all counters")
+			logg.Debug("pushed all counters")
 		}
 	}
 }
