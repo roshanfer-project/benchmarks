@@ -17,8 +17,10 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/stats/opentelemetry"
+	"google.golang.org/grpc/status"
 )
 
 const serviceName = "client"
@@ -117,7 +119,11 @@ func (s *Server) searchHandler(w http.ResponseWriter, r *http.Request) {
 	resp, err := s.frontendClient.SearchHotels(ctx, arg)
 	if err != nil {
 		log.Error("SearchHotels RPC failed: " + err.Error())
-		w.WriteHeader(http.StatusInternalServerError)
+		if status.Code(err) == codes.ResourceExhausted {
+			w.WriteHeader(503)
+		} else {
+			w.WriteHeader(http.StatusInternalServerError)
+		}
 		return
 	}
 
@@ -150,8 +156,12 @@ func (s *Server) reservationHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	resp, err := s.frontendClient.FrontendReservation(ctx, arg)
 	if err != nil {
-		log.Error("FrontendReservation RPC failed: " + err.Error())
-		w.WriteHeader(http.StatusInternalServerError)
+		log.Error("SearchHotels RPC failed: " + err.Error())
+		if status.Code(err) == codes.ResourceExhausted {
+			w.WriteHeader(503)
+		} else {
+			w.WriteHeader(http.StatusInternalServerError)
+		}
 		return
 	}
 
