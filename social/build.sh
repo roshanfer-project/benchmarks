@@ -52,7 +52,7 @@ fi
 # 2. Build Social Services
 echo "Building Social Services..."
 # Services based on folders in social/
-SERVICES=("graph" "posts" "home" "user" "compose" "nginx")
+SERVICES=("graph" "posts" "home" "user" "compose" "nginx" "nginx-grpc" "rajomon-client")
 
 for SERVICE in "${SERVICES[@]}"; do
     echo "Building $SERVICE..."
