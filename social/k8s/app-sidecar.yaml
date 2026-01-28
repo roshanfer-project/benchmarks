@@ -309,12 +309,12 @@ spec:
     image: compose:latest
     resources:
       requests:
-        cpu: "1"
+        cpu: "2"
       limits:
-        cpu: "1"
+        cpu: "2"
     env:
     - name: GOMAXPROCS
-      value: "1"
+      value: "2"
     envFrom:
     - configMapRef:
         name: social-config

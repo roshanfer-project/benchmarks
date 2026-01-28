@@ -24,8 +24,11 @@ kubectl delete pod -l app=home --ignore-not-found --wait=false
 kubectl delete pod -l app=user --ignore-not-found --wait=false
 kubectl delete pod -l app=compose --ignore-not-found --wait=false
 kubectl delete pod -l app=nginx --ignore-not-found --wait=false
+kubectl delete pod -l app=nginx-grpc --ignore-not-found --wait=false
+kubectl delete pod -l app=rajomon-client --ignore-not-found --wait=false
 kubectl delete pod -l app=ingress --ignore-not-found --wait=false
 kubectl delete deployment -l app=redis --ignore-not-found --wait=false
+kubectl delete deployment prometheus prometheus-pushgateway --ignore-not-found --wait=false
 
 kubectl delete service -l app=graph --ignore-not-found
 kubectl delete service -l app=posts --ignore-not-found
@@ -33,12 +36,16 @@ kubectl delete service -l app=home --ignore-not-found
 kubectl delete service -l app=user --ignore-not-found
 kubectl delete service -l app=compose --ignore-not-found
 kubectl delete service -l app=nginx --ignore-not-found
+kubectl delete service -l app=nginx-grpc --ignore-not-found
+kubectl delete service -l app=rajomon-client --ignore-not-found
 kubectl delete service -l app=ingress --ignore-not-found
 kubectl delete service -l app=redis --ignore-not-found
+kubectl delete service prometheus prometheus-pushgateway prometheus-external --ignore-not-found
 
 # Delete ConfigMaps
 kubectl delete configmap sidecar-configs --ignore-not-found
 kubectl delete configmap social-config --ignore-not-found
+kubectl delete configmap prometheus-config --ignore-not-found
 
 echo "Waiting for pods to terminate..."
 kubectl wait --for=delete pod -l app=graph --timeout=60s || true
@@ -47,6 +54,8 @@ kubectl wait --for=delete pod -l app=home --timeout=60s || true
 kubectl wait --for=delete pod -l app=user --timeout=60s || true
 kubectl wait --for=delete pod -l app=compose --timeout=60s || true
 kubectl wait --for=delete pod -l app=nginx --timeout=60s || true
+kubectl wait --for=delete pod -l app=nginx-grpc --timeout=60s || true
+kubectl wait --for=delete pod -l app=rajomon-client --timeout=60s || true
 kubectl wait --for=delete pod -l app=ingress --timeout=60s || true
 kubectl wait --for=delete pod -l app=redis --timeout=60s || true
 

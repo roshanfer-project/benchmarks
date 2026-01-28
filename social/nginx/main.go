@@ -10,13 +10,9 @@ import (
 	pb "social/protobuf"
 	"social/utils"
 	"strconv"
-	"sync"
-	"sync/atomic"
 	"time"
 
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc/metadata"
 )
@@ -33,94 +29,11 @@ var log = utils.GetLogger(serviceName)
 
 var tracer trace.Tracer
 
-type CounterState struct {
-	failedRPCCounter atomic.Int64
-	inReq            sync.Map
-	outReq           sync.Map
-	maxQueue         sync.Map
-	lock             sync.Mutex
-}
-
-func (s *CounterState) IncrementInReq(method string) {
-	count, _ := s.inReq.LoadOrStore(method, int64(0))
-	s.inReq.Store(method, count.(int64)+1)
-}
-
-func (s *CounterState) IncrementOutReq(method string) {
-	count, _ := s.outReq.LoadOrStore(method, int64(0))
-	s.outReq.Store(method, count.(int64)+1)
-}
-
-func (s *CounterState) IncrementMaxQueue(method string, value int64) {
-	count, _ := s.maxQueue.LoadOrStore(method, int64(0))
-	if value > count.(int64) {
-		s.maxQueue.Store(method, value)
-	}
-}
-
-func (s *CounterState) GetMaxQueue(method string) int64 {
-	count, ok := s.maxQueue.Load(method)
-	if !ok {
-		return 0
-	}
-	return count.(int64)
-}
-
-func (s *CounterState) GetFailedRPCCounter() int64 {
-	return s.failedRPCCounter.Load()
-}
-
-func (s *CounterState) IncrementFailedRPCCounter() {
-	s.failedRPCCounter.Add(1)
-}
-
-func (s *CounterState) GetInReq(method string) int64 {
-	count, ok := s.inReq.Load(method)
-	if !ok {
-		return 0
-	}
-	return count.(int64)
-}
-
-func (s *CounterState) GetOutReq(method string) int64 {
-	count, ok := s.outReq.Load(method)
-	if !ok {
-		return 0
-	}
-	return count.(int64)
-}
-
-var maxQueueGuage metric.Int64Gauge
-var standardMethods map[string]string
-var counters = &CounterState{}
-
 func tracingMiddleware1(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx, span := tracer.Start(r.Context(), r.Method+" "+r.URL.Path)
 		defer span.End()
 		next.ServeHTTP(w, r.WithContext(ctx))
-	})
-}
-
-// tracingMiddleware wraps an http.Handler and starts a trace span for each request.
-func tracingMiddleware2(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx, span := tracer.Start(r.Context(), r.Method+" "+r.URL.Path)
-		// extract first part of the path as method name
-		method := r.URL.Path[1:]
-		defer span.End()
-		counters.lock.Lock()
-		counters.IncrementInReq(method)
-		queueSize := counters.GetInReq(method) - counters.GetOutReq(method)
-		if queueSize > counters.GetMaxQueue(method) {
-			counters.IncrementMaxQueue(method, queueSize)
-			maxQueueGuage.Record(ctx, queueSize, metric.WithAttributes(attribute.String("api", standardMethods[method])))
-		}
-		counters.lock.Unlock()
-		next.ServeHTTP(w, r.WithContext(ctx))
-		counters.lock.Lock()
-		counters.IncrementOutReq(method)
-		counters.lock.Unlock()
 	})
 }
 
@@ -196,17 +109,6 @@ func (s *Server) Run() error {
 }
 
 func main() {
-	standardMethods = make(map[string]string)
-	standardMethods["compose"] = "compose-post"
-	standardMethods["user"] = "read-user-timeline"
-	standardMethods["home"] = "read-home-timeline"
-	/* var ok error
-	maxQueueGuage, ok = otel.GetMeterProvider().Meter(serviceName).Int64Gauge("max_queue",
-		metric.WithDescription("Maximum queue length for each RPC method"))
-	if ok != nil {
-		log.Error("Failed to create max_queue gauge")
-		panic("Failed to create max_queue gauge")
-	} */
 	s := &Server{}
 	if err := s.Run(); err != nil {
 		log.Error("Failed to start server", "error", err)

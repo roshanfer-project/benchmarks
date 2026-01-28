@@ -19,6 +19,7 @@ FROM alpine:latest
 WORKDIR /root/
 
 COPY --from=builder /app/main .
+COPY --from=builder /app/rajomon_init /rajomon_init
 # No static files needed for social services based on current understanding
 
 EXPOSE 8080

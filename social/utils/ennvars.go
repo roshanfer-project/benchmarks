@@ -34,3 +34,11 @@ func StrToFloat64(s string) float64 {
 		return f
 	}
 }
+
+func ParseFloatString(value string) float64 {
+	if floatValue, err := strconv.ParseFloat(value, 64); err == nil {
+		return floatValue
+	} else {
+		panic(err)
+	}
+}

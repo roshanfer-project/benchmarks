@@ -31,8 +31,8 @@ data:
     ingress_listener_port: 3005
     ingress_upstream_host: localhost
     ingress_upstream_port: 2005
-    cpu_count: 1
-    over_commitment: 0
+    cpu_count: 2
+    over_commitment: 1
     report_latency: True
     name: compose
 

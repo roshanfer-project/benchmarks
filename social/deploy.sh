@@ -13,6 +13,8 @@ for arg in "$@"; do
     case $arg in
         sidecar) MODE="sidecar";;
         plain) MODE="plain";;
+        rajomon) MODE="rajomon";;
+        dagor) MODE="dagor";;
     esac
 done
 
@@ -43,7 +45,12 @@ if [ "$MODE" == "plain" ]; then
 
 else # sidecar
     # ConfigMap Generation
-    kubectl create configmap social-config --from-env-file=social/k8s/sidecar.env --dry-run=client -o yaml > "$TMP_DIR/configmap.yaml"
+    # Merge env file and dynamic vars into a temp file
+    cat social/k8s/sidecar.env > "$TMP_DIR/sidecar_merged.env"
+    echo "" >> "$TMP_DIR/sidecar_merged.env"
+    echo "queuing_export=${queuing_export}" >> "$TMP_DIR/sidecar_merged.env"
+
+    kubectl create configmap social-config --from-env-file="$TMP_DIR/sidecar_merged.env" --dry-run=client -o yaml > "$TMP_DIR/configmap.yaml"
 
     # ConfigMap for sidecars
     cp "${DEPLOY_DIR}/sidecar-configs.yaml" "$TMP_DIR/"
@@ -62,6 +69,50 @@ else # sidecar
     
     sed -i "s|sidecar-sidecar:latest|${REGISTRY}/sidecar-sidecar:${TAG}|g" "${TMP_DIR}/app.yaml"
     sed -i "s|sidecar-sidecar:latest|${REGISTRY}/sidecar-sidecar:${TAG}|g" "${TMP_DIR}/ingress.yaml"
+
+elif [ "$MODE" == "rajomon" ] || [ "$MODE" == "dagor" ]; then
+    # ConfigMap Generation
+    if [ "$MODE" == "rajomon" ]; then
+        # Default values for Rajomon Config
+        PRICE_UPDATE_RATE=${priceUpdateRate}
+        LATENCY_THRESHOLD=${latencyThreshold}
+        TOKEN_UPDATE_RATE=${tokenUpdateRate}
+        PRICE_STEP=${priceStep}
+        TOKEN_UPDATE_STEP=${tokenUpdateStep}
+
+        echo "Using Rajomon Config:"
+        echo "  priceUpdateRate=$PRICE_UPDATE_RATE"
+        echo "  latencyThreshold=$LATENCY_THRESHOLD"
+        echo "  tokenUpdateRate=$TOKEN_UPDATE_RATE"
+        echo "  priceStep=$PRICE_STEP"
+        echo "  tokenUpdateStep=$TOKEN_UPDATE_STEP"
+
+        # Merge env file and dynamic vars into a temp file
+        cat social/k8s/rajomon.env > "$TMP_DIR/rajomon_merged.env"
+        echo "" >> "$TMP_DIR/rajomon_merged.env"
+        echo "priceUpdateRate=$PRICE_UPDATE_RATE" >> "$TMP_DIR/rajomon_merged.env"
+        echo "latencyThreshold=$LATENCY_THRESHOLD" >> "$TMP_DIR/rajomon_merged.env"
+        echo "tokenUpdateRate=$TOKEN_UPDATE_RATE" >> "$TMP_DIR/rajomon_merged.env"
+        echo "priceStep=$PRICE_STEP" >> "$TMP_DIR/rajomon_merged.env"
+        echo "tokenUpdateStep=$TOKEN_UPDATE_STEP" >> "$TMP_DIR/rajomon_merged.env"
+
+        kubectl create configmap social-config --from-env-file="$TMP_DIR/rajomon_merged.env" --dry-run=client -o yaml > "$TMP_DIR/configmap.yaml"
+    else
+        kubectl create configmap social-config --from-env-file=social/k8s/dagor.env --dry-run=client -o yaml > "$TMP_DIR/configmap.yaml"
+    fi
+    
+    # App Manifests
+    cp "${DEPLOY_DIR}/app-grpc.yaml" "$TMP_DIR/app.yaml"
+    cp "${DEPLOY_DIR}/redis.yaml" "$TMP_DIR/"
+
+    # Image Replacement
+    # Common services
+    for SERVICE in "graph" "posts" "home" "user" "compose"; do
+        sed -i "s|${SERVICE}:latest|${REGISTRY}/social-${SERVICE}:${TAG}|g" "${TMP_DIR}/app.yaml"
+    done
+    # New services
+    sed -i "s|nginx-grpc:latest|${REGISTRY}/social-nginx-grpc:${TAG}|g" "${TMP_DIR}/app.yaml"
+    sed -i "s|rajomon-client:latest|${REGISTRY}/social-rajomon-client:${TAG}|g" "${TMP_DIR}/app.yaml"
 fi
 
 # 4. Apply Manifests with Order
@@ -78,6 +129,14 @@ echo "Deploying Redis..."
 kubectl apply -f "$TMP_DIR/redis.yaml"
 echo "Waiting for Redis to be ready..."
 kubectl wait --for=condition=available deployment/redis --timeout=60s || true
+
+# Apply Prometheus
+echo "Deploying Prometheus and Pushgateway..."
+kubectl apply -f "${DEPLOY_DIR}/prometheus.yaml"
+kubectl wait --for=condition=ready pod -l app=prometheus-pushgateway --timeout=60s || true
+# We don't necessarily need to wait for Prometheus server to be ready for the app to start, 
+# but it's good practice.
+kubectl wait --for=condition=ready pod -l app=prometheus --timeout=60s || true
 
 # Apply Services (Loop for dependency wait logic, though robust dependency handling is better via init containers or retry loops in apps)
 # Assuming apps have retry logic or we wait.
@@ -108,9 +167,19 @@ if [ -f "$TMP_DIR/app.yaml" ]; then
     kubectl wait --for=condition=ready pod/compose --timeout=60s || true
     
     # Root
-    apply_service "nginx" "$TMP_DIR/app.yaml"
-    echo "Waiting for Nginx service to be ready..."
-    kubectl wait --for=condition=ready pod/nginx --timeout=60s || true
+    if [ "$MODE" == "rajomon" ] || [ "$MODE" == "dagor" ]; then
+         apply_service "nginx-grpc" "$TMP_DIR/app.yaml"
+         echo "Waiting for Nginx GRPC..."
+         kubectl wait --for=condition=ready pod/nginx-grpc --timeout=60s || true
+         
+         apply_service "rajomon-client" "$TMP_DIR/app.yaml"
+         echo "Waiting for Rajomon Client..."
+         kubectl wait --for=condition=ready pod/rajomon-client --timeout=60s || true
+    else
+         apply_service "nginx" "$TMP_DIR/app.yaml"
+         echo "Waiting for Nginx service to be ready..."
+         kubectl wait --for=condition=ready pod/nginx --timeout=60s || true
+    fi
 fi
 
 # Ingress
