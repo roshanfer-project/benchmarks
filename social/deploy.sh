@@ -43,7 +43,7 @@ if [ "$MODE" == "plain" ]; then
         sed -i "s|${SERVICE}:latest|${REGISTRY}/social-${SERVICE}:${TAG}|g" "${TMP_DIR}/app.yaml"
     done
 
-else # sidecar
+elif [ "$MODE" == "sidecar" ]; then
     # ConfigMap Generation
     # Merge env file and dynamic vars into a temp file
     cat social/k8s/sidecar.env > "$TMP_DIR/sidecar_merged.env"
