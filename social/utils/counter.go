@@ -22,6 +22,7 @@ type CounterState struct {
 	outReq                  map[string]int64
 	maxQueue                map[string]int64
 	lock                    sync.Mutex
+	startOnce               sync.Once
 	maxQueueGauge           *prometheus.GaugeVec
 	failedRPCCounterGauge   *prometheus.GaugeVec
 	acceptedRPCCounterGauge *prometheus.GaugeVec
@@ -75,11 +76,17 @@ func NewCounterState(serviceName string) *CounterState {
 	s.registry.MustRegister(s.acceptedRPCCounterGauge)
 	s.registry.MustRegister(s.failedRPCCounterGauge)
 
-	go s.PushAll()
 	return s
 }
 
+func (s *CounterState) start() {
+	s.startOnce.Do(func() {
+		go s.PushAll()
+	})
+}
+
 func (s *CounterState) GetInterceptor() grpc.UnaryServerInterceptor {
+	s.start()
 	return func(ctx context.Context, req interface{},
 		_ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 
@@ -114,6 +121,8 @@ func (s *CounterState) GetHTTP1Middleware() func(next http.Handler) http.Handler
 	standardMethods["compose"] = "compose-post"
 	standardMethods["user"] = "read-user-timeline"
 	standardMethods["home"] = "read-home-timeline"
+
+	s.start()
 
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
