@@ -25,14 +25,14 @@ var dagorParams = dagor.DagorParam{
 	IsEnduser:                    false, // update this
 	QueuingThresh:                1824 * time.Microsecond,
 	AdmissionLevelUpdateInterval: 13800 * time.Microsecond,
-	Alpha:                        0.5,
-	Beta:                         0.5,
+	Alpha:                        0.45,
+	Beta:                         0.01,
 	Umax:                         15,
 	Bmax:                         3,
 	Debug:                        false, // update this
 	NumUsers:                     200,
 	UseSyncMap:                   true,
-	AddmissionUpdateN:            134,
+	AddmissionUpdateN:            80,
 }
 
 func loadEnvFile(params dagor.DagorParam) dagor.DagorParam {
