@@ -33,6 +33,7 @@ func (s *ComposePostServer) Run() error {
 	log.Info("Initializing gRPC server...")
 
 	opts := social.GetServerOptions()
+	counter := utils.NewCounterState(serviceName)
 
 	var priceTable *rajomon.PriceTable = nil
 	if utils.GetEnvVar("rajomon", false) == "true" {
@@ -53,10 +54,17 @@ func (s *ComposePostServer) Run() error {
 	}
 
 	if utils.GetEnvVar("sidecar", false) == "true" {
+		if utils.GetEnvVar("queuing_export", false) == "true" {
+			opts = append(opts, grpc.ChainUnaryInterceptor(
+				utils.ContextPropagationInterceptor(),
+				counter.GetInterceptor()))
+		} else {
+			opts = append(opts, grpc.UnaryInterceptor(utils.ContextPropagationInterceptor()))
+		}
+	} else if utils.GetEnvVar("plain", false) == "true" {
 		opts = append(opts, grpc.ChainUnaryInterceptor(
-			//CountersInterceptor(),
 			utils.ContextPropagationInterceptor(),
-		))
+			counter.GetInterceptor()))
 	}
 
 	srv := grpc.NewServer(opts...)
