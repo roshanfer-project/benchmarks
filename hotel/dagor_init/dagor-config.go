@@ -21,7 +21,7 @@ var dagorParams = dagor.DagorParam{
 	IsEnduser:                    false, // update this
 	QueuingThresh:                2 * time.Millisecond,
 	AdmissionLevelUpdateInterval: 10 * time.Millisecond,
-	Alpha:                        0.05,
+	Alpha:                        0.45,
 	Beta:                         0.01,
 	Umax:                         15,
 	Bmax:                         2,
