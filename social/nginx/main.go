@@ -41,10 +41,13 @@ var sidecar bool
 
 func (s *Server) Run() error {
 	var tracingMiddleware func(next http.Handler) http.Handler
+	counter := utils.NewCounterState(serviceName)
 	if (utils.GetEnvVar("sidecar", false) == "true") && (utils.GetEnvVar("queuing_export", false) == "true") {
-		tracingMiddleware = tracingMiddleware1
+		tracingMiddleware = counter.GetHTTP1Middleware()
+	} else if utils.GetEnvVar("plain", false) == "true" {
+		tracingMiddleware = counter.GetHTTP1Middleware()
 	} else {
-		tracingMiddleware = tracingMiddleware1
+		panic("either sidecar or plain should be active")
 	}
 
 	log.Info("Initializing gRPC clients...")

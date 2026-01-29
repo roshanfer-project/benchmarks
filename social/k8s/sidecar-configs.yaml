@@ -31,7 +31,7 @@ data:
     ingress_listener_port: 3005
     ingress_upstream_host: localhost
     ingress_upstream_port: 2005
-    cpu_count: 2
+    cpu_count: 3
     over_commitment: 1
     report_latency: True
     name: compose
@@ -47,9 +47,9 @@ data:
     ingress_listener_port: 3004
     ingress_upstream_host: localhost
     ingress_upstream_port: 2004
-    cpu_count: 1
+    cpu_count: 2
     over_commitment: 0
-    extra_limit: 2
+    extra_limit: 3
     report_latency: False
     name: graph
 
@@ -78,9 +78,9 @@ data:
     ingress_listener_port: 3002
     ingress_upstream_host: localhost
     ingress_upstream_port: 2002
-    cpu_count: 1
+    cpu_count: 4
     over_commitment: 0
-    extra_limit: 2
+    extra_limit: 3
     report_latency: True
     name: home
 
@@ -90,19 +90,19 @@ data:
         upstream:
           host: social-nginx
           port: 3007
-        slo: 72
+        slo: 32
         priority: 1
       home:
         upstream:
           host: social-nginx
           port: 3007
-        slo: 22
-        priority: 0
+        slo: 16
+        priority: 2
       user:
         upstream:
           host: social-nginx
           port: 3007
-        slo: 22
+        slo: 16
         priority: 0
     mapping:
       compose:
@@ -120,7 +120,7 @@ data:
     ring_size: 4000
     buffer_count: 16384
     buffer_size: 10000
-    ingress_pool_connections: 100
+    ingress_pool_connections: 150
     num_threads: 3
     egress_listener_port: 3000
     ingress_listener_port: 4000
@@ -158,7 +158,7 @@ data:
     ring_size: 1000
     buffer_count: 4096
     buffer_size: 80000
-    frontend_pool_connections: 100
+    frontend_pool_connections: 150
     num_threads: 1
     egress_listener_port: 4007
     ingress_listener_port: 3007
@@ -166,8 +166,8 @@ data:
     ingress_upstream_port: 2007
     is_ingress: False
     is_frontend: True
-    cpu_count: 2
-    over_commitment: 0
+    cpu_count: 3
+    over_commitment: 1
     report_latency: True
     name: nginx
 
@@ -183,9 +183,9 @@ data:
     ingress_listener_port: 3003
     ingress_upstream_host: localhost
     ingress_upstream_port: 2003
-    cpu_count: 1
+    cpu_count: 2
     over_commitment: 0
-    extra_limit: 2
+    extra_limit: 3
     report_latency: True
     name: posts
 
@@ -209,7 +209,7 @@ data:
     ingress_upstream_host: localhost
     ingress_upstream_port: 2001
     cpu_count: 1
-    over_commitment: 0
-    extra_limit: 2
+    over_commitment: 1
+    extra_limit: 3
     report_latency: True
     name: user
