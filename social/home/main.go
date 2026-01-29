@@ -178,20 +178,31 @@ func (s *HomeTimelineServer) WriteHomeTimeline(ctx context.Context, req *pb.Writ
 		return nil, err
 	}
 
-	for _, follower := range followersResp.Followers {
-		postIds, err := utils.GetState[[]string](ctx, follower+"-"+serviceName)
-		if err != nil {
-			postIds = []string{}
-		}
+	followerKeys := make([]string, len(followersResp.Followers))
+	for i, follower := range followersResp.Followers {
+		followerKeys[i] = follower + "-" + serviceName
+	}
+
+	currentTimelines, err := utils.GetBulkStateDefault(ctx, followerKeys, []string{})
+	if err != nil {
+		log.Error("Failed to get bulk state for followers", "error", err)
+		return nil, err
+	}
+
+	updates := make(map[string]interface{})
+	for i, follower := range followersResp.Followers {
+		postIds := currentTimelines[i]
 		if len(postIds) >= 10 {
 			postIds = postIds[1:]
 		}
 		postIds = append(postIds, req.PostIds...)
-		err = utils.SetState(ctx, follower+"-"+serviceName, postIds)
-		if err != nil {
-			log.Error("Failed to set state for follower", "follower", follower, "error", err)
-			return nil, err
-		}
+		updates[follower+"-"+serviceName] = postIds
+	}
+
+	err = utils.SetBulkState(ctx, updates)
+	if err != nil {
+		log.Error("Failed to bulk set state for followers", "error", err)
+		return nil, err
 	}
 
 	return &pb.WriteHomeTimelineResponse{Success: true}, nil
