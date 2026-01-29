@@ -79,7 +79,7 @@ data:
     ingress_upstream_host: localhost
     ingress_upstream_port: 2002
     cpu_count: 4
-    over_commitment: 0
+    over_commitment: 0.2
     extra_limit: 3
     report_latency: True
     name: home
@@ -91,18 +91,18 @@ data:
           host: social-nginx
           port: 3007
         slo: 32
-        priority: 1
+        priority: 0
       home:
         upstream:
           host: social-nginx
           port: 3007
         slo: 16
-        priority: 2
+        priority: 0
       user:
         upstream:
           host: social-nginx
           port: 3007
-        slo: 16
+        slo: 20
         priority: 0
     mapping:
       compose:

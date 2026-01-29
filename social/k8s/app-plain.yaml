@@ -13,12 +13,12 @@ spec:
     image: graph:latest
     resources:
       requests:
-        cpu: "1"
+        cpu: "2"
       limits:
-        cpu: "1"
+        cpu: "2"
     env:
     - name: GOMAXPROCS
-      value: "1"
+      value: "2"
     envFrom:
     - configMapRef:
         name: social-config
@@ -53,12 +53,12 @@ spec:
     image: posts:latest
     resources:
       requests:
-        cpu: "1"
+        cpu: "2"
       limits:
-        cpu: "1"
+        cpu: "2"
     env:
     - name: GOMAXPROCS
-      value: "1"
+      value: "2"
     envFrom:
     - configMapRef:
         name: social-config
@@ -93,12 +93,12 @@ spec:
     image: home:latest
     resources:
       requests:
-        cpu: "1"
+        cpu: "4"
       limits:
-        cpu: "1"
+        cpu: "4"
     env:
     - name: GOMAXPROCS
-      value: "1"
+      value: "4"
     envFrom:
     - configMapRef:
         name: social-config
@@ -173,12 +173,12 @@ spec:
     image: compose:latest
     resources:
       requests:
-        cpu: "2"
+        cpu: "3"
       limits:
-        cpu: "2"
+        cpu: "3"
     env:
     - name: GOMAXPROCS
-      value: "2"
+      value: "3"
     envFrom:
     - configMapRef:
         name: social-config
@@ -214,12 +214,12 @@ spec:
     resources:
       # Nginx is a "frontend" type service, giving it 2 cores
       requests:
-        cpu: "2"
+        cpu: "3"
       limits:
-        cpu: "2"
+        cpu: "3"
     env:
     - name: GOMAXPROCS
-      value: "2"
+      value: "3"
     envFrom:
     - configMapRef:
         name: social-config
