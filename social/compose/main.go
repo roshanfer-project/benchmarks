@@ -41,6 +41,7 @@ func (s *ComposePostServer) Run() error {
 		priceTable = rajomoninit.GetPriceTable(serviceName, false)
 		opts = append(opts, grpc.ChainUnaryInterceptor(
 			utils.ContextPropagationInterceptor(),
+			counter.GetInterceptor(),
 			priceTable.UnaryInterceptor))
 	}
 
@@ -50,6 +51,7 @@ func (s *ComposePostServer) Run() error {
 		dagorNode = dagorinit.GetDagorNode(serviceName, true, false)
 		opts = append(opts, grpc.ChainUnaryInterceptor(
 			utils.ContextPropagationInterceptor(),
+			counter.GetInterceptor(),
 			dagorNode.UnaryInterceptorServer))
 	}
 
