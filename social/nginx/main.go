@@ -12,8 +12,6 @@ import (
 	"strconv"
 	"time"
 
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc/metadata"
 )
 
@@ -27,13 +25,9 @@ const serviceName = "nginx"
 
 var log = utils.GetLogger(serviceName)
 
-var tracer trace.Tracer
-
 func tracingMiddleware1(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx, span := tracer.Start(r.Context(), r.Method+" "+r.URL.Path)
-		defer span.End()
-		next.ServeHTTP(w, r.WithContext(ctx))
+		next.ServeHTTP(w, r)
 	})
 }
 
@@ -47,7 +41,7 @@ func (s *Server) Run() error {
 	} else if utils.GetEnvVar("plain", false) == "true" {
 		tracingMiddleware = counter.GetHTTP1Middleware()
 	} else {
-		panic("either sidecar or plain should be active")
+		tracingMiddleware = tracingMiddleware1
 	}
 
 	log.Info("Initializing gRPC clients...")
@@ -82,18 +76,7 @@ func (s *Server) Run() error {
 
 	sidecar = utils.GetEnvVar("sidecar", false) == "true"
 
-	// initialize
-	/* populatePosts(
-		s,
-		utils.StrToInt(utils.GetEnvVar("num_of_users", true)),
-		utils.StrToInt(utils.GetEnvVar("num_of_posts", true)),
-	) */
 	log.Info("[PopulatePosts] Finished populating posts")
-
-	// Configure OTL
-	//ctx := context.Background()
-	//social.ConfigOTL(ctx, serviceName, true)
-	tracer = otel.GetTracerProvider().Tracer(serviceName + "-tracer")
 
 	mux := http.NewServeMux()
 	mux.Handle("/compose", tracingMiddleware(http.HandlerFunc(s.composeHandler)))
