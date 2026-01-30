@@ -96,13 +96,13 @@ data:
         upstream:
           host: social-nginx
           port: 3007
-        slo: 16
+        slo: 24
         priority: 0
       user:
         upstream:
           host: social-nginx
           port: 3007
-        slo: 20
+        slo: 24
         priority: 0
     mapping:
       compose:
