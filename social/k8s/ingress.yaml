@@ -5,6 +5,7 @@ metadata:
   labels:
     app: ingress
 spec:
+  restartPolicy: Never
   containers:
   - name: sidecar
     image: sidecar-sidecar:latest
