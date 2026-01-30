@@ -120,7 +120,7 @@ data:
     ring_size: 4000
     buffer_count: 16384
     buffer_size: 10000
-    ingress_pool_connections: 150
+    ingress_pool_connections: 200
     num_threads: 3
     egress_listener_port: 3000
     ingress_listener_port: 4000
@@ -158,7 +158,7 @@ data:
     ring_size: 1000
     buffer_count: 4096
     buffer_size: 80000
-    frontend_pool_connections: 150
+    frontend_pool_connections: 200
     num_threads: 1
     egress_listener_port: 4007
     ingress_listener_port: 3007
