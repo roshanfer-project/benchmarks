@@ -98,7 +98,20 @@ elif [ "$MODE" == "rajomon" ] || [ "$MODE" == "dagor" ]; then
 
         kubectl create configmap social-config --from-env-file="$TMP_DIR/rajomon_merged.env" --dry-run=client -o yaml > "$TMP_DIR/configmap.yaml"
     else
-        kubectl create configmap social-config --from-env-file=social/k8s/dagor.env --dry-run=client -o yaml > "$TMP_DIR/configmap.yaml"
+        # dagor
+        # Merge env file and dynamic vars into a temp file
+        cat social/k8s/dagor.env > "$TMP_DIR/dagor_merged.env"
+        echo "" >> "$TMP_DIR/dagor_merged.env"
+        
+        # Inject Alpha and Beta if they exist in shell environment
+        if [ ! -z "$Alpha" ]; then
+            echo "Alpha=$Alpha" >> "$TMP_DIR/dagor_merged.env"
+        fi
+        if [ ! -z "$Beta" ]; then
+            echo "Beta=$Beta" >> "$TMP_DIR/dagor_merged.env"
+        fi
+
+        kubectl create configmap social-config --from-env-file="$TMP_DIR/dagor_merged.env" --dry-run=client -o yaml > "$TMP_DIR/configmap.yaml"
     fi
     
     # App Manifests

@@ -56,6 +56,12 @@ func GetDagorNode(name string, entry, enduser bool) *dagor.Dagor {
 	alpha := utils.GetEnvVar("Alpha", false)
 	if alpha != "" {
 		dagorParams.Alpha = utils.StrToFloat64(alpha)
+		log.Info("Alpha got updated", "alpha", alpha)
+	}
+	beta := utils.GetEnvVar("Beta", false)
+	if beta != "" {
+		dagorParams.Beta = utils.StrToFloat64(beta)
+		log.Info("Beta got updated", "beta", beta)
 	}
 
 	node := dagor.NewDagorNode(dagorParams)
