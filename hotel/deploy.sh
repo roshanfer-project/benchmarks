@@ -56,6 +56,12 @@ elif [ "$MODE" == "sidecar" ]; then
 
     kubectl create configmap hotel-config --from-env-file="$TMP_DIR/sidecar_merged.env" --dry-run=client -o yaml > "$TMP_DIR/configmap.yaml"
     cp "${DEPLOY_DIR}/sidecar-configs.yaml" "$TMP_DIR/"
+
+    if [ ! -z "$FRONTEND_SEARCH_OC" ]; then
+        echo "Overriding over_commitment for frontend and search to $FRONTEND_SEARCH_OC"
+        perl -i -0777 -pe "s/(over_commitment:\s*)[0-9.]+(\s*\n\s*name:\s*(?:frontend|search))/\${1}${FRONTEND_SEARCH_OC}\${2}/g" "$TMP_DIR/sidecar-configs.yaml"
+    fi
+
     cp "${DEPLOY_DIR}/db.yaml" "$TMP_DIR/"
 
     # App Manifests
