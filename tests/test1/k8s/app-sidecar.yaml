@@ -14,6 +14,9 @@ spec:
         cpu: "5"
       limits:
         cpu: "5"
+    env:
+    - name: GOMAXPROCS
+      value: "5"
     envFrom:
     - configMapRef:
         name: test1-config
@@ -40,12 +43,6 @@ spec:
   - name: config-volume
     configMap:
       name: sidecar-configs
-  - name: usr-local-lib
-    hostPath:
-      path: /usr/local/lib
-  - name: lib-x86-64
-    hostPath:
-      path: /lib/x86_64-linux-gnu
 ---
 apiVersion: v1
 kind: Service

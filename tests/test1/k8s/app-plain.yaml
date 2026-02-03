@@ -14,6 +14,9 @@ spec:
         cpu: "5"
       limits:
         cpu: "5"
+    env:
+    - name: GOMAXPROCS
+      value: "5"
     envFrom:
     - configMapRef:
         name: test1-config

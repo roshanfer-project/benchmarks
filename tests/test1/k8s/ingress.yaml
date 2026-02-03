@@ -27,12 +27,6 @@ spec:
   - name: config-volume
     configMap:
       name: sidecar-configs
-  - name: usr-local-lib
-    hostPath:
-      path: /usr/local/lib
-  - name: lib-x86-64
-    hostPath:
-      path: /lib/x86_64-linux-gnu
 ---
 apiVersion: v1
 kind: Service

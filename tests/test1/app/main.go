@@ -47,9 +47,9 @@ func main() {
 	/* http.HandleFunc("/app", func(w http.ResponseWriter, r *http.Request) {
 		appLogic(w, getContextWithRpcId(r))
 	}) */
-	mux.Handle("/app", tracingMiddleware(http.HandlerFunc(appLogic)))
-	mux.Handle("/app2", tracingMiddleware(http.HandlerFunc(app2Logic)))
-	mux.Handle("/app3", tracingMiddleware(http.HandlerFunc(app3Logic)))
+	mux.Handle("/api1", tracingMiddleware(http.HandlerFunc(appLogic)))
+	mux.Handle("/api2", tracingMiddleware(http.HandlerFunc(app2Logic)))
+	mux.Handle("/api3", tracingMiddleware(http.HandlerFunc(app3Logic)))
 
 	// Start pprof server
 	go func() {

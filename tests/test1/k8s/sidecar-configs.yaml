@@ -6,39 +6,30 @@ metadata:
 data:
   ingress.yaml: |
     routing:
-      app:
+      api1:
         upstream:
           host: app # Service name in K8s
           port: 3007
-        slo: 15
+        slo: 150
         priority: 0
-      app2:
+      api2:
         upstream:
           host: app
           port: 3007
-        slo: 22
+        slo: 300
         priority: 1
-      app3:
-        upstream:
-          host: app
-          port: 3007
-        slo: 36
-        priority: 2
     mapping:
-      app:
-        downstreams: [app]
+      api1:
+        downstreams: [api1]
         listen_port: 3000
-      app2:
-        downstreams: [app2]
+      api2:
+        downstreams: [api2]
         listen_port: 3008
-      app3:
-        downstreams: [app3]
-        listen_port: 3009
     ring_size: 12000
     buffer_count: 16384
     buffer_size: 10000
-    num_threads: 3
-    ingress_pool_connections: 20
+    num_threads: 2
+    ingress_pool_connections: 50
     egress_listener_port: 3000
     ingress_listener_port: 4000
     ingress_upstream_host: localhost # Loopback
@@ -50,14 +41,14 @@ data:
 
   app.yaml: |
     mapping:
-      app:
-      app2:
-      app3:
+      api1:
+      api2:
+      api3:
     ring_size: 10000
-    buffer_count: 16384
-    buffer_size: 80000
+    buffer_count: 32768
+    buffer_size: 20000
     num_threads: 1
-    frontend_pool_connections: 100
+    frontend_pool_connections: 50
     egress_listener_port: 4007
     ingress_listener_port: 3007
     ingress_upstream_host: localhost # App container in the same pod
@@ -65,6 +56,6 @@ data:
     is_ingress: False
     is_frontend: True
     report_latency: True
-    per_endpoint_limit: 10
-    ppm_limit: 10
+    cpu_count: 5
+    over_commitment: 0
     name: app

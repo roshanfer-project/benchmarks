@@ -61,6 +61,12 @@ else
 
     # Copy sidecar manifests
     cp "${DEPLOY_DIR}/sidecar-configs.yaml" "$TMP_DIR/"
+
+    if [ ! -z "$APP_OC" ]; then
+        echo "Overriding over_commitment for app to $APP_OC"
+        perl -i -0777 -pe "s/(over_commitment:\s*)[0-9.]+(\s*\n\s*name:\s*app)/\${1}${APP_OC}\${2}/g" "$TMP_DIR/sidecar-configs.yaml"
+    fi
+
     cp "${DEPLOY_DIR}/ingress.yaml" "$TMP_DIR/"
     cp "${DEPLOY_DIR}/app-sidecar.yaml" "$TMP_DIR/app.yaml"
 
