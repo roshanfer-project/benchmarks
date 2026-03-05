@@ -1,0 +1,38 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: ms-64512
+  labels:
+    app: ms-64512
+spec:
+  containers:
+  - name: app
+    image: alibaba-large-ms-64512:latest
+    resources:
+      requests:
+        cpu: "1"
+      limits:
+        cpu: "1"
+    env:
+    - name: GOMAXPROCS
+      value: "1"
+    envFrom:
+    - configMapRef:
+        name: alibaba-large-config
+    ports:
+    - containerPort: 2000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alibaba-large-ms-64512
+  labels:
+    app: ms-64512
+spec:
+  selector:
+    app: ms-64512
+  ports:
+  - name: http
+    port: 2000
+    targetPort: 2000
+    protocol: TCP

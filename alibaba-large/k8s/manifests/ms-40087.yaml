@@ -1,0 +1,38 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: ms-40087
+  labels:
+    app: ms-40087
+spec:
+  containers:
+  - name: app
+    image: alibaba-large-ms-40087:latest
+    resources:
+      requests:
+        cpu: "2"
+      limits:
+        cpu: "2"
+    env:
+    - name: GOMAXPROCS
+      value: "2"
+    envFrom:
+    - configMapRef:
+        name: alibaba-large-config
+    ports:
+    - containerPort: 2000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alibaba-large-ms-40087
+  labels:
+    app: ms-40087
+spec:
+  selector:
+    app: ms-40087
+  ports:
+  - name: http
+    port: 2000
+    targetPort: 2000
+    protocol: TCP

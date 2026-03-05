@@ -1,0 +1,134 @@
+syntax = "proto3";
+
+package benchmark;
+
+option go_package = "alibabalarge/protobuf";
+
+message Request { string payload = 1; }
+message Response { string payload = 1; }
+
+service MS_12657 {
+  rpc kiMcs4YawB(Request) returns (Response);
+}
+
+service MS_14758 {
+  rpc Mu_jZ40NDv(Request) returns (Response);
+}
+
+service MS_18750 {
+  rpc vs2nQhH1hq(Request) returns (Response);
+}
+
+service MS_19439 {
+  rpc KvuxGZYcwm(Request) returns (Response);
+  rpc ufXkUzqEz3(Request) returns (Response);
+}
+
+service MS_21298 {
+  rpc Te9DKpWLH7(Request) returns (Response);
+  rpc qRB35KFger(Request) returns (Response);
+}
+
+service MS_25781 {
+  rpc qsLpARXiz2(Request) returns (Response);
+}
+
+service MS_25806 {
+  rpc M0PIREyu4tb(Request) returns (Response);
+  rpc FQN3ARekoW(Request) returns (Response);
+  rpc qQqbn5h_pP(Request) returns (Response);
+}
+
+service MS_2687 {
+  rpc VdboDuPbKj(Request) returns (Response);
+}
+
+service MS_33572 {
+  rpc NdwV_io91H(Request) returns (Response);
+}
+
+service MS_38190 {
+  rpc IC2Ei_gNaE(Request) returns (Response);
+}
+
+service MS_40087 {
+  rpc M2QxmWDHq1o(Request) returns (Response);
+  rpc M5ISZV1sCx(Request) returns (Response);
+}
+
+service MS_41667 {
+  rpc bk01rUGHnE(Request) returns (Response);
+}
+
+service MS_43032 {
+  rpc zSdnWDdKmj(Request) returns (Response);
+}
+
+service MS_43754 {
+  rpc _Rm60xyryM(Request) returns (Response);
+}
+
+service MS_44246 {
+  rpc nRLDYEHBqx(Request) returns (Response);
+}
+
+service MS_45067 {
+  rpc wU2EZy8fzO(Request) returns (Response);
+}
+
+service MS_51783 {
+  rpc zMa4ZJ012X(Request) returns (Response);
+}
+
+service MS_51787 {
+  rpc rypaFB4pfJ(Request) returns (Response);
+}
+
+service MS_53792 {
+  rpc M8jkkxghEWB(Request) returns (Response);
+}
+
+service MS_56113 {
+  rpc M0PIREyu4tb(Request) returns (Response);
+  rpc F0bDDol0sG(Request) returns (Response);
+  rpc KuU4P3BCru(Request) returns (Response);
+}
+
+service MS_5720 {
+  rpc M4Cgy9S6B5O(Request) returns (Response);
+}
+
+service MS_58796 {
+  rpc abNb_B_h36(Request) returns (Response);
+}
+
+service MS_62039 {
+  rpc nK4gw2phix(Request) returns (Response);
+}
+
+service MS_64512 {
+  rpc Z8trRkp4mp(Request) returns (Response);
+}
+
+service MS_66921 {
+  rpc eFOECNqigM(Request) returns (Response);
+}
+
+service MS_67465 {
+  rpc wIe9cm5aqE(Request) returns (Response);
+}
+
+service MS_70124 {
+  rpc v0gqd6H7nw(Request) returns (Response);
+}
+
+service MS_7103 {
+  rpc hnZO60j2rH(Request) returns (Response);
+  rpc rswWe4AhfE(Request) returns (Response);
+}
+
+service MS_9105 {
+  rpc ByihMu7_9Z(Request) returns (Response);
+  rpc msD67GoyH2(Request) returns (Response);
+}
+
