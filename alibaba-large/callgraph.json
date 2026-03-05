@@ -64,7 +64,8 @@
         "id": "MS_25806:qQqbn5h_pP",
         "microservice": "MS_25806",
         "interface": "qQqbn5h_pP",
-        "avg_rt": 2.88
+        "avg_rt": 2.88,
+        "cpu": 2
       },
       {
         "id": "MS_2687:VdboDuPbKj",
@@ -88,13 +89,15 @@
         "id": "MS_40087:2QxmWDHq1o",
         "microservice": "MS_40087",
         "interface": "2QxmWDHq1o",
-        "avg_rt": 1.62
+        "avg_rt": 1.62,
+        "cpu": 2
       },
       {
         "id": "MS_40087:M5ISZV1sCx",
         "microservice": "MS_40087",
         "interface": "M5ISZV1sCx",
-        "avg_rt": 2.92
+        "avg_rt": 2.92,
+        "cpu": 2
       },
       {
         "id": "MS_41667:bk01rUGHnE",
@@ -148,19 +151,22 @@
         "id": "MS_56113:0PIREyu4tb",
         "microservice": "MS_56113",
         "interface": "0PIREyu4tb",
-        "avg_rt": 1.75
+        "avg_rt": 1.75,
+        "cpu": 2
       },
       {
         "id": "MS_56113:F0bDDol0sG",
         "microservice": "MS_56113",
         "interface": "F0bDDol0sG",
-        "avg_rt": 3.0
+        "avg_rt": 3.0,
+        "cpu": 2
       },
       {
         "id": "MS_56113:KuU4P3BCru",
         "microservice": "MS_56113",
         "interface": "KuU4P3BCru",
-        "avg_rt": 1.81
+        "avg_rt": 1.81,
+        "cpu": 2
       },
       {
         "id": "MS_5720:4Cgy9S6B5O",
@@ -213,13 +219,15 @@
         "id": "MS_7103:hnZO60j2rH",
         "microservice": "MS_7103",
         "interface": "hnZO60j2rH",
-        "avg_rt": 2.17
+        "avg_rt": 2.17,
+        "cpu": 2
       },
       {
         "id": "MS_7103:rswWe4AhfE",
         "microservice": "MS_7103",
         "interface": "rswWe4AhfE",
-        "avg_rt": 2.16
+        "avg_rt": 2.16,
+        "cpu": 2
       },
       {
         "id": "MS_9105:ByihMu7_9Z",
