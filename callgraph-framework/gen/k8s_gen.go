@@ -167,6 +167,14 @@ STATUS_FILE=${2:-}
 REGISTRY=${REGISTRY:-farzad1132}
 BENCH={{.BenchmarkName}}
 
+if [ -n "$STATUS_FILE" ]; then
+  STATUS_DIR=$(dirname "$STATUS_FILE")
+  STATUS_BASE=$(basename "$STATUS_FILE")
+  mkdir -p "$STATUS_DIR"
+  STATUS_DIR=$(cd "$STATUS_DIR" && pwd)
+  STATUS_FILE="${STATUS_DIR}/${STATUS_BASE}"
+fi
+
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT_DIR"
 
