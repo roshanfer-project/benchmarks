@@ -21,6 +21,9 @@ func Generate(callgraphPath string, outDir string, benchmarkName string) error {
 	if err != nil {
 		return fmt.Errorf("parse callgraph: %w", err)
 	}
+	if err := Check(pg); err != nil {
+		return fmt.Errorf("check: %w", err)
+	}
 	module := sanitizeModule(benchmarkName)
 	if err := os.MkdirAll(outDir, 0755); err != nil {
 		return err
@@ -47,7 +50,7 @@ func Generate(callgraphPath string, outDir string, benchmarkName string) error {
 }
 
 func writeGoMod(module string, outDir string) error {
-	content := fmt.Sprintf("module %s\n\ngo 1.25\n\nrequire (\n\tgoogle.golang.org/grpc v1.74.2\n\tgoogle.golang.org/protobuf v1.36.8\n)\n", module)
+	content := fmt.Sprintf("module %s\n\ngo 1.25\n\nrequire (\n\tgithub.com/prometheus/client_golang v1.23.2\n\tgoogle.golang.org/grpc v1.74.2\n\tgoogle.golang.org/protobuf v1.36.8\n)\n", module)
 	return os.WriteFile(filepath.Join(outDir, "go.mod"), []byte(content), 0644)
 }
 

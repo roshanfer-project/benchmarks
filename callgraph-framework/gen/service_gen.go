@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"sort"
 	"text/template"
+	"unicode"
 )
 
 const port = 2000
@@ -30,6 +31,15 @@ func GenerateServices(pg *ParsedGraph, module string, outDir string) error {
 		}
 	}
 	return nil
+}
+
+func protoServiceName(s string) string {
+	if s == "" {
+		return ""
+	}
+	r := []rune(s)
+	r[0] = unicode.ToUpper(r[0])
+	return string(r)
 }
 
 func sortedServices(pg *ParsedGraph) []string {
@@ -76,9 +86,11 @@ func writeUtils(outDir string) error {
 		return err
 	}
 	files := map[string]string{
-		"busy.go":    busyGo,
-		"ennvars.go": ennvarsGo,
-		"log.go":     logGo,
+		"busy.go":      busyGo,
+		"ennvars.go":   ennvarsGo,
+		"log.go":       logGo,
+		"propagator.go": propagatorGo,
+		"counter.go":   counterGo,
 	}
 	for name, content := range files {
 		if err := os.WriteFile(filepath.Join(utilsDir, name), []byte(content), 0644); err != nil {
@@ -162,6 +174,212 @@ func GetLogger(name string) *slog.Logger {
 }
 `
 
+const propagatorGo = `package utils
+
+import (
+	"context"
+
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
+)
+
+func ContextPropagationInterceptor() grpc.UnaryServerInterceptor {
+	return func(ctx context.Context, req interface{},
+		_ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+
+		if in, ok := metadata.FromIncomingContext(ctx); ok {
+			ctx = metadata.NewOutgoingContext(ctx, in)
+		}
+		return handler(ctx, req)
+	}
+}
+`
+
+const counterGo = `package utils
+
+import (
+	"context"
+	"net/http"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/push"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
+)
+
+var logCounter = GetLogger("counter")
+
+type CounterState struct {
+	failedRPCCounter        map[string]int64
+	acceptedRPCCounter      map[string]int64
+	inReq                   map[string]int64
+	outReq                  map[string]int64
+	maxQueue                map[string]int64
+	lock                    sync.Mutex
+	startOnce               sync.Once
+	maxQueueGauge           *prometheus.GaugeVec
+	failedRPCCounterGauge   *prometheus.GaugeVec
+	acceptedRPCCounterGauge *prometheus.GaugeVec
+	registry                *prometheus.Registry
+	promAddr                string
+	serviceName             string
+}
+
+func NewCounterState(serviceName string) *CounterState {
+	s := &CounterState{
+		failedRPCCounter:   make(map[string]int64),
+		acceptedRPCCounter: make(map[string]int64),
+		inReq:              make(map[string]int64),
+		outReq:             make(map[string]int64),
+		maxQueue:           make(map[string]int64),
+		lock:               sync.Mutex{},
+		registry:           prometheus.NewRegistry(),
+	}
+	if strings.HasSuffix(serviceName, "-grpc") {
+		s.serviceName = serviceName[:len(serviceName)-len("-grpc")]
+	} else {
+		s.serviceName = serviceName
+	}
+	s.promAddr = GetEnvVar("PROM_ADDR", false)
+
+	s.maxQueueGauge = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{Name: "max_queue", Help: "Maximum queue length for each RPC method"},
+		[]string{"api"},
+	)
+	s.acceptedRPCCounterGauge = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{Name: "accepted_rpc_counter", Help: "Accepted RPC counter for each RPC method"},
+		[]string{"api"},
+	)
+	s.failedRPCCounterGauge = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{Name: "failed_rpc_counter", Help: "Failed RPC counter for each RPC method"},
+		[]string{"api"},
+	)
+	s.registry.MustRegister(s.maxQueueGauge)
+	s.registry.MustRegister(s.acceptedRPCCounterGauge)
+	s.registry.MustRegister(s.failedRPCCounterGauge)
+	return s
+}
+
+func (s *CounterState) start() {
+	s.startOnce.Do(func() {
+		if s.promAddr != "" {
+			go s.PushAll()
+		}
+	})
+}
+
+func (s *CounterState) GetInterceptor() grpc.UnaryServerInterceptor {
+	s.start()
+	return func(ctx context.Context, req interface{}, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+		md, ok := metadata.FromIncomingContext(ctx)
+		if !ok {
+			panic("metadata not found in context")
+		}
+		method := md.Get("method")
+		if len(method) == 0 || len(method) > 1 {
+			panic("method not found in metadata")
+		}
+		api := method[0]
+		s.IncrementInReq(api)
+		s.IncrementAcceptedRPCCounter(api)
+		resp, err := handler(ctx, req)
+		if err != nil {
+			s.IncrementFailedRPCCounter(api)
+		}
+		s.IncrementOutReq(api)
+		return resp, err
+	}
+}
+
+func (s *CounterState) GetHTTP1Middleware() func(next http.Handler) http.Handler {
+	s.start()
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			api := strings.TrimPrefix(r.URL.Path, "/")
+			if api == "" {
+				api = "unknown"
+			}
+			s.IncrementInReq(api)
+			s.IncrementAcceptedRPCCounter(api)
+			next.ServeHTTP(w, r)
+			s.IncrementOutReq(api)
+		})
+	}
+}
+
+func (s *CounterState) IncrementInReq(method string) {
+	s.lock.Lock()
+	s.inReq[method]++
+	s.UpdateMaxQueue(method)
+	s.lock.Unlock()
+}
+
+func (s *CounterState) IncrementOutReq(method string) {
+	s.lock.Lock()
+	s.outReq[method]++
+	s.UpdateMaxQueue(method)
+	s.lock.Unlock()
+}
+
+func (s *CounterState) UpdateMaxQueue(method string) {
+	queueSize := s.inReq[method] - s.outReq[method]
+	if queueSize > s.maxQueue[method] {
+		s.maxQueue[method] = queueSize
+	}
+}
+
+func (s *CounterState) PushMaxQueue() {
+	s.lock.Lock()
+	for method, queueSize := range s.maxQueue {
+		s.maxQueueGauge.WithLabelValues(method).Set(float64(queueSize))
+	}
+	s.lock.Unlock()
+}
+
+func (s *CounterState) IncrementAcceptedRPCCounter(method string) {
+	s.lock.Lock()
+	s.acceptedRPCCounter[method]++
+	s.lock.Unlock()
+}
+
+func (s *CounterState) PushAcceptedRPCCounter() {
+	s.lock.Lock()
+	for method, count := range s.acceptedRPCCounter {
+		s.acceptedRPCCounterGauge.WithLabelValues(method).Set(float64(count))
+	}
+	s.lock.Unlock()
+}
+
+func (s *CounterState) IncrementFailedRPCCounter(method string) {
+	s.lock.Lock()
+	s.failedRPCCounter[method]++
+	s.lock.Unlock()
+}
+
+func (s *CounterState) PushFailedRPCCounter() {
+	s.lock.Lock()
+	for method, count := range s.failedRPCCounter {
+		s.failedRPCCounterGauge.WithLabelValues(method).Set(float64(count))
+	}
+	s.lock.Unlock()
+}
+
+func (s *CounterState) PushAll() {
+	t := time.NewTicker(1 * time.Second)
+	for range t.C {
+		s.PushMaxQueue()
+		s.PushAcceptedRPCCounter()
+		s.PushFailedRPCCounter()
+		if err := push.New(s.promAddr, s.serviceName).Gatherer(s.registry).Push(); err != nil {
+			logCounter.Error("Could not push to Pushgateway", "error", err)
+		}
+	}
+}
+`
+
 func writeGRPCClient(module string, outDir string) error {
 	tmpl := `package pkg
 
@@ -199,22 +417,28 @@ func GetServerOptions() []grpc.ServerOption {
 }
 
 type entryServiceData struct {
-	Module      string
-	ServiceName string
-	Port        int
-	EntryNode   *Node
-	Clients     []clientRef
-	Downstreams []downstreamCall
+	Module        string
+	ServiceName   string
+	Port          int
+	EntryNode     *Node
+	Clients       []clientRef
+	Downstreams   []downstreamCall
+	EgressEnv     string
+	PortEnv       string
+	UseSingleConn bool
 }
 
 type clientRef struct {
-	Microservice string
-	AddrEnv      string
+	Microservice     string
+	ProtoMicroservice string
+	AddrEnv          string
 }
 
 type downstreamCall struct {
-	Microservice string
-	MethodName   string
+	Microservice      string
+	ProtoMicroservice string
+	MethodName       string
+	Interface        string
 }
 
 func generateEntryService(pg *ParsedGraph, module string, svcName string, outDir string) error {
@@ -223,25 +447,29 @@ func generateEntryService(pg *ParsedGraph, module string, svcName string, outDir
 	targets := pg.Downstream(entryNodeID)
 	seen := make(map[string]bool)
 	var clients []clientRef
+	egressEnv := svcName + "_EGRESS"
 	for _, t := range targets {
 		n := pg.Nodes[t]
 		if !seen[n.Microservice] {
 			seen[n.Microservice] = true
-			clients = append(clients, clientRef{n.Microservice, n.Microservice + "_ADDR"})
+			clients = append(clients, clientRef{n.Microservice, protoServiceName(n.Microservice), n.Microservice + "_ADDR"})
 		}
 	}
 	var downstreams []downstreamCall
 	for _, t := range targets {
 		n := pg.Nodes[t]
-		downstreams = append(downstreams, downstreamCall{n.Microservice, n.GoMethodName()})
+		downstreams = append(downstreams, downstreamCall{n.Microservice, protoServiceName(n.Microservice), n.GoMethodName(), n.Interface})
 	}
 	data := entryServiceData{
-		Module:      module,
-		ServiceName: svcName,
-		Port:        port,
-		EntryNode:   entryNode,
-		Clients:     clients,
-		Downstreams: downstreams,
+		Module:        module,
+		ServiceName:   svcName,
+		Port:          port,
+		EntryNode:     entryNode,
+		Clients:       clients,
+		Downstreams:   downstreams,
+		EgressEnv:     egressEnv,
+		PortEnv:       svcName + "_PORT",
+		UseSingleConn: true,
 	}
 	return renderTemplate(entryServiceTmpl, data, filepath.Join(outDir, "services", svcName, "main.go"))
 }
@@ -254,10 +482,13 @@ import (
 	"{{.Module}}/pkg"
 	pb "{{.Module}}/protobuf"
 	"{{.Module}}/utils"
+
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 )
 
 type Server struct {
-{{range .Clients}}	{{.Microservice}}Client pb.{{.Microservice}}Client
+{{range .Clients}}	{{.ProtoMicroservice}}Client pb.{{.ProtoMicroservice}}Client
 {{end}}
 }
 
@@ -266,14 +497,29 @@ var log = utils.GetLogger(serviceName)
 
 func (s *Server) Run() error {
 	log.Info("Initializing HTTP server...")
-{{range $i, $c := .Clients}}{{if eq $i 0}}	conn := pkg.GetConn(utils.GetEnvVar("{{$c.AddrEnv}}", true))
-{{else}}	conn = pkg.GetConn(utils.GetEnvVar("{{$c.AddrEnv}}", true))
-{{end}}	s.{{$c.Microservice}}Client = pb.New{{$c.Microservice}}Client(conn)
+	sidecar := utils.GetEnvVar("sidecar", false) == "true"
+	var conn *grpc.ClientConn
+	if sidecar {
+		conn = pkg.GetConn(utils.GetEnvVar("{{.EgressEnv}}", true))
+	}
+{{range .Clients}}	if !sidecar {
+		conn = pkg.GetConn(utils.GetEnvVar("{{.AddrEnv}}", true))
+	}
+	s.{{.ProtoMicroservice}}Client = pb.New{{.ProtoMicroservice}}Client(conn)
 {{end}}
+	port := {{.Port}}
+	if sidecar {
+		port = utils.StrToInt(utils.GetEnvVar("{{.PortEnv}}", true))
+	}
 	mux := http.NewServeMux()
-	mux.Handle("/{{.EntryNode.Interface}}", http.HandlerFunc(s.handler))
+	var handler http.Handler = http.HandlerFunc(s.handler)
+	if sidecar && utils.GetEnvVar("queuing_export", false) == "true" {
+		counter := utils.NewCounterState(serviceName)
+		handler = counter.GetHTTP1Middleware()(handler)
+	}
+	mux.Handle("/{{.EntryNode.Interface}}", handler)
 	srv := &http.Server{
-		Addr:    fmt.Sprintf(":%d", {{.Port}}),
+		Addr:    fmt.Sprintf(":%d", port),
 		Handler: mux,
 	}
 	log.Info("Serving HTTP")
@@ -281,11 +527,21 @@ func (s *Server) Run() error {
 }
 
 func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
-	utils.BusyLoop({{.EntryNode.BusyLoopRepeats}})
 	ctx := r.Context()
+	sidecar := utils.GetEnvVar("sidecar", false) == "true"
+	var rpcID string
+	if sidecar {
+		rpcID = r.Header.Get("rpc-id")
+		if rpcID == "" {
+			http.Error(w, "rpc-id header required", http.StatusBadRequest)
+			return
+		}
+	}
+	ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("method", "{{.EntryNode.Interface}}", "rpc-id", rpcID))
+	utils.BusyLoop({{.EntryNode.BusyLoopRepeats}})
 	req := &pb.Request{}
 	var err error
-{{range .Downstreams}}	_, err = s.{{.Microservice}}Client.{{.MethodName}}(ctx, req)
+{{range .Downstreams}}	_, err = s.{{.ProtoMicroservice}}Client.{{.MethodName}}(ctx, req)
 	if err != nil {
 		log.Error("downstream call failed", "error", err)
 		http.Error(w, err.Error(), 500)
@@ -305,11 +561,14 @@ func main() {
 `
 
 type grpcServiceData struct {
-	Module      string
-	ServiceName string
-	Port        int
-	Handlers    []grpcHandler
-	Clients     []clientRef
+	Module           string
+	ServiceName      string
+	ProtoServiceName string
+	Port             int
+	Handlers         []grpcHandler
+	Clients          []clientRef
+	EgressEnv        string
+	PortEnv          string
 }
 
 type grpcHandler struct {
@@ -328,21 +587,24 @@ func generateGRPCService(pg *ParsedGraph, module string, svcName string, outDir 
 		for _, t := range targets {
 			tn := pg.Nodes[t]
 			allClients[tn.Microservice] = true
-			downstreams = append(downstreams, downstreamCall{tn.Microservice, tn.GoMethodName()})
+			downstreams = append(downstreams, downstreamCall{tn.Microservice, protoServiceName(tn.Microservice), tn.GoMethodName(), tn.Interface})
 		}
 		handlers = append(handlers, grpcHandler{Node: n, MethodName: n.GoMethodName(), Downstreams: downstreams})
 	}
 	var clients []clientRef
 	for ms := range allClients {
-		clients = append(clients, clientRef{ms, ms + "_ADDR"})
+		clients = append(clients, clientRef{ms, protoServiceName(ms), ms + "_ADDR"})
 	}
 	sort.Slice(clients, func(i, j int) bool { return clients[i].Microservice < clients[j].Microservice })
 	data := grpcServiceData{
-		Module:      module,
-		ServiceName: svcName,
-		Port:        port,
-		Handlers:    handlers,
-		Clients:     clients,
+		Module:           module,
+		ServiceName:      svcName,
+		ProtoServiceName: protoServiceName(svcName),
+		Port:             port,
+		Handlers:         handlers,
+		Clients:          clients,
+		EgressEnv:        svcName + "_EGRESS",
+		PortEnv:          svcName + "_PORT",
 	}
 	return renderTemplate(grpcServiceTmpl, data, filepath.Join(outDir, "services", svcName, "main.go"))
 }
@@ -362,8 +624,8 @@ import (
 )
 
 type Server struct {
-	pb.Unimplemented{{.ServiceName}}Server
-{{range .Clients}}	{{.Microservice}}Client pb.{{.Microservice}}Client
+	pb.Unimplemented{{.ProtoServiceName}}Server
+{{range .Clients}}	{{.ProtoMicroservice}}Client pb.{{.ProtoMicroservice}}Client
 {{end}}
 }
 
@@ -373,15 +635,39 @@ var log = utils.GetLogger(serviceName)
 func (s *Server) Run() error {
 	log.Info("Initializing gRPC server...")
 	opts := pkg.GetServerOptions()
+	sidecar := utils.GetEnvVar("sidecar", false) == "true"
+	queuingExport := utils.GetEnvVar("queuing_export", false) == "true"
+	if sidecar {
+		if queuingExport {
+			opts = append(opts, grpc.ChainUnaryInterceptor(
+				utils.ContextPropagationInterceptor(),
+				utils.NewCounterState(serviceName).GetInterceptor()))
+		} else {
+			opts = append(opts, grpc.UnaryInterceptor(utils.ContextPropagationInterceptor()))
+		}
+	} else {
+		opts = append(opts, grpc.ChainUnaryInterceptor(
+			utils.ContextPropagationInterceptor(),
+			utils.NewCounterState(serviceName).GetInterceptor()))
+	}
 	srv := grpc.NewServer(opts...)
-	pb.Register{{.ServiceName}}Server(srv, s)
-{{range $i, $c := .Clients}}{{if eq $i 0}}	var conn *grpc.ClientConn
-	conn = pkg.GetConn(utils.GetEnvVar("{{$c.AddrEnv}}", true))
-{{else}}	conn = pkg.GetConn(utils.GetEnvVar("{{$c.AddrEnv}}", true))
-{{end}}	s.{{$c.Microservice}}Client = pb.New{{$c.Microservice}}Client(conn)
+	pb.Register{{.ProtoServiceName}}Server(srv, s)
+{{if .Clients}}	var conn *grpc.ClientConn
+	if sidecar {
+		conn = pkg.GetConn(utils.GetEnvVar("{{.EgressEnv}}", true))
+	}
+{{range .Clients}}	if !sidecar {
+		conn = pkg.GetConn(utils.GetEnvVar("{{.AddrEnv}}", true))
+	}
+	s.{{.ProtoMicroservice}}Client = pb.New{{.ProtoMicroservice}}Client(conn)
+{{end}}
 {{end}}
 	reflection.Register(srv)
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", {{.Port}}))
+	port := {{.Port}}
+	if sidecar {
+		port = utils.StrToInt(utils.GetEnvVar("{{.PortEnv}}", true))
+	}
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
 		return fmt.Errorf("failed to listen: %v", err)
 	}
@@ -392,7 +678,7 @@ func (s *Server) Run() error {
 func (s *Server) {{.MethodName}}(ctx context.Context, req *pb.Request) (*pb.Response, error) {
 	utils.BusyLoop({{.Node.BusyLoopRepeats}})
 {{if .Downstreams}}	var err error
-{{range .Downstreams}}	_, err = s.{{.Microservice}}Client.{{.MethodName}}(ctx, req)
+{{range .Downstreams}}	_, err = s.{{.ProtoMicroservice}}Client.{{.MethodName}}(ctx, req)
 	if err != nil {
 		log.Error("downstream call failed", "error", err)
 		return nil, err

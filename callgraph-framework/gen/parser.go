@@ -21,11 +21,14 @@ type ServiceNode struct {
 	ID         string      `json:"id"`
 	Interfaces []Interface `json:"interfaces"`
 	CPU        int         `json:"cpu"`
+	SidecarCPU int         `json:"sidecar_cpu"`
 }
 
 type Interface struct {
-	Name  string  `json:"name"`
-	AvgRT float64 `json:"avg_rt"`
+	Name     string  `json:"name"`
+	AvgRT    float64 `json:"avg_rt"`
+	SLO      *int    `json:"slo"`
+	Priority *int    `json:"priority"`
 }
 
 type Node struct {
@@ -34,6 +37,9 @@ type Node struct {
 	Interface    string
 	AvgRT        float64
 	CPU          int
+	SidecarCPU   int
+	SLO          *int
+	Priority     *int
 }
 
 type Edge struct {
@@ -71,6 +77,10 @@ func buildParsedGraph(cg *CallGraph) (*ParsedGraph, error) {
 		if cpu == 0 {
 			cpu = 1
 		}
+		sidecarCPU := svc.SidecarCPU
+		if sidecarCPU == 0 {
+			sidecarCPU = 1
+		}
 		if svc.ID == "USER" {
 			continue
 		}
@@ -85,6 +95,9 @@ func buildParsedGraph(cg *CallGraph) (*ParsedGraph, error) {
 				Interface:    iface.Name,
 				AvgRT:        avgRT,
 				CPU:          cpu,
+				SidecarCPU:   sidecarCPU,
+				SLO:          iface.SLO,
+				Priority:     iface.Priority,
 			}
 			pg.Nodes[node.ID] = node
 			pg.Services[svc.ID] = append(pg.Services[svc.ID], node)
@@ -106,6 +119,12 @@ func buildParsedGraph(cg *CallGraph) (*ParsedGraph, error) {
 		return nil, fmt.Errorf("entry node %s not found", pg.EntryNodeID)
 	}
 	return pg, nil
+}
+
+// FullRPCName returns the gRPC full method name for sidecar config (without leading slash).
+// Format: benchmark.{Microservice}/{ProtoMethodName}
+func (n *Node) FullRPCName() string {
+	return "benchmark." + n.Microservice + "/" + n.ProtoMethodName()
 }
 
 func (n *Node) BusyLoopRepeats() int {
@@ -199,4 +218,25 @@ func (pg *ParsedGraph) CPUForService(svcName string) int {
 		return nodes[0].CPU
 	}
 	return 1
+}
+
+func (pg *ParsedGraph) SidecarCPUForService(svcName string) int {
+	if nodes, ok := pg.Services[svcName]; ok && len(nodes) > 0 {
+		return nodes[0].SidecarCPU
+	}
+	return 1
+}
+
+// UserEntryCount returns the number of edges from USER (interfaces USER connects to).
+func (pg *ParsedGraph) UserEntryCount() int {
+	n := 0
+	for _, e := range pg.Edges {
+		if e.Source == "USER" {
+			n++
+		}
+	}
+	if n < 1 {
+		return 1
+	}
+	return n
 }

@@ -28,7 +28,7 @@ go run ./cmd/gen ../alibaba-large/callgraph.json -o ../alibaba-large
 
 ## Call Graph Format
 
-- `nodes`: one per microservice; `id`, `interfaces` (array of `{name, avg_rt}`), `cpu` (optional, default 1)
+- `nodes`: one per microservice; `id`, `interfaces` (array of `{name, avg_rt}`), `cpu` (optional, default 1, used for cpu_count in sidecar config and app resources), `sidecar_cpu` (optional, default 1, used for num_threads in sidecar config; k8s sidecar gets 2× this)
 - `edges`: source, target as interface IDs (`microservice:interface`); USER -> entry node
 - Entry: HTTP/1 server; others: gRPC services
 - Entry path: `/{interface}` (e.g. `/Z8trRkp4mp`). See `entry_path.txt` in output dir.
