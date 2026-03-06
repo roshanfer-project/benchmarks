@@ -1,0 +1,738 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sidecar-configs
+data:
+  ms-12657.yaml: |
+    mapping:
+      benchmark.MS_12657/kiMcs4YawB:
+    ring_size: 1000
+    buffer_count: 1024
+    buffer_size: 80000
+    num_threads: 1
+    egress_listener_port: 4000
+    ingress_listener_port: 3000
+    ingress_upstream_host: localhost
+    ingress_upstream_port: 2000
+    report_latency: True
+    name: ms-12657
+    cpu_count: 1
+    over_commitment: 1.0
+    
+  ms-14758.yaml: |
+    mapping:
+      benchmark.MS_14758/Mu_jZ40NDv:
+    ring_size: 1000
+    buffer_count: 1024
+    buffer_size: 80000
+    num_threads: 1
+    egress_listener_port: 4000
+    ingress_listener_port: 3000
+    ingress_upstream_host: localhost
+    ingress_upstream_port: 2000
+    report_latency: True
+    name: ms-14758
+    cpu_count: 1
+    over_commitment: 1.0
+    
+  ms-18750.yaml: |
+    mapping:
+      benchmark.MS_18750/vs2nQhH1hq:
+    ring_size: 1000
+    buffer_count: 1024
+    buffer_size: 80000
+    num_threads: 1
+    egress_listener_port: 4000
+    ingress_listener_port: 3000
+    ingress_upstream_host: localhost
+    ingress_upstream_port: 2000
+    report_latency: True
+    name: ms-18750
+    cpu_count: 1
+    over_commitment: 1.0
+    
+  ms-19439.yaml: |
+    routing:
+      benchmark.MS_12657/kiMcs4YawB:
+        upstream:
+          host: alibaba-large-ms-12657
+          port: 3000
+      benchmark.MS_45067/wU2EZy8fzO:
+        upstream:
+          host: alibaba-large-ms-45067
+          port: 3000
+      benchmark.MS_7103/hnZO60j2rH:
+        upstream:
+          host: alibaba-large-ms-7103
+          port: 3000
+    mapping:
+      benchmark.MS_19439/KvuxGZYcwm:
+        downstreams:
+          - benchmark.MS_12657/kiMcs4YawB
+          - benchmark.MS_45067/wU2EZy8fzO
+          - benchmark.MS_7103/hnZO60j2rH
+      benchmark.MS_19439/ufXkUzqEz3:
+    ring_size: 1000
+    buffer_count: 1024
+    buffer_size: 80000
+    num_threads: 1
+    egress_listener_port: 4000
+    ingress_listener_port: 3000
+    ingress_upstream_host: localhost
+    ingress_upstream_port: 2000
+    report_latency: True
+    name: ms-19439
+    cpu_count: 1
+    over_commitment: 1.0
+    
+  ms-21298.yaml: |
+    routing:
+      benchmark.MS_25806/qQqbn5h_pP:
+        upstream:
+          host: alibaba-large-ms-25806
+          port: 3000
+    mapping:
+      benchmark.MS_21298/Te9DKpWLH7:
+      benchmark.MS_21298/qRB35KFger:
+        downstreams:
+          - benchmark.MS_25806/qQqbn5h_pP
+    ring_size: 1000
+    buffer_count: 1024
+    buffer_size: 80000
+    num_threads: 1
+    egress_listener_port: 4000
+    ingress_listener_port: 3000
+    ingress_upstream_host: localhost
+    ingress_upstream_port: 2000
+    report_latency: True
+    name: ms-21298
+    cpu_count: 1
+    over_commitment: 1.0
+    
+  ms-25781.yaml: |
+    routing:
+      benchmark.MS_7103/rswWe4AhfE:
+        upstream:
+          host: alibaba-large-ms-7103
+          port: 3000
+    mapping:
+      benchmark.MS_25781/qsLpARXiz2:
+        downstreams:
+          - benchmark.MS_7103/rswWe4AhfE
+    ring_size: 1000
+    buffer_count: 1024
+    buffer_size: 80000
+    num_threads: 1
+    egress_listener_port: 4000
+    ingress_listener_port: 3000
+    ingress_upstream_host: localhost
+    ingress_upstream_port: 2000
+    report_latency: True
+    name: ms-25781
+    cpu_count: 2
+    over_commitment: 1.0
+    
+  ms-25806.yaml: |
+    routing:
+      benchmark.MS_56113/F0bDDol0sG:
+        upstream:
+          host: alibaba-large-ms-56113
+          port: 3000
+    mapping:
+      benchmark.MS_25806/M0PIREyu4tb:
+      benchmark.MS_25806/FQN3ARekoW:
+        downstreams:
+          - benchmark.MS_56113/F0bDDol0sG
+      benchmark.MS_25806/qQqbn5h_pP:
+    ring_size: 1000
+    buffer_count: 1024
+    buffer_size: 80000
+    num_threads: 1
+    egress_listener_port: 4000
+    ingress_listener_port: 3000
+    ingress_upstream_host: localhost
+    ingress_upstream_port: 2000
+    report_latency: True
+    name: ms-25806
+    cpu_count: 3
+    over_commitment: 1.0
+    
+  ms-2687.yaml: |
+    mapping:
+      benchmark.MS_2687/VdboDuPbKj:
+    ring_size: 1000
+    buffer_count: 1024
+    buffer_size: 80000
+    num_threads: 1
+    egress_listener_port: 4000
+    ingress_listener_port: 3000
+    ingress_upstream_host: localhost
+    ingress_upstream_port: 2000
+    report_latency: True
+    name: ms-2687
+    cpu_count: 3
+    over_commitment: 1.0
+    
+  ms-33572.yaml: |
+    mapping:
+      benchmark.MS_33572/NdwV_io91H:
+    ring_size: 1000
+    buffer_count: 1024
+    buffer_size: 80000
+    num_threads: 1
+    egress_listener_port: 4000
+    ingress_listener_port: 3000
+    ingress_upstream_host: localhost
+    ingress_upstream_port: 2000
+    report_latency: True
+    name: ms-33572
+    cpu_count: 1
+    over_commitment: 1.0
+    
+  ms-38190.yaml: |
+    mapping:
+      benchmark.MS_38190/IC2Ei_gNaE:
+    ring_size: 1000
+    buffer_count: 1024
+    buffer_size: 80000
+    num_threads: 1
+    egress_listener_port: 4000
+    ingress_listener_port: 3000
+    ingress_upstream_host: localhost
+    ingress_upstream_port: 2000
+    report_latency: True
+    name: ms-38190
+    cpu_count: 1
+    over_commitment: 1.0
+    
+  ms-40087.yaml: |
+    mapping:
+      benchmark.MS_40087/M2QxmWDHq1o:
+      benchmark.MS_40087/M5ISZV1sCx:
+    ring_size: 1000
+    buffer_count: 1024
+    buffer_size: 80000
+    num_threads: 1
+    egress_listener_port: 4000
+    ingress_listener_port: 3000
+    ingress_upstream_host: localhost
+    ingress_upstream_port: 2000
+    report_latency: True
+    name: ms-40087
+    cpu_count: 3
+    over_commitment: 1.0
+    
+  ms-41667.yaml: |
+    mapping:
+      benchmark.MS_41667/bk01rUGHnE:
+    ring_size: 1000
+    buffer_count: 1024
+    buffer_size: 80000
+    num_threads: 1
+    egress_listener_port: 4000
+    ingress_listener_port: 3000
+    ingress_upstream_host: localhost
+    ingress_upstream_port: 2000
+    report_latency: True
+    name: ms-41667
+    cpu_count: 1
+    over_commitment: 1.0
+    
+  ms-43032.yaml: |
+    mapping:
+      benchmark.MS_43032/zSdnWDdKmj:
+    ring_size: 1000
+    buffer_count: 1024
+    buffer_size: 80000
+    num_threads: 1
+    egress_listener_port: 4000
+    ingress_listener_port: 3000
+    ingress_upstream_host: localhost
+    ingress_upstream_port: 2000
+    report_latency: True
+    name: ms-43032
+    cpu_count: 3
+    over_commitment: 1.0
+    
+  ms-43754.yaml: |
+    mapping:
+      benchmark.MS_43754/_Rm60xyryM:
+    ring_size: 1000
+    buffer_count: 1024
+    buffer_size: 80000
+    num_threads: 1
+    egress_listener_port: 4000
+    ingress_listener_port: 3000
+    ingress_upstream_host: localhost
+    ingress_upstream_port: 2000
+    report_latency: True
+    name: ms-43754
+    cpu_count: 1
+    over_commitment: 1.0
+    
+  ms-44246.yaml: |
+    mapping:
+      benchmark.MS_44246/nRLDYEHBqx:
+    ring_size: 1000
+    buffer_count: 1024
+    buffer_size: 80000
+    num_threads: 1
+    egress_listener_port: 4000
+    ingress_listener_port: 3000
+    ingress_upstream_host: localhost
+    ingress_upstream_port: 2000
+    report_latency: True
+    name: ms-44246
+    cpu_count: 3
+    over_commitment: 1.0
+    
+  ms-45067.yaml: |
+    mapping:
+      benchmark.MS_45067/wU2EZy8fzO:
+    ring_size: 1000
+    buffer_count: 1024
+    buffer_size: 80000
+    num_threads: 1
+    egress_listener_port: 4000
+    ingress_listener_port: 3000
+    ingress_upstream_host: localhost
+    ingress_upstream_port: 2000
+    report_latency: True
+    name: ms-45067
+    cpu_count: 1
+    over_commitment: 1.0
+    
+  ms-51783.yaml: |
+    mapping:
+      benchmark.MS_51783/zMa4ZJ012X:
+    ring_size: 1000
+    buffer_count: 1024
+    buffer_size: 80000
+    num_threads: 1
+    egress_listener_port: 4000
+    ingress_listener_port: 3000
+    ingress_upstream_host: localhost
+    ingress_upstream_port: 2000
+    report_latency: True
+    name: ms-51783
+    cpu_count: 1
+    over_commitment: 1.0
+    
+  ms-51787.yaml: |
+    routing:
+      benchmark.MS_25806/M0PIREyu4tb:
+        upstream:
+          host: alibaba-large-ms-25806
+          port: 3000
+      benchmark.MS_44246/nRLDYEHBqx:
+        upstream:
+          host: alibaba-large-ms-44246
+          port: 3000
+      benchmark.MS_56113/M0PIREyu4tb:
+        upstream:
+          host: alibaba-large-ms-56113
+          port: 3000
+      benchmark.MS_56113/KuU4P3BCru:
+        upstream:
+          host: alibaba-large-ms-56113
+          port: 3000
+    mapping:
+      benchmark.MS_51787/rypaFB4pfJ:
+        downstreams:
+          - benchmark.MS_25806/M0PIREyu4tb
+          - benchmark.MS_44246/nRLDYEHBqx
+          - benchmark.MS_56113/M0PIREyu4tb
+          - benchmark.MS_56113/KuU4P3BCru
+    ring_size: 1000
+    buffer_count: 1024
+    buffer_size: 80000
+    num_threads: 1
+    egress_listener_port: 4000
+    ingress_listener_port: 3000
+    ingress_upstream_host: localhost
+    ingress_upstream_port: 2000
+    report_latency: True
+    name: ms-51787
+    cpu_count: 1
+    over_commitment: 1.0
+    
+  ms-53792.yaml: |
+    routing:
+      benchmark.MS_41667/bk01rUGHnE:
+        upstream:
+          host: alibaba-large-ms-41667
+          port: 3000
+      benchmark.MS_5720/M4Cgy9S6B5O:
+        upstream:
+          host: alibaba-large-ms-5720
+          port: 3000
+    mapping:
+      benchmark.MS_53792/M8jkkxghEWB:
+        downstreams:
+          - benchmark.MS_41667/bk01rUGHnE
+          - benchmark.MS_5720/M4Cgy9S6B5O
+    ring_size: 1000
+    buffer_count: 1024
+    buffer_size: 80000
+    num_threads: 1
+    egress_listener_port: 4000
+    ingress_listener_port: 3000
+    ingress_upstream_host: localhost
+    ingress_upstream_port: 2000
+    report_latency: True
+    name: ms-53792
+    cpu_count: 1
+    over_commitment: 1.0
+    
+  ms-56113.yaml: |
+    mapping:
+      benchmark.MS_56113/M0PIREyu4tb:
+      benchmark.MS_56113/F0bDDol0sG:
+      benchmark.MS_56113/KuU4P3BCru:
+    ring_size: 1000
+    buffer_count: 1024
+    buffer_size: 80000
+    num_threads: 1
+    egress_listener_port: 4000
+    ingress_listener_port: 3000
+    ingress_upstream_host: localhost
+    ingress_upstream_port: 2000
+    report_latency: True
+    name: ms-56113
+    cpu_count: 4
+    over_commitment: 1.0
+    
+  ms-5720.yaml: |
+    routing:
+      benchmark.MS_33572/NdwV_io91H:
+        upstream:
+          host: alibaba-large-ms-33572
+          port: 3000
+    mapping:
+      benchmark.MS_5720/M4Cgy9S6B5O:
+        downstreams:
+          - benchmark.MS_33572/NdwV_io91H
+    ring_size: 1000
+    buffer_count: 1024
+    buffer_size: 80000
+    num_threads: 1
+    egress_listener_port: 4000
+    ingress_listener_port: 3000
+    ingress_upstream_host: localhost
+    ingress_upstream_port: 2000
+    report_latency: True
+    name: ms-5720
+    cpu_count: 3
+    over_commitment: 1.0
+    
+  ms-58796.yaml: |
+    routing:
+      benchmark.MS_38190/IC2Ei_gNaE:
+        upstream:
+          host: alibaba-large-ms-38190
+          port: 3000
+      benchmark.MS_7103/rswWe4AhfE:
+        upstream:
+          host: alibaba-large-ms-7103
+          port: 3000
+    mapping:
+      benchmark.MS_58796/abNb_B_h36:
+        downstreams:
+          - benchmark.MS_38190/IC2Ei_gNaE
+          - benchmark.MS_7103/rswWe4AhfE
+    ring_size: 1000
+    buffer_count: 1024
+    buffer_size: 80000
+    num_threads: 1
+    egress_listener_port: 4000
+    ingress_listener_port: 3000
+    ingress_upstream_host: localhost
+    ingress_upstream_port: 2000
+    report_latency: True
+    name: ms-58796
+    cpu_count: 1
+    over_commitment: 1.0
+    
+  ms-62039.yaml: |
+    routing:
+      benchmark.MS_18750/vs2nQhH1hq:
+        upstream:
+          host: alibaba-large-ms-18750
+          port: 3000
+    mapping:
+      benchmark.MS_62039/nK4gw2phix:
+        downstreams:
+          - benchmark.MS_18750/vs2nQhH1hq
+    ring_size: 1000
+    buffer_count: 1024
+    buffer_size: 80000
+    num_threads: 1
+    egress_listener_port: 4000
+    ingress_listener_port: 3000
+    ingress_upstream_host: localhost
+    ingress_upstream_port: 2000
+    report_latency: True
+    name: ms-62039
+    cpu_count: 1
+    over_commitment: 1.0
+    
+  ms-64512.yaml: |
+    routing:
+      benchmark.MS_14758/Mu_jZ40NDv:
+        upstream:
+          host: alibaba-large-ms-14758
+          port: 3000
+      benchmark.MS_19439/KvuxGZYcwm:
+        upstream:
+          host: alibaba-large-ms-19439
+          port: 3000
+      benchmark.MS_21298/Te9DKpWLH7:
+        upstream:
+          host: alibaba-large-ms-21298
+          port: 3000
+      benchmark.MS_21298/qRB35KFger:
+        upstream:
+          host: alibaba-large-ms-21298
+          port: 3000
+      benchmark.MS_25781/qsLpARXiz2:
+        upstream:
+          host: alibaba-large-ms-25781
+          port: 3000
+      benchmark.MS_25806/M0PIREyu4tb:
+        upstream:
+          host: alibaba-large-ms-25806
+          port: 3000
+      benchmark.MS_25806/FQN3ARekoW:
+        upstream:
+          host: alibaba-large-ms-25806
+          port: 3000
+      benchmark.MS_2687/VdboDuPbKj:
+        upstream:
+          host: alibaba-large-ms-2687
+          port: 3000
+      benchmark.MS_40087/M2QxmWDHq1o:
+        upstream:
+          host: alibaba-large-ms-40087
+          port: 3000
+      benchmark.MS_40087/M5ISZV1sCx:
+        upstream:
+          host: alibaba-large-ms-40087
+          port: 3000
+      benchmark.MS_43032/zSdnWDdKmj:
+        upstream:
+          host: alibaba-large-ms-43032
+          port: 3000
+      benchmark.MS_51783/zMa4ZJ012X:
+        upstream:
+          host: alibaba-large-ms-51783
+          port: 3000
+      benchmark.MS_51787/rypaFB4pfJ:
+        upstream:
+          host: alibaba-large-ms-51787
+          port: 3000
+      benchmark.MS_53792/M8jkkxghEWB:
+        upstream:
+          host: alibaba-large-ms-53792
+          port: 3000
+      benchmark.MS_58796/abNb_B_h36:
+        upstream:
+          host: alibaba-large-ms-58796
+          port: 3000
+      benchmark.MS_62039/nK4gw2phix:
+        upstream:
+          host: alibaba-large-ms-62039
+          port: 3000
+      benchmark.MS_66921/eFOECNqigM:
+        upstream:
+          host: alibaba-large-ms-66921
+          port: 3000
+      benchmark.MS_67465/wIe9cm5aqE:
+        upstream:
+          host: alibaba-large-ms-67465
+          port: 3000
+      benchmark.MS_70124/v0gqd6H7nw:
+        upstream:
+          host: alibaba-large-ms-70124
+          port: 3000
+      benchmark.MS_7103/rswWe4AhfE:
+        upstream:
+          host: alibaba-large-ms-7103
+          port: 3000
+      benchmark.MS_9105/ByihMu7_9Z:
+        upstream:
+          host: alibaba-large-ms-9105
+          port: 3000
+      benchmark.MS_9105/msD67GoyH2:
+        upstream:
+          host: alibaba-large-ms-9105
+          port: 3000
+    mapping:
+      Z8trRkp4mp:
+        downstreams:
+          - benchmark.MS_14758/Mu_jZ40NDv
+          - benchmark.MS_19439/KvuxGZYcwm
+          - benchmark.MS_21298/Te9DKpWLH7
+          - benchmark.MS_21298/qRB35KFger
+          - benchmark.MS_25781/qsLpARXiz2
+          - benchmark.MS_25806/M0PIREyu4tb
+          - benchmark.MS_25806/FQN3ARekoW
+          - benchmark.MS_2687/VdboDuPbKj
+          - benchmark.MS_40087/M2QxmWDHq1o
+          - benchmark.MS_40087/M5ISZV1sCx
+          - benchmark.MS_43032/zSdnWDdKmj
+          - benchmark.MS_51783/zMa4ZJ012X
+          - benchmark.MS_51787/rypaFB4pfJ
+          - benchmark.MS_53792/M8jkkxghEWB
+          - benchmark.MS_58796/abNb_B_h36
+          - benchmark.MS_62039/nK4gw2phix
+          - benchmark.MS_66921/eFOECNqigM
+          - benchmark.MS_67465/wIe9cm5aqE
+          - benchmark.MS_70124/v0gqd6H7nw
+          - benchmark.MS_7103/rswWe4AhfE
+          - benchmark.MS_9105/ByihMu7_9Z
+          - benchmark.MS_9105/msD67GoyH2
+    ring_size: 1000
+    buffer_count: 4096
+    buffer_size: 80000
+    num_threads: 1
+    egress_listener_port: 4000
+    ingress_listener_port: 3000
+    ingress_upstream_host: localhost
+    ingress_upstream_port: 2000
+    report_latency: True
+    name: ms-64512
+    is_frontend: True
+    frontend_pool_connections: 200
+    cpu_count: 1
+    over_commitment: 1.0
+    
+  ms-66921.yaml: |
+    routing:
+      benchmark.MS_43754/_Rm60xyryM:
+        upstream:
+          host: alibaba-large-ms-43754
+          port: 3000
+    mapping:
+      benchmark.MS_66921/eFOECNqigM:
+        downstreams:
+          - benchmark.MS_43754/_Rm60xyryM
+    ring_size: 1000
+    buffer_count: 1024
+    buffer_size: 80000
+    num_threads: 1
+    egress_listener_port: 4000
+    ingress_listener_port: 3000
+    ingress_upstream_host: localhost
+    ingress_upstream_port: 2000
+    report_latency: True
+    name: ms-66921
+    cpu_count: 1
+    over_commitment: 1.0
+    
+  ms-67465.yaml: |
+    routing:
+      benchmark.MS_19439/ufXkUzqEz3:
+        upstream:
+          host: alibaba-large-ms-19439
+          port: 3000
+    mapping:
+      benchmark.MS_67465/wIe9cm5aqE:
+        downstreams:
+          - benchmark.MS_19439/ufXkUzqEz3
+    ring_size: 1000
+    buffer_count: 1024
+    buffer_size: 80000
+    num_threads: 1
+    egress_listener_port: 4000
+    ingress_listener_port: 3000
+    ingress_upstream_host: localhost
+    ingress_upstream_port: 2000
+    report_latency: True
+    name: ms-67465
+    cpu_count: 1
+    over_commitment: 1.0
+    
+  ms-70124.yaml: |
+    routing:
+      benchmark.MS_56113/M0PIREyu4tb:
+        upstream:
+          host: alibaba-large-ms-56113
+          port: 3000
+    mapping:
+      benchmark.MS_70124/v0gqd6H7nw:
+        downstreams:
+          - benchmark.MS_56113/M0PIREyu4tb
+    ring_size: 1000
+    buffer_count: 1024
+    buffer_size: 80000
+    num_threads: 1
+    egress_listener_port: 4000
+    ingress_listener_port: 3000
+    ingress_upstream_host: localhost
+    ingress_upstream_port: 2000
+    report_latency: True
+    name: ms-70124
+    cpu_count: 1
+    over_commitment: 1.0
+    
+  ms-7103.yaml: |
+    mapping:
+      benchmark.MS_7103/hnZO60j2rH:
+      benchmark.MS_7103/rswWe4AhfE:
+    ring_size: 1000
+    buffer_count: 1024
+    buffer_size: 80000
+    num_threads: 1
+    egress_listener_port: 4000
+    ingress_listener_port: 3000
+    ingress_upstream_host: localhost
+    ingress_upstream_port: 2000
+    report_latency: True
+    name: ms-7103
+    cpu_count: 2
+    over_commitment: 1.0
+    
+  ms-9105.yaml: |
+    mapping:
+      benchmark.MS_9105/ByihMu7_9Z:
+      benchmark.MS_9105/msD67GoyH2:
+    ring_size: 1000
+    buffer_count: 1024
+    buffer_size: 80000
+    num_threads: 1
+    egress_listener_port: 4000
+    ingress_listener_port: 3000
+    ingress_upstream_host: localhost
+    ingress_upstream_port: 2000
+    report_latency: True
+    name: ms-9105
+    cpu_count: 1
+    over_commitment: 1.0
+    
+  ingress.yaml: |
+    routing:
+      Z8trRkp4mp:
+        upstream:
+          host: alibaba-large-ms-64512
+          port: 3000
+        slo: 1125
+        priority: 0
+    mapping:
+      Z8trRkp4mp:
+        downstreams:
+          - Z8trRkp4mp
+        listen_port: 3000
+    ring_size: 4000
+    buffer_count: 16384
+    buffer_size: 10000
+    num_threads: 1
+    ingress_pool_connections: 200
+    egress_listener_port: 3000
+    ingress_listener_port: 4000
+    ingress_upstream_host: localhost
+    ingress_upstream_port: 2000
+    is_ingress: True
+    is_frontend: False
+    report_latency: True
+    name: ingress
+    

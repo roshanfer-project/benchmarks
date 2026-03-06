@@ -16,6 +16,12 @@ fi
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT_DIR"
 
+if [ -d "../sidecar" ]; then
+  echo "Building sidecar..."
+  (cd ../sidecar && ./build.sh Release)
+  docker build -f ../sidecar/Dockerfile -t "${REGISTRY}/sidecar-sidecar:${TAG}" ../sidecar
+fi
+
 echo "Building MS_12657..."
 docker build --build-arg SERVICE=services/MS_12657 -f Dockerfile -t "${REGISTRY}/${BENCH}-ms-12657:${TAG}" .
 echo "Building MS_14758..."
@@ -76,6 +82,9 @@ echo "Building MS_9105..."
 docker build --build-arg SERVICE=services/MS_9105 -f Dockerfile -t "${REGISTRY}/${BENCH}-ms-9105:${TAG}" .
 
 echo "Pushing images..."
+if [ -d "../sidecar" ]; then
+  docker push "${REGISTRY}/sidecar-sidecar:${TAG}"
+fi
 docker push "${REGISTRY}/${BENCH}-ms-12657:${TAG}"
 docker push "${REGISTRY}/${BENCH}-ms-14758:${TAG}"
 docker push "${REGISTRY}/${BENCH}-ms-18750:${TAG}"

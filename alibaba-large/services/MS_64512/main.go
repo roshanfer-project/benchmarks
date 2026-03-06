@@ -6,6 +6,9 @@ import (
 	"alibabalarge/pkg"
 	pb "alibabalarge/protobuf"
 	"alibabalarge/utils"
+
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 )
 
 type Server struct {
@@ -35,47 +38,97 @@ var log = utils.GetLogger(serviceName)
 
 func (s *Server) Run() error {
 	log.Info("Initializing HTTP server...")
-	conn := pkg.GetConn(utils.GetEnvVar("MS_14758_ADDR", true))
+	sidecar := utils.GetEnvVar("sidecar", false) == "true"
+	var conn *grpc.ClientConn
+	if sidecar {
+		conn = pkg.GetConn(utils.GetEnvVar("MS_64512_EGRESS", true))
+	}
+	if !sidecar {
+		conn = pkg.GetConn(utils.GetEnvVar("MS_14758_ADDR", true))
+	}
 	s.MS_14758Client = pb.NewMS_14758Client(conn)
-	conn = pkg.GetConn(utils.GetEnvVar("MS_19439_ADDR", true))
+	if !sidecar {
+		conn = pkg.GetConn(utils.GetEnvVar("MS_19439_ADDR", true))
+	}
 	s.MS_19439Client = pb.NewMS_19439Client(conn)
-	conn = pkg.GetConn(utils.GetEnvVar("MS_21298_ADDR", true))
+	if !sidecar {
+		conn = pkg.GetConn(utils.GetEnvVar("MS_21298_ADDR", true))
+	}
 	s.MS_21298Client = pb.NewMS_21298Client(conn)
-	conn = pkg.GetConn(utils.GetEnvVar("MS_25781_ADDR", true))
+	if !sidecar {
+		conn = pkg.GetConn(utils.GetEnvVar("MS_25781_ADDR", true))
+	}
 	s.MS_25781Client = pb.NewMS_25781Client(conn)
-	conn = pkg.GetConn(utils.GetEnvVar("MS_25806_ADDR", true))
+	if !sidecar {
+		conn = pkg.GetConn(utils.GetEnvVar("MS_25806_ADDR", true))
+	}
 	s.MS_25806Client = pb.NewMS_25806Client(conn)
-	conn = pkg.GetConn(utils.GetEnvVar("MS_2687_ADDR", true))
+	if !sidecar {
+		conn = pkg.GetConn(utils.GetEnvVar("MS_2687_ADDR", true))
+	}
 	s.MS_2687Client = pb.NewMS_2687Client(conn)
-	conn = pkg.GetConn(utils.GetEnvVar("MS_40087_ADDR", true))
+	if !sidecar {
+		conn = pkg.GetConn(utils.GetEnvVar("MS_40087_ADDR", true))
+	}
 	s.MS_40087Client = pb.NewMS_40087Client(conn)
-	conn = pkg.GetConn(utils.GetEnvVar("MS_43032_ADDR", true))
+	if !sidecar {
+		conn = pkg.GetConn(utils.GetEnvVar("MS_43032_ADDR", true))
+	}
 	s.MS_43032Client = pb.NewMS_43032Client(conn)
-	conn = pkg.GetConn(utils.GetEnvVar("MS_51783_ADDR", true))
+	if !sidecar {
+		conn = pkg.GetConn(utils.GetEnvVar("MS_51783_ADDR", true))
+	}
 	s.MS_51783Client = pb.NewMS_51783Client(conn)
-	conn = pkg.GetConn(utils.GetEnvVar("MS_51787_ADDR", true))
+	if !sidecar {
+		conn = pkg.GetConn(utils.GetEnvVar("MS_51787_ADDR", true))
+	}
 	s.MS_51787Client = pb.NewMS_51787Client(conn)
-	conn = pkg.GetConn(utils.GetEnvVar("MS_53792_ADDR", true))
+	if !sidecar {
+		conn = pkg.GetConn(utils.GetEnvVar("MS_53792_ADDR", true))
+	}
 	s.MS_53792Client = pb.NewMS_53792Client(conn)
-	conn = pkg.GetConn(utils.GetEnvVar("MS_58796_ADDR", true))
+	if !sidecar {
+		conn = pkg.GetConn(utils.GetEnvVar("MS_58796_ADDR", true))
+	}
 	s.MS_58796Client = pb.NewMS_58796Client(conn)
-	conn = pkg.GetConn(utils.GetEnvVar("MS_62039_ADDR", true))
+	if !sidecar {
+		conn = pkg.GetConn(utils.GetEnvVar("MS_62039_ADDR", true))
+	}
 	s.MS_62039Client = pb.NewMS_62039Client(conn)
-	conn = pkg.GetConn(utils.GetEnvVar("MS_66921_ADDR", true))
+	if !sidecar {
+		conn = pkg.GetConn(utils.GetEnvVar("MS_66921_ADDR", true))
+	}
 	s.MS_66921Client = pb.NewMS_66921Client(conn)
-	conn = pkg.GetConn(utils.GetEnvVar("MS_67465_ADDR", true))
+	if !sidecar {
+		conn = pkg.GetConn(utils.GetEnvVar("MS_67465_ADDR", true))
+	}
 	s.MS_67465Client = pb.NewMS_67465Client(conn)
-	conn = pkg.GetConn(utils.GetEnvVar("MS_70124_ADDR", true))
+	if !sidecar {
+		conn = pkg.GetConn(utils.GetEnvVar("MS_70124_ADDR", true))
+	}
 	s.MS_70124Client = pb.NewMS_70124Client(conn)
-	conn = pkg.GetConn(utils.GetEnvVar("MS_7103_ADDR", true))
+	if !sidecar {
+		conn = pkg.GetConn(utils.GetEnvVar("MS_7103_ADDR", true))
+	}
 	s.MS_7103Client = pb.NewMS_7103Client(conn)
-	conn = pkg.GetConn(utils.GetEnvVar("MS_9105_ADDR", true))
+	if !sidecar {
+		conn = pkg.GetConn(utils.GetEnvVar("MS_9105_ADDR", true))
+	}
 	s.MS_9105Client = pb.NewMS_9105Client(conn)
 
+	port := 2000
+	if sidecar {
+		port = utils.StrToInt(utils.GetEnvVar("MS_64512_PORT", true))
+	}
 	mux := http.NewServeMux()
-	mux.Handle("/Z8trRkp4mp", http.HandlerFunc(s.handler))
+	var handler http.Handler = http.HandlerFunc(s.handler)
+	if sidecar && utils.GetEnvVar("queuing_export", false) == "true" {
+		counter := utils.NewCounterState(serviceName)
+		handler = counter.GetHTTP1Middleware()(handler)
+	}
+	mux.Handle("/Z8trRkp4mp", handler)
 	srv := &http.Server{
-		Addr:    fmt.Sprintf(":%d", 2000),
+		Addr:    fmt.Sprintf(":%d", port),
 		Handler: mux,
 	}
 	log.Info("Serving HTTP")
@@ -83,8 +136,18 @@ func (s *Server) Run() error {
 }
 
 func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
-	utils.BusyLoop(288)
 	ctx := r.Context()
+	sidecar := utils.GetEnvVar("sidecar", false) == "true"
+	var rpcID string
+	if sidecar {
+		rpcID = r.Header.Get("rpc-id")
+		if rpcID == "" {
+			http.Error(w, "rpc-id header required", http.StatusBadRequest)
+			return
+		}
+	}
+	ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("method", "Z8trRkp4mp", "rpc-id", rpcID))
+	utils.BusyLoop(288)
 	req := &pb.Request{}
 	var err error
 	_, err = s.MS_14758Client.MuJZ40NDv(ctx, req)

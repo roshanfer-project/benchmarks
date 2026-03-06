@@ -25,16 +25,43 @@ var log = utils.GetLogger(serviceName)
 func (s *Server) Run() error {
 	log.Info("Initializing gRPC server...")
 	opts := pkg.GetServerOptions()
+	sidecar := utils.GetEnvVar("sidecar", false) == "true"
+	queuingExport := utils.GetEnvVar("queuing_export", false) == "true"
+	if sidecar {
+		if queuingExport {
+			opts = append(opts, grpc.ChainUnaryInterceptor(
+				utils.ContextPropagationInterceptor(),
+				utils.NewCounterState(serviceName).GetInterceptor()))
+		} else {
+			opts = append(opts, grpc.UnaryInterceptor(utils.ContextPropagationInterceptor()))
+		}
+	} else {
+		opts = append(opts, grpc.ChainUnaryInterceptor(
+			utils.ContextPropagationInterceptor(),
+			utils.NewCounterState(serviceName).GetInterceptor()))
+	}
 	srv := grpc.NewServer(opts...)
 	pb.RegisterMS_53792Server(srv, s)
 	var conn *grpc.ClientConn
-	conn = pkg.GetConn(utils.GetEnvVar("MS_41667_ADDR", true))
+	if sidecar {
+		conn = pkg.GetConn(utils.GetEnvVar("MS_53792_EGRESS", true))
+	}
+	if !sidecar {
+		conn = pkg.GetConn(utils.GetEnvVar("MS_41667_ADDR", true))
+	}
 	s.MS_41667Client = pb.NewMS_41667Client(conn)
-	conn = pkg.GetConn(utils.GetEnvVar("MS_5720_ADDR", true))
+	if !sidecar {
+		conn = pkg.GetConn(utils.GetEnvVar("MS_5720_ADDR", true))
+	}
 	s.MS_5720Client = pb.NewMS_5720Client(conn)
 
+
 	reflection.Register(srv)
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", 2000))
+	port := 2000
+	if sidecar {
+		port = utils.StrToInt(utils.GetEnvVar("MS_53792_PORT", true))
+	}
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
 		return fmt.Errorf("failed to listen: %v", err)
 	}
