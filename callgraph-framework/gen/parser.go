@@ -13,16 +13,27 @@ const defaultAvgRT = 1.0
 const busyLoopScale = 320
 
 type CallGraph struct {
-	Nodes []Node `json:"nodes"`
-	Edges []Edge `json:"edges"`
+	Nodes []ServiceNode `json:"nodes"`
+	Edges []Edge        `json:"edges"`
+}
+
+type ServiceNode struct {
+	ID         string      `json:"id"`
+	Interfaces []Interface `json:"interfaces"`
+	CPU        int         `json:"cpu"`
+}
+
+type Interface struct {
+	Name  string  `json:"name"`
+	AvgRT float64 `json:"avg_rt"`
 }
 
 type Node struct {
-	ID           string  `json:"id"`
-	Microservice string  `json:"microservice"`
-	Interface    string  `json:"interface"`
-	AvgRT        float64 `json:"avg_rt"`
-	CPU          int     `json:"cpu"`
+	ID           string
+	Microservice string
+	Interface    string
+	AvgRT        float64
+	CPU          int
 }
 
 type Edge struct {
@@ -55,18 +66,29 @@ func buildParsedGraph(cg *CallGraph) (*ParsedGraph, error) {
 		Services: make(map[string][]*Node),
 	}
 	for i := range cg.Nodes {
-		n := &cg.Nodes[i]
-		if n.AvgRT == 0 {
-			n.AvgRT = defaultAvgRT
+		svc := &cg.Nodes[i]
+		cpu := svc.CPU
+		if cpu == 0 {
+			cpu = 1
 		}
-		if n.CPU == 0 {
-			n.CPU = 1
-		}
-		if n.ID == "USER" {
+		if svc.ID == "USER" {
 			continue
 		}
-		pg.Nodes[n.ID] = n
-		pg.Services[n.Microservice] = append(pg.Services[n.Microservice], n)
+		for _, iface := range svc.Interfaces {
+			avgRT := iface.AvgRT
+			if avgRT == 0 {
+				avgRT = defaultAvgRT
+			}
+			node := &Node{
+				ID:           svc.ID + ":" + iface.Name,
+				Microservice: svc.ID,
+				Interface:    iface.Name,
+				AvgRT:        avgRT,
+				CPU:          cpu,
+			}
+			pg.Nodes[node.ID] = node
+			pg.Services[svc.ID] = append(pg.Services[svc.ID], node)
+		}
 	}
 	for _, e := range cg.Edges {
 		if e.Source == "USER" {

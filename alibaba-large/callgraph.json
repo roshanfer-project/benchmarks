@@ -1,499 +1,221 @@
 {
-    "nodes": [
-      {
-        "id": "MS_12657:kiMcs4YawB",
-        "microservice": "MS_12657",
-        "interface": "kiMcs4YawB",
-        "avg_rt": 1.38
-      },
-      {
-        "id": "MS_14758:Mu-jZ40NDv",
-        "microservice": "MS_14758",
-        "interface": "Mu-jZ40NDv",
-        "avg_rt": 2.0
-      },
-      {
-        "id": "MS_18750:vs2nQhH1hq",
-        "microservice": "MS_18750",
-        "interface": "vs2nQhH1hq",
-        "avg_rt": 1.5
-      },
-      {
-        "id": "MS_19439:KvuxGZYcwm",
-        "microservice": "MS_19439",
-        "interface": "KvuxGZYcwm",
-        "avg_rt": 1.96
-      },
-      {
-        "id": "MS_19439:ufXkUzqEz3",
-        "microservice": "MS_19439",
-        "interface": "ufXkUzqEz3",
-        "avg_rt": 1.24
-      },
-      {
-        "id": "MS_21298:Te9DKpWLH7",
-        "microservice": "MS_21298",
-        "interface": "Te9DKpWLH7",
-        "avg_rt": 1.73
-      },
-      {
-        "id": "MS_21298:qRB35KFger",
-        "microservice": "MS_21298",
-        "interface": "qRB35KFger",
-        "avg_rt": 1.5
-      },
-      {
-        "id": "MS_25781:qsLpARXiz2",
-        "microservice": "MS_25781",
-        "interface": "qsLpARXiz2",
-        "avg_rt": 2.69
-      },
-      {
-        "id": "MS_25806:0PIREyu4tb",
-        "microservice": "MS_25806",
-        "interface": "0PIREyu4tb",
-        "avg_rt": 1.79
-      },
-      {
-        "id": "MS_25806:FQN3ARekoW",
-        "microservice": "MS_25806",
-        "interface": "FQN3ARekoW",
-        "avg_rt": 1.49
-      },
-      {
-        "id": "MS_25806:qQqbn5h_pP",
-        "microservice": "MS_25806",
-        "interface": "qQqbn5h_pP",
-        "avg_rt": 2.88,
-        "cpu": 2
-      },
-      {
-        "id": "MS_2687:VdboDuPbKj",
-        "microservice": "MS_2687",
-        "interface": "VdboDuPbKj",
-        "avg_rt": 2.93
-      },
-      {
-        "id": "MS_33572:NdwV_io91H",
-        "microservice": "MS_33572",
-        "interface": "NdwV_io91H",
-        "avg_rt": 2.5
-      },
-      {
-        "id": "MS_38190:IC2Ei_gNaE",
-        "microservice": "MS_38190",
-        "interface": "IC2Ei_gNaE",
-        "avg_rt": 0.66
-      },
-      {
-        "id": "MS_40087:2QxmWDHq1o",
-        "microservice": "MS_40087",
-        "interface": "2QxmWDHq1o",
-        "avg_rt": 1.62,
-        "cpu": 2
-      },
-      {
-        "id": "MS_40087:M5ISZV1sCx",
-        "microservice": "MS_40087",
-        "interface": "M5ISZV1sCx",
-        "avg_rt": 2.92,
-        "cpu": 2
-      },
-      {
-        "id": "MS_41667:bk01rUGHnE",
-        "microservice": "MS_41667",
-        "interface": "bk01rUGHnE",
-        "avg_rt": 1.03
-      },
-      {
-        "id": "MS_43032:zSdnWDdKmj",
-        "microservice": "MS_43032",
-        "interface": "zSdnWDdKmj",
-        "avg_rt": 3.96
-      },
-      {
-        "id": "MS_43754:-Rm60xyryM",
-        "microservice": "MS_43754",
-        "interface": "-Rm60xyryM",
-        "avg_rt": 2.68
-      },
-      {
-        "id": "MS_44246:nRLDYEHBqx",
-        "microservice": "MS_44246",
-        "interface": "nRLDYEHBqx",
-        "avg_rt": 1.9
-      },
-      {
-        "id": "MS_45067:wU2EZy8fzO",
-        "microservice": "MS_45067",
-        "interface": "wU2EZy8fzO",
-        "avg_rt": 3.27
-      },
-      {
-        "id": "MS_51783:zMa4ZJ012X",
-        "microservice": "MS_51783",
-        "interface": "zMa4ZJ012X",
-        "avg_rt": 3.39
-      },
-      {
-        "id": "MS_51787:rypaFB4pfJ",
-        "microservice": "MS_51787",
-        "interface": "rypaFB4pfJ",
-        "avg_rt": 1.12
-      },
-      {
-        "id": "MS_53792:8jkkxghEWB",
-        "microservice": "MS_53792",
-        "interface": "8jkkxghEWB",
-        "avg_rt": 1.7
-      },
-      {
-        "id": "MS_56113:0PIREyu4tb",
-        "microservice": "MS_56113",
-        "interface": "0PIREyu4tb",
-        "avg_rt": 1.75,
-        "cpu": 2
-      },
-      {
-        "id": "MS_56113:F0bDDol0sG",
-        "microservice": "MS_56113",
-        "interface": "F0bDDol0sG",
-        "avg_rt": 3.0,
-        "cpu": 2
-      },
-      {
-        "id": "MS_56113:KuU4P3BCru",
-        "microservice": "MS_56113",
-        "interface": "KuU4P3BCru",
-        "avg_rt": 1.81,
-        "cpu": 2
-      },
-      {
-        "id": "MS_5720:4Cgy9S6B5O",
-        "microservice": "MS_5720",
-        "interface": "4Cgy9S6B5O",
-        "avg_rt": 3.25
-      },
-      {
-        "id": "MS_58796:abNb-B-h36",
-        "microservice": "MS_58796",
-        "interface": "abNb-B-h36",
-        "avg_rt": 1.54
-      },
-      {
-        "id": "MS_62039:nK4gw2phix",
-        "microservice": "MS_62039",
-        "interface": "nK4gw2phix",
-        "avg_rt": 2.92
-      },
-      {
-        "id": "USER",
-        "microservice": "USER",
-        "interface": "USER"
-      },
-      {
-        "id": "MS_64512:Z8trRkp4mp",
-        "microservice": "MS_64512",
-        "interface": "Z8trRkp4mp",
-        "avg_rt": 0.9
-      },
-      {
-        "id": "MS_66921:eFOECNqigM",
-        "microservice": "MS_66921",
-        "interface": "eFOECNqigM",
-        "avg_rt": 1.06
-      },
-      {
-        "id": "MS_67465:wIe9cm5aqE",
-        "microservice": "MS_67465",
-        "interface": "wIe9cm5aqE",
-        "avg_rt": 1.85
-      },
-      {
-        "id": "MS_70124:v0gqd6H7nw",
-        "microservice": "MS_70124",
-        "interface": "v0gqd6H7nw",
-        "avg_rt": 3.64
-      },
-      {
-        "id": "MS_7103:hnZO60j2rH",
-        "microservice": "MS_7103",
-        "interface": "hnZO60j2rH",
-        "avg_rt": 2.17,
-        "cpu": 2
-      },
-      {
-        "id": "MS_7103:rswWe4AhfE",
-        "microservice": "MS_7103",
-        "interface": "rswWe4AhfE",
-        "avg_rt": 2.16,
-        "cpu": 2
-      },
-      {
-        "id": "MS_9105:ByihMu7_9Z",
-        "microservice": "MS_9105",
-        "interface": "ByihMu7_9Z",
-        "avg_rt": 2.24
-      },
-      {
-        "id": "MS_9105:msD67GoyH2",
-        "microservice": "MS_9105",
-        "interface": "msD67GoyH2",
-        "avg_rt": 1.88
-      }
-    ],
-    "edges": [
-      {
-        "source": "MS_19439:KvuxGZYcwm",
-        "target": "MS_12657:kiMcs4YawB",
-        "rpctype": "rpc",
-        "weight": 1
-      },
-      {
-        "source": "MS_19439:KvuxGZYcwm",
-        "target": "MS_45067:wU2EZy8fzO",
-        "rpctype": "rpc",
-        "weight": 1
-      },
-      {
-        "source": "MS_19439:KvuxGZYcwm",
-        "target": "MS_7103:hnZO60j2rH",
-        "rpctype": "rpc",
-        "weight": 1
-      },
-      {
-        "source": "MS_21298:qRB35KFger",
-        "target": "MS_25806:qQqbn5h_pP",
-        "rpctype": "rpc",
-        "weight": 1
-      },
-      {
-        "source": "MS_25781:qsLpARXiz2",
-        "target": "MS_7103:rswWe4AhfE",
-        "rpctype": "rpc",
-        "weight": 1
-      },
-      {
-        "source": "MS_25806:FQN3ARekoW",
-        "target": "MS_56113:F0bDDol0sG",
-        "rpctype": "rpc",
-        "weight": 1
-      },
-      {
-        "source": "MS_51787:rypaFB4pfJ",
-        "target": "MS_25806:0PIREyu4tb",
-        "rpctype": "rpc",
-        "weight": 1
-      },
-      {
-        "source": "MS_51787:rypaFB4pfJ",
-        "target": "MS_44246:nRLDYEHBqx",
-        "rpctype": "rpc",
-        "weight": 1
-      },
-      {
-        "source": "MS_51787:rypaFB4pfJ",
-        "target": "MS_56113:0PIREyu4tb",
-        "rpctype": "rpc",
-        "weight": 1
-      },
-      {
-        "source": "MS_51787:rypaFB4pfJ",
-        "target": "MS_56113:KuU4P3BCru",
-        "rpctype": "rpc",
-        "weight": 1
-      },
-      {
-        "source": "MS_53792:8jkkxghEWB",
-        "target": "MS_41667:bk01rUGHnE",
-        "rpctype": "rpc",
-        "weight": 1
-      },
-      {
-        "source": "MS_53792:8jkkxghEWB",
-        "target": "MS_5720:4Cgy9S6B5O",
-        "rpctype": "rpc",
-        "weight": 1
-      },
-      {
-        "source": "MS_5720:4Cgy9S6B5O",
-        "target": "MS_33572:NdwV_io91H",
-        "rpctype": "rpc",
-        "weight": 1
-      },
-      {
-        "source": "MS_58796:abNb-B-h36",
-        "target": "MS_38190:IC2Ei_gNaE",
-        "rpctype": "rpc",
-        "weight": 1
-      },
-      {
-        "source": "MS_58796:abNb-B-h36",
-        "target": "MS_7103:rswWe4AhfE",
-        "rpctype": "rpc",
-        "weight": 1
-      },
-      {
-        "source": "MS_62039:nK4gw2phix",
-        "target": "MS_18750:vs2nQhH1hq",
-        "rpctype": "rpc",
-        "weight": 1
-      },
-      {
-        "source": "USER",
-        "target": "MS_64512:Z8trRkp4mp",
-        "rpctype": "rpc",
-        "weight": 1
-      },
-      {
-        "source": "MS_64512:Z8trRkp4mp",
-        "target": "MS_14758:Mu-jZ40NDv",
-        "rpctype": "rpc",
-        "weight": 1
-      },
-      {
-        "source": "MS_64512:Z8trRkp4mp",
-        "target": "MS_19439:KvuxGZYcwm",
-        "rpctype": "rpc",
-        "weight": 1
-      },
-      {
-        "source": "MS_64512:Z8trRkp4mp",
-        "target": "MS_21298:Te9DKpWLH7",
-        "rpctype": "rpc",
-        "weight": 1
-      },
-      {
-        "source": "MS_64512:Z8trRkp4mp",
-        "target": "MS_21298:qRB35KFger",
-        "rpctype": "rpc",
-        "weight": 1
-      },
-      {
-        "source": "MS_64512:Z8trRkp4mp",
-        "target": "MS_25781:qsLpARXiz2",
-        "rpctype": "rpc",
-        "weight": 1
-      },
-      {
-        "source": "MS_64512:Z8trRkp4mp",
-        "target": "MS_25806:0PIREyu4tb",
-        "rpctype": "rpc",
-        "weight": 1
-      },
-      {
-        "source": "MS_64512:Z8trRkp4mp",
-        "target": "MS_25806:FQN3ARekoW",
-        "rpctype": "rpc",
-        "weight": 1
-      },
-      {
-        "source": "MS_64512:Z8trRkp4mp",
-        "target": "MS_2687:VdboDuPbKj",
-        "rpctype": "rpc",
-        "weight": 1
-      },
-      {
-        "source": "MS_64512:Z8trRkp4mp",
-        "target": "MS_40087:2QxmWDHq1o",
-        "rpctype": "rpc",
-        "weight": 1
-      },
-      {
-        "source": "MS_64512:Z8trRkp4mp",
-        "target": "MS_40087:M5ISZV1sCx",
-        "rpctype": "rpc",
-        "weight": 1
-      },
-      {
-        "source": "MS_64512:Z8trRkp4mp",
-        "target": "MS_43032:zSdnWDdKmj",
-        "rpctype": "rpc",
-        "weight": 1
-      },
-      {
-        "source": "MS_64512:Z8trRkp4mp",
-        "target": "MS_51783:zMa4ZJ012X",
-        "rpctype": "rpc",
-        "weight": 1
-      },
-      {
-        "source": "MS_64512:Z8trRkp4mp",
-        "target": "MS_51787:rypaFB4pfJ",
-        "rpctype": "rpc",
-        "weight": 1
-      },
-      {
-        "source": "MS_64512:Z8trRkp4mp",
-        "target": "MS_53792:8jkkxghEWB",
-        "rpctype": "rpc",
-        "weight": 1
-      },
-      {
-        "source": "MS_64512:Z8trRkp4mp",
-        "target": "MS_58796:abNb-B-h36",
-        "rpctype": "rpc",
-        "weight": 1
-      },
-      {
-        "source": "MS_64512:Z8trRkp4mp",
-        "target": "MS_62039:nK4gw2phix",
-        "rpctype": "rpc",
-        "weight": 1
-      },
-      {
-        "source": "MS_64512:Z8trRkp4mp",
-        "target": "MS_66921:eFOECNqigM",
-        "rpctype": "rpc",
-        "weight": 1
-      },
-      {
-        "source": "MS_64512:Z8trRkp4mp",
-        "target": "MS_67465:wIe9cm5aqE",
-        "rpctype": "rpc",
-        "weight": 1
-      },
-      {
-        "source": "MS_64512:Z8trRkp4mp",
-        "target": "MS_70124:v0gqd6H7nw",
-        "rpctype": "rpc",
-        "weight": 1
-      },
-      {
-        "source": "MS_64512:Z8trRkp4mp",
-        "target": "MS_7103:rswWe4AhfE",
-        "rpctype": "rpc",
-        "weight": 1
-      },
-      {
-        "source": "MS_64512:Z8trRkp4mp",
-        "target": "MS_9105:ByihMu7_9Z",
-        "rpctype": "rpc",
-        "weight": 1
-      },
-      {
-        "source": "MS_64512:Z8trRkp4mp",
-        "target": "MS_9105:msD67GoyH2",
-        "rpctype": "rpc",
-        "weight": 1
-      },
-      {
-        "source": "MS_66921:eFOECNqigM",
-        "target": "MS_43754:-Rm60xyryM",
-        "rpctype": "rpc",
-        "weight": 1
-      },
-      {
-        "source": "MS_67465:wIe9cm5aqE",
-        "target": "MS_19439:ufXkUzqEz3",
-        "rpctype": "rpc",
-        "weight": 11
-      },
-      {
-        "source": "MS_70124:v0gqd6H7nw",
-        "target": "MS_56113:0PIREyu4tb",
-        "rpctype": "rpc",
-        "weight": 1
-      }
-    ]
-  }
+  "nodes": [
+    {
+      "id": "MS_12657",
+      "interfaces": [{"name": "kiMcs4YawB", "avg_rt": 1.38}],
+      "cpu": 1
+    },
+    {
+      "id": "MS_14758",
+      "interfaces": [{"name": "Mu-jZ40NDv", "avg_rt": 2.0}],
+      "cpu": 1
+    },
+    {
+      "id": "MS_18750",
+      "interfaces": [{"name": "vs2nQhH1hq", "avg_rt": 1.5}],
+      "cpu": 1
+    },
+    {
+      "id": "MS_19439",
+      "interfaces": [
+        {"name": "KvuxGZYcwm", "avg_rt": 1.96},
+        {"name": "ufXkUzqEz3", "avg_rt": 1.24}
+      ],
+      "cpu": 1
+    },
+    {
+      "id": "MS_21298",
+      "interfaces": [
+        {"name": "Te9DKpWLH7", "avg_rt": 1.73},
+        {"name": "qRB35KFger", "avg_rt": 1.5}
+      ],
+      "cpu": 1
+    },
+    {
+      "id": "MS_25781",
+      "interfaces": [{"name": "qsLpARXiz2", "avg_rt": 2.69}],
+      "cpu": 1
+    },
+    {
+      "id": "MS_25806",
+      "interfaces": [
+        {"name": "0PIREyu4tb", "avg_rt": 1.79},
+        {"name": "FQN3ARekoW", "avg_rt": 1.49},
+        {"name": "qQqbn5h_pP", "avg_rt": 2.88}
+      ],
+      "cpu": 2
+    },
+    {
+      "id": "MS_2687",
+      "interfaces": [{"name": "VdboDuPbKj", "avg_rt": 2.93}],
+      "cpu": 1
+    },
+    {
+      "id": "MS_33572",
+      "interfaces": [{"name": "NdwV_io91H", "avg_rt": 2.5}],
+      "cpu": 1
+    },
+    {
+      "id": "MS_38190",
+      "interfaces": [{"name": "IC2Ei_gNaE", "avg_rt": 0.66}],
+      "cpu": 1
+    },
+    {
+      "id": "MS_40087",
+      "interfaces": [
+        {"name": "2QxmWDHq1o", "avg_rt": 1.62},
+        {"name": "M5ISZV1sCx", "avg_rt": 2.92}
+      ],
+      "cpu": 2
+    },
+    {
+      "id": "MS_41667",
+      "interfaces": [{"name": "bk01rUGHnE", "avg_rt": 1.03}],
+      "cpu": 1
+    },
+    {
+      "id": "MS_43032",
+      "interfaces": [{"name": "zSdnWDdKmj", "avg_rt": 3.96}],
+      "cpu": 1
+    },
+    {
+      "id": "MS_43754",
+      "interfaces": [{"name": "-Rm60xyryM", "avg_rt": 2.68}],
+      "cpu": 1
+    },
+    {
+      "id": "MS_44246",
+      "interfaces": [{"name": "nRLDYEHBqx", "avg_rt": 1.9}],
+      "cpu": 1
+    },
+    {
+      "id": "MS_45067",
+      "interfaces": [{"name": "wU2EZy8fzO", "avg_rt": 3.27}],
+      "cpu": 1
+    },
+    {
+      "id": "MS_51783",
+      "interfaces": [{"name": "zMa4ZJ012X", "avg_rt": 3.39}],
+      "cpu": 1
+    },
+    {
+      "id": "MS_51787",
+      "interfaces": [{"name": "rypaFB4pfJ", "avg_rt": 1.12}],
+      "cpu": 1
+    },
+    {
+      "id": "MS_53792",
+      "interfaces": [{"name": "8jkkxghEWB", "avg_rt": 1.7}],
+      "cpu": 1
+    },
+    {
+      "id": "MS_56113",
+      "interfaces": [
+        {"name": "0PIREyu4tb", "avg_rt": 1.75},
+        {"name": "F0bDDol0sG", "avg_rt": 3.0},
+        {"name": "KuU4P3BCru", "avg_rt": 1.81}
+      ],
+      "cpu": 2
+    },
+    {
+      "id": "MS_5720",
+      "interfaces": [{"name": "4Cgy9S6B5O", "avg_rt": 3.25}],
+      "cpu": 1
+    },
+    {
+      "id": "MS_58796",
+      "interfaces": [{"name": "abNb-B-h36", "avg_rt": 1.54}],
+      "cpu": 1
+    },
+    {
+      "id": "MS_62039",
+      "interfaces": [{"name": "nK4gw2phix", "avg_rt": 2.92}],
+      "cpu": 1
+    },
+    {
+      "id": "USER",
+      "interfaces": [{"name": "USER", "avg_rt": 0}],
+      "cpu": 1
+    },
+    {
+      "id": "MS_64512",
+      "interfaces": [{"name": "Z8trRkp4mp", "avg_rt": 0.9}],
+      "cpu": 1
+    },
+    {
+      "id": "MS_66921",
+      "interfaces": [{"name": "eFOECNqigM", "avg_rt": 1.06}],
+      "cpu": 1
+    },
+    {
+      "id": "MS_67465",
+      "interfaces": [{"name": "wIe9cm5aqE", "avg_rt": 1.85}],
+      "cpu": 1
+    },
+    {
+      "id": "MS_70124",
+      "interfaces": [{"name": "v0gqd6H7nw", "avg_rt": 3.64}],
+      "cpu": 1
+    },
+    {
+      "id": "MS_7103",
+      "interfaces": [
+        {"name": "hnZO60j2rH", "avg_rt": 2.17},
+        {"name": "rswWe4AhfE", "avg_rt": 2.16}
+      ],
+      "cpu": 2
+    },
+    {
+      "id": "MS_9105",
+      "interfaces": [
+        {"name": "ByihMu7_9Z", "avg_rt": 2.24},
+        {"name": "msD67GoyH2", "avg_rt": 1.88}
+      ],
+      "cpu": 1
+    }
+  ],
+  "edges": [
+    {"source": "MS_19439:KvuxGZYcwm", "target": "MS_12657:kiMcs4YawB", "rpctype": "rpc", "weight": 1},
+    {"source": "MS_19439:KvuxGZYcwm", "target": "MS_45067:wU2EZy8fzO", "rpctype": "rpc", "weight": 1},
+    {"source": "MS_19439:KvuxGZYcwm", "target": "MS_7103:hnZO60j2rH", "rpctype": "rpc", "weight": 1},
+    {"source": "MS_21298:qRB35KFger", "target": "MS_25806:qQqbn5h_pP", "rpctype": "rpc", "weight": 1},
+    {"source": "MS_25781:qsLpARXiz2", "target": "MS_7103:rswWe4AhfE", "rpctype": "rpc", "weight": 1},
+    {"source": "MS_25806:FQN3ARekoW", "target": "MS_56113:F0bDDol0sG", "rpctype": "rpc", "weight": 1},
+    {"source": "MS_51787:rypaFB4pfJ", "target": "MS_25806:0PIREyu4tb", "rpctype": "rpc", "weight": 1},
+    {"source": "MS_51787:rypaFB4pfJ", "target": "MS_44246:nRLDYEHBqx", "rpctype": "rpc", "weight": 1},
+    {"source": "MS_51787:rypaFB4pfJ", "target": "MS_56113:0PIREyu4tb", "rpctype": "rpc", "weight": 1},
+    {"source": "MS_51787:rypaFB4pfJ", "target": "MS_56113:KuU4P3BCru", "rpctype": "rpc", "weight": 1},
+    {"source": "MS_53792:8jkkxghEWB", "target": "MS_41667:bk01rUGHnE", "rpctype": "rpc", "weight": 1},
+    {"source": "MS_53792:8jkkxghEWB", "target": "MS_5720:4Cgy9S6B5O", "rpctype": "rpc", "weight": 1},
+    {"source": "MS_5720:4Cgy9S6B5O", "target": "MS_33572:NdwV_io91H", "rpctype": "rpc", "weight": 1},
+    {"source": "MS_58796:abNb-B-h36", "target": "MS_38190:IC2Ei_gNaE", "rpctype": "rpc", "weight": 1},
+    {"source": "MS_58796:abNb-B-h36", "target": "MS_7103:rswWe4AhfE", "rpctype": "rpc", "weight": 1},
+    {"source": "MS_62039:nK4gw2phix", "target": "MS_18750:vs2nQhH1hq", "rpctype": "rpc", "weight": 1},
+    {"source": "USER", "target": "MS_64512:Z8trRkp4mp", "rpctype": "rpc", "weight": 1},
+    {"source": "MS_64512:Z8trRkp4mp", "target": "MS_14758:Mu-jZ40NDv", "rpctype": "rpc", "weight": 1},
+    {"source": "MS_64512:Z8trRkp4mp", "target": "MS_19439:KvuxGZYcwm", "rpctype": "rpc", "weight": 1},
+    {"source": "MS_64512:Z8trRkp4mp", "target": "MS_21298:Te9DKpWLH7", "rpctype": "rpc", "weight": 1},
+    {"source": "MS_64512:Z8trRkp4mp", "target": "MS_21298:qRB35KFger", "rpctype": "rpc", "weight": 1},
+    {"source": "MS_64512:Z8trRkp4mp", "target": "MS_25781:qsLpARXiz2", "rpctype": "rpc", "weight": 1},
+    {"source": "MS_64512:Z8trRkp4mp", "target": "MS_25806:0PIREyu4tb", "rpctype": "rpc", "weight": 1},
+    {"source": "MS_64512:Z8trRkp4mp", "target": "MS_25806:FQN3ARekoW", "rpctype": "rpc", "weight": 1},
+    {"source": "MS_64512:Z8trRkp4mp", "target": "MS_2687:VdboDuPbKj", "rpctype": "rpc", "weight": 1},
+    {"source": "MS_64512:Z8trRkp4mp", "target": "MS_40087:2QxmWDHq1o", "rpctype": "rpc", "weight": 1},
+    {"source": "MS_64512:Z8trRkp4mp", "target": "MS_40087:M5ISZV1sCx", "rpctype": "rpc", "weight": 1},
+    {"source": "MS_64512:Z8trRkp4mp", "target": "MS_43032:zSdnWDdKmj", "rpctype": "rpc", "weight": 1},
+    {"source": "MS_64512:Z8trRkp4mp", "target": "MS_51783:zMa4ZJ012X", "rpctype": "rpc", "weight": 1},
+    {"source": "MS_64512:Z8trRkp4mp", "target": "MS_51787:rypaFB4pfJ", "rpctype": "rpc", "weight": 1},
+    {"source": "MS_64512:Z8trRkp4mp", "target": "MS_53792:8jkkxghEWB", "rpctype": "rpc", "weight": 1},
+    {"source": "MS_64512:Z8trRkp4mp", "target": "MS_58796:abNb-B-h36", "rpctype": "rpc", "weight": 1},
+    {"source": "MS_64512:Z8trRkp4mp", "target": "MS_62039:nK4gw2phix", "rpctype": "rpc", "weight": 1},
+    {"source": "MS_64512:Z8trRkp4mp", "target": "MS_66921:eFOECNqigM", "rpctype": "rpc", "weight": 1},
+    {"source": "MS_64512:Z8trRkp4mp", "target": "MS_67465:wIe9cm5aqE", "rpctype": "rpc", "weight": 1},
+    {"source": "MS_64512:Z8trRkp4mp", "target": "MS_70124:v0gqd6H7nw", "rpctype": "rpc", "weight": 1},
+    {"source": "MS_64512:Z8trRkp4mp", "target": "MS_7103:rswWe4AhfE", "rpctype": "rpc", "weight": 1},
+    {"source": "MS_64512:Z8trRkp4mp", "target": "MS_9105:ByihMu7_9Z", "rpctype": "rpc", "weight": 1},
+    {"source": "MS_64512:Z8trRkp4mp", "target": "MS_9105:msD67GoyH2", "rpctype": "rpc", "weight": 1},
+    {"source": "MS_66921:eFOECNqigM", "target": "MS_43754:-Rm60xyryM", "rpctype": "rpc", "weight": 1},
+    {"source": "MS_67465:wIe9cm5aqE", "target": "MS_19439:ufXkUzqEz3", "rpctype": "rpc", "weight": 11},
+    {"source": "MS_70124:v0gqd6H7nw", "target": "MS_56113:0PIREyu4tb", "rpctype": "rpc", "weight": 1}
+  ]
+}

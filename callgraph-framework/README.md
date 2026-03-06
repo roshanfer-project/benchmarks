@@ -28,8 +28,8 @@ go run ./cmd/gen ../alibaba-large/callgraph.json -o ../alibaba-large
 
 ## Call Graph Format
 
-- `nodes`: id, microservice, interface, avg_rt (ms), cpu (optional, default 1)
-- `edges`: source, target (USER -> entry node)
+- `nodes`: one per microservice; `id`, `interfaces` (array of `{name, avg_rt}`), `cpu` (optional, default 1)
+- `edges`: source, target as interface IDs (`microservice:interface`); USER -> entry node
 - Entry: HTTP/1 server; others: gRPC services
 - Entry path: `/{interface}` (e.g. `/Z8trRkp4mp`). See `entry_path.txt` in output dir.
 - Busy loop: 320 repeats = 1ms
