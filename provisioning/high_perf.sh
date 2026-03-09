@@ -10,10 +10,8 @@ echo "Starting High Performance Setup..."
 
 # 1. Set CPU Governor to Performance
 echo "Setting CPU governor to performance..."
-if command -v cpupower &> /dev/null; then
-    cpupower frequency-set -g performance
-else
-    # Fallback to direct sysfs manipulation if cpupower is not installed
+if ! { command -v cpupower &> /dev/null && cpupower frequency-set -g performance; }; then
+    echo "Falling back to direct sysfs..."
     for governor in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do
         echo performance > "$governor" 2>/dev/null || true
     done
