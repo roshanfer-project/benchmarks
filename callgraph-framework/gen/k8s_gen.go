@@ -312,7 +312,6 @@ func generateAppSidecarYaml(pg *ParsedGraph, benchmarkName string, svcNames []st
 	if err := os.MkdirAll(manifestsDir, 0755); err != nil {
 		return err
 	}
-	var parts []string
 	for _, name := range svcNames {
 		kn := k8sName(name)
 		imgName := prefix + kn
@@ -321,7 +320,7 @@ func generateAppSidecarYaml(pg *ParsedGraph, benchmarkName string, svcNames []st
 		sidecarCPU := pg.SidecarCPUForService(name)
 		sidecarCpuK8s := sidecarCPU * 2
 		sidecarCpuStr := fmt.Sprintf("%d", sidecarCpuK8s)
-		podYaml := fmt.Sprintf(`apiVersion: v1
+		svcYaml := fmt.Sprintf(`apiVersion: v1
 kind: Pod
 metadata:
   name: %s
@@ -398,7 +397,6 @@ spec:
     port: %d
     targetPort: %d
     protocol: UDP
----
 `,
 			kn, kn, imgName, cpuStr, cpuStr, cpuStr, benchmarkName, sidecarAppPort,
 			kn, sidecarCpuStr, sidecarCpuStr, kn,
@@ -406,11 +404,13 @@ spec:
 			prefix, kn, kn, kn,
 			sidecarIngressPort, sidecarIngressPort, sidecarIngressPort, sidecarIngressPort,
 			sidecarEgressPort, sidecarEgressPort, sidecarEgressPort, sidecarEgressPort)
-		parts = append(parts, podYaml)
+		svcYaml = strings.TrimSuffix(svcYaml, "\n")
+		outPath := filepath.Join(manifestsDir, kn+"-sidecar.yaml")
+		if err := os.WriteFile(outPath, []byte(svcYaml), 0644); err != nil {
+			return err
+		}
 	}
-	joined := strings.Join(parts, "\n")
-	joined = strings.TrimSuffix(joined, "\n---\n")
-	return os.WriteFile(filepath.Join(manifestsDir, "app-sidecar.yaml"), []byte(joined), 0644)
+	return nil
 }
 
 func generateIngressYaml(pg *ParsedGraph, benchmarkName string, outDir string) error {
@@ -746,13 +746,12 @@ if [ "$MODE" = "sidecar" ]; then
   kubectl wait --for=condition=ready pod -l app=prometheus-pushgateway --timeout=60s || true
   kubectl wait --for=condition=ready pod -l app=prometheus --timeout=60s || true
 
-  cp k8s/manifests/app-sidecar.yaml "$TMP_DIR/app-sidecar.yaml"
-  sed -i "s|sidecar-sidecar:latest|${REGISTRY}/sidecar-sidecar:${TAG}|g" "$TMP_DIR/app-sidecar.yaml"
-  {{range .K8sOrder}}sed -i "s|${BENCH}-{{.}}:latest|${REGISTRY}/${BENCH}-{{.}}:${TAG}|g" "$TMP_DIR/app-sidecar.yaml"
-  {{end}}
-  kubectl apply -f "$TMP_DIR/app-sidecar.yaml"
-  {{range .K8sOrder}}kubectl wait --for=condition=Ready pod -l app={{.}} --timeout=${WAIT_TIMEOUT}s
-  {{end}}
+  for SVC in {{range $i, $e := .K8sOrder}}{{if $i}} {{end}}{{$e}}{{end}}; do
+    sed "s|sidecar-sidecar:latest|${REGISTRY}/sidecar-sidecar:${TAG}|g" "k8s/manifests/${SVC}-sidecar.yaml" | \
+    sed "s|${BENCH}-${SVC}:latest|${REGISTRY}/${BENCH}-${SVC}:${TAG}|g" > "$TMP_DIR/${SVC}-sidecar.yaml"
+    kubectl apply -f "$TMP_DIR/${SVC}-sidecar.yaml"
+    kubectl wait --for=condition=Ready pod -l app=${SVC} --timeout=${WAIT_TIMEOUT}s
+  done
 
   sed "s|sidecar-sidecar:latest|${REGISTRY}/sidecar-sidecar:${TAG}|g" k8s/manifests/ingress.yaml > "$TMP_DIR/ingress.yaml"
   kubectl apply -f "$TMP_DIR/ingress.yaml"
@@ -761,7 +760,7 @@ else
   kubectl create configmap {{.BenchmarkName}}-config --from-env-file=k8s/plain.env --dry-run=client -o yaml > "$TMP_DIR/configmap.yaml"
   kubectl apply -f "$TMP_DIR/configmap.yaml"
 
-  for SVC in {{range .K8sOrder}} {{.}} {{end}}; do
+  for SVC in {{range $i, $e := .K8sOrder}}{{if $i}} {{end}}{{$e}}{{end}}; do
     sed "s|${BENCH}-${SVC}:latest|${REGISTRY}/${BENCH}-${SVC}:${TAG}|g" "k8s/manifests/${SVC}.yaml" > "$TMP_DIR/${SVC}.yaml"
     kubectl apply -f "$TMP_DIR/${SVC}.yaml"
     kubectl wait --for=condition=Ready pod -l app=${SVC} --timeout=${WAIT_TIMEOUT}s
