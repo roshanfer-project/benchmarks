@@ -1,0 +1,11 @@
+{
+  "nodes": [
+    {"id": "USER", "interfaces": [{"name": "USER"}]},
+    {"id": "frontend", "interfaces": [{"name": "f1", "avg_rt": 0.3, "slo": 25, "priority": 0}], "cpu": 2},
+    {"id": "backend", "interfaces": [{"name": "f2", "avg_rt": 0.8, "priority": 0}], "cpu": 3}
+  ],
+  "edges": [
+    {"source": "USER", "target": "frontend:f1"},
+    {"source": "frontend:f1", "target": "backend:f2"}
+  ]
+}
