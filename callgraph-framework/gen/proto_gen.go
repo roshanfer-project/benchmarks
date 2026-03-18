@@ -10,6 +10,11 @@ import (
 )
 
 func GenerateProto(pg *ParsedGraph, module string, outDir string) error {
+	absOutDir, err := filepath.Abs(outDir)
+	if err != nil {
+		return err
+	}
+
 	var b bytes.Buffer
 	b.WriteString("syntax = \"proto3\";\n\n")
 	b.WriteString("package benchmark;\n\n")
@@ -32,7 +37,7 @@ func GenerateProto(pg *ParsedGraph, module string, outDir string) error {
 		b.WriteString("}\n\n")
 	}
 
-	protoPath := filepath.Join(outDir, "proto", "benchmark.proto")
+	protoPath := filepath.Join(absOutDir, "proto", "benchmark.proto")
 	if err := os.MkdirAll(filepath.Dir(protoPath), 0755); err != nil {
 		return err
 	}
@@ -40,18 +45,18 @@ func GenerateProto(pg *ParsedGraph, module string, outDir string) error {
 		return err
 	}
 
-	protobufDir := filepath.Join(outDir, "protobuf")
+	protobufDir := filepath.Join(absOutDir, "protobuf")
 	if err := os.MkdirAll(protobufDir, 0755); err != nil {
 		return err
 	}
 	cmd := exec.Command("protoc",
-		"--go_out="+outDir,
+		"--go_out="+absOutDir,
 		"--go_opt=module="+module,
-		"--go-grpc_out="+outDir,
+		"--go-grpc_out="+absOutDir,
 		"--go-grpc_opt=module="+module,
-		"-I", outDir,
+		"-I", absOutDir,
 		"proto/benchmark.proto")
-	cmd.Dir = outDir
+	cmd.Dir = absOutDir
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("protoc failed: %w\n%s", err, out)
 	}
