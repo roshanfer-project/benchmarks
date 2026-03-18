@@ -479,12 +479,14 @@ var entryServiceTmpl = `package main
 import (
 	"fmt"
 	"net/http"
-	"{{.Module}}/pkg"
-	pb "{{.Module}}/protobuf"
 	"{{.Module}}/utils"
 
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
+{{if .Clients}}
+	"{{.Module}}/pkg"
+	pb "{{.Module}}/protobuf"
+	"google.golang.org/grpc"
+{{end}}
 )
 
 type Server struct {
@@ -498,7 +500,7 @@ var log = utils.GetLogger(serviceName)
 func (s *Server) Run() error {
 	log.Info("Initializing HTTP server...")
 	sidecar := utils.GetEnvVar("sidecar", false) == "true"
-	var conn *grpc.ClientConn
+{{if .Clients}}	var conn *grpc.ClientConn
 	if sidecar {
 		conn = pkg.GetConn(utils.GetEnvVar("{{.EgressEnv}}", true))
 	}
@@ -506,6 +508,7 @@ func (s *Server) Run() error {
 		conn = pkg.GetConn(utils.GetEnvVar("{{.AddrEnv}}", true))
 	}
 	s.{{.ProtoMicroservice}}Client = pb.New{{.ProtoMicroservice}}Client(conn)
+{{end}}
 {{end}}
 	port := {{.Port}}
 	if sidecar {
@@ -539,7 +542,7 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("method", "{{.EntryNode.Interface}}", "rpc-id", rpcID))
 	utils.BusyLoop({{.EntryNode.BusyLoopRepeats}})
-	req := &pb.Request{}
+{{if .Downstreams}}	req := &pb.Request{}
 	var err error
 {{range .Downstreams}}	_, err = s.{{.ProtoMicroservice}}Client.{{.MethodName}}(ctx, req)
 	if err != nil {
@@ -547,6 +550,7 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), 500)
 		return
 	}
+{{end}}
 {{end}}
 	w.WriteHeader(200)
 	w.Write([]byte("ok"))
