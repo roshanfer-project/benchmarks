@@ -205,5 +205,18 @@ if ! kubectl wait --for=condition=Ready pod --all --all-namespaces --timeout=30s
 fi
 log_success "All initial pods are ready."
 
+# --- CPU-STATS-EXPORTER ---
+log_info "Building and installing cpu-stats-exporter..."
+REGISTRY="${REGISTRY:-farzad1132}"
+CPU_STATS_IMAGE="${REGISTRY}/cpu-stats-exporter:latest"
+if command -v docker &> /dev/null; then
+    (cd "$SCRIPT_DIR/cpu-stats-exporter" && docker build -t "$CPU_STATS_IMAGE" .)
+    docker push "$CPU_STATS_IMAGE"
+else
+    log_info "Docker not found locally; skipping cpu-stats-exporter build. Ensure ${CPU_STATS_IMAGE} exists in registry."
+fi
+sed "s|image: farzad1132/cpu-stats-exporter:latest|image: ${CPU_STATS_IMAGE}|g" "$SCRIPT_DIR/cpu-stats-daemonset.yaml" | kubectl apply -f -
+kubectl rollout status daemonset/cpu-stats-exporter -n kube-system --timeout=120s
+log_success "cpu-stats-exporter deployed."
 
 
