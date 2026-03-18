@@ -14,7 +14,7 @@
 ## In Social, Not Yet in Callgraph Framework
 
 ### Deployment modes
-- Sidecar mode (sidecar container, sidecar-configs.yaml)
+- Sidecar mode (sidecar container, sidecar-configs.yaml, multi-API, which includes separate port for every API and building wrapper scripts accordingly)
 - Rajomon mode (app-grpc.yaml, rajomon-client, rajomon.env)
 - Dagor mode (dagor.env, dagor interceptors)
 - Ingress (for sidecar mode)
