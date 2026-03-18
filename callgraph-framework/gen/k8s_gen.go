@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"text/template"
 )
@@ -626,6 +627,9 @@ func GenerateScripts(pg *ParsedGraph, benchmarkName string, outDir string) error
 	if err := generateCollectLogsScript(svcNames, outDir); err != nil {
 		return err
 	}
+	if err := generateWrapperScripts(pg, outDir); err != nil {
+		return err
+	}
 	return generateDockerfile(outDir)
 }
 
@@ -656,17 +660,28 @@ fi
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT_DIR"
 
-if [ -d "../sidecar" ]; then
+# Find sidecar dir (benchmarks/sidecar) - works for nested benchmarks like tests/one-service
+SIDECAR_DIR=""
+D="$ROOT_DIR"
+while [ -n "$D" ] && [ "$D" != "/" ]; do
+  if [ -d "$D/sidecar" ]; then
+    SIDECAR_DIR="$D/sidecar"
+    break
+  fi
+  D="$(cd "$D/.." && pwd)"
+done
+
+if [ -n "$SIDECAR_DIR" ]; then
   echo "Building sidecar..."
-  (cd ../sidecar && ./build.sh Release)
-  docker build -f ../sidecar/Dockerfile -t "${REGISTRY}/sidecar-sidecar:${TAG}" ../sidecar
+  (cd "$SIDECAR_DIR" && ./build.sh Release)
+  docker build -f "$SIDECAR_DIR/Dockerfile" -t "${REGISTRY}/sidecar-sidecar:${TAG}" "$SIDECAR_DIR"
 fi
 
 {{range .Entries}}echo "Building {{.Name}}..."
 docker build --build-arg SERVICE=services/{{.Name}} -f Dockerfile -t "${REGISTRY}/${BENCH}-{{.K8sName}}:${TAG}" .
 {{end}}
 echo "Pushing images..."
-if [ -d "../sidecar" ]; then
+if [ -n "$SIDECAR_DIR" ]; then
   docker push "${REGISTRY}/sidecar-sidecar:${TAG}"
 fi
 {{range .Entries}}docker push "${REGISTRY}/${BENCH}-{{.K8sName}}:${TAG}"
@@ -832,6 +847,97 @@ fi
 echo "Logs collected."
 `
 	return os.WriteFile(filepath.Join(outDir, "collect_logs.sh"), []byte(script), 0755)
+}
+
+func generateWrapperScripts(pg *ParsedGraph, outDir string) error {
+	entryNodes := pg.Services[pg.EntryMicroservice()]
+	if len(entryNodes) == 0 {
+		return fmt.Errorf("no entry interfaces found")
+	}
+	apis := make([]string, 0, len(entryNodes))
+	for _, n := range entryNodes {
+		apis = append(apis, n.Interface)
+	}
+	sort.Strings(apis)
+
+	apiCases := ""
+	for i, api := range apis {
+		if i == 0 {
+			apiCases += fmt.Sprintf("    if [ \"$API\" = %q ]; then\n        url=\"http://$address:3000/%s\"\n", api, api)
+		} else {
+			apiCases += fmt.Sprintf("    elif [ \"$API\" = %q ]; then\n        url=\"http://$address:3000/%s\"\n", api, api)
+		}
+	}
+	apiCases += "    else\n        echo \"Unknown API: $API\"\n        exit 1\n    fi"
+
+	runSh := `#!/bin/bash
+# Usage: $0 PROTOCOL BASE RATE DURATION API OUTPUT_DIR
+if [ -z "$2" ] || [ -z "$3" ] || [ -z "$4" ] || [ -z "$5" ] || [ -z "$6" ]; then
+  echo "Error: Missing required arguments"
+  echo "Usage: $0 PROTOCOL BASE RATE DURATION API OUTPUT_DIR"
+  exit 1
+fi
+
+protocol=$1
+BASE=$2
+RATE=$3
+DURATION=$4
+API=$5
+output_dir="$6/out-$API.csv"
+address="${TARGET_ADDR:-192.168.1.100}"
+
+if [ "$protocol" == "grpc" ]; then
+    echo "GRPC is not supported"
+    exit 1
+else
+` + apiCases + `
+    echo "url: $url"
+    "$RWG_BINARY" run --url $url -d exp -D 2,$DURATION -r $BASE,$RATE -w 5000 -o $output_dir -t 15
+    exit "$?"
+fi
+`
+	if err := os.WriteFile(filepath.Join(outDir, "run.sh"), []byte(runSh), 0755); err != nil {
+		return err
+	}
+
+	runPlainSh := `#!/bin/bash
+# Usage: $0 PROTOCOL BASE RATE DURATION API OUTPUT_DIR [--ignore-errors]
+if [ -z "$2" ] || [ -z "$3" ] || [ -z "$4" ] || [ -z "$5" ] || [ -z "$6" ]; then
+  echo "Error: Missing required arguments"
+  echo "Usage: $0 PROTOCOL BASE RATE DURATION API OUTPUT_DIR [--ignore-errors]"
+  exit 1
+fi
+
+if [ "$7" == "--ignore-errors" ]; then
+    ignore_errors=true
+else
+    ignore_errors=false
+fi
+
+protocol=$1
+BASE=$2
+RATE=$3
+DURATION=$4
+API=$5
+output_dir="$6/out-$API.csv"
+address="${TARGET_ADDR:-192.168.1.100}"
+
+if [ "$protocol" == "grpc" ]; then
+    echo "GRPC is not supported"
+    exit 1
+else
+` + apiCases + `
+    echo "url: $url"
+    if [ "$ignore_errors" = true ]; then
+        "$RWG_BINARY" run --url $url -d exp -D 2,$DURATION -r $BASE,$RATE -w 10000 -o $output_dir -t 30 --ignore-errors
+        exit 0
+    else
+        "$RWG_BINARY" run --url $url -d exp -D 2,$DURATION -r $BASE,$RATE -w 10000 -o $output_dir -t 30
+        exit "$?"
+    fi
+fi
+`
+	return os.WriteFile(filepath.Join(outDir, "run-plain.sh"), []byte(runPlainSh), 0755)
 }
 
 func generateDockerfile(outDir string) error {
