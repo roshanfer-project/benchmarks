@@ -13,10 +13,23 @@ Example:
 go run ./cmd/gen ../alibaba-large/callgraph.json -o ../alibaba-large
 ```
 
+Generates the benchmark and `callgraph.pdf` in the output directory.
+
+### Visualizer
+
+Generate a PDF visualization of the callgraph:
+
+```bash
+go run ./cmd/viz <callgraph.json> [-o callgraph.pdf]
+```
+
+Requires [graphviz](https://graphviz.org/) (`dot` on PATH): `apt install graphviz` / `brew install graphviz`
+
 ## Requirements
 
 - Go 1.25+
 - protoc with protoc-gen-go and protoc-gen-go-grpc plugins
+- graphviz (for viz tool and `gen -v`)
 
 ## Scripts
 

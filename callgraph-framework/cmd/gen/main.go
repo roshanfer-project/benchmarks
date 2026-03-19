@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"callgraph-framework/gen"
+	"callgraph-framework/viz"
 )
 
 func main() {
@@ -23,5 +24,10 @@ func main() {
 	if err := gen.Generate(callgraphPath, *out, benchmarkName); err != nil {
 		log.Fatalf("generate: %v", err)
 	}
-	fmt.Printf("Generated benchmark in %s\n", *out)
+	callgraphOut := filepath.Join(*out, "callgraph.json")
+	pdfOut := filepath.Join(*out, "callgraph.pdf")
+	if err := viz.Visualize(callgraphOut, pdfOut); err != nil {
+		log.Fatalf("viz: %v", err)
+	}
+	fmt.Printf("Generated benchmark in %s (callgraph.pdf)\n", *out)
 }
