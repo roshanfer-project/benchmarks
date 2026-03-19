@@ -4,18 +4,19 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-	"chain2/utils"
+	"multiapi/utils"
 
 	"google.golang.org/grpc/metadata"
 
-	"chain2/pkg"
-	pb "chain2/protobuf"
+	"multiapi/pkg"
+	pb "multiapi/protobuf"
 	"google.golang.org/grpc"
 
 )
 
 type Server struct {
-	BackendClient pb.BackendClient
+	Backend1Client pb.Backend1Client
+	Backend2Client pb.Backend2Client
 
 }
 
@@ -30,9 +31,13 @@ func (s *Server) Run() error {
 		conn = pkg.GetConn(utils.GetEnvVar("frontend_EGRESS", true))
 	}
 	if !sidecar {
-		conn = pkg.GetConn(utils.GetEnvVar("backend_ADDR", true))
+		conn = pkg.GetConn(utils.GetEnvVar("backend1_ADDR", true))
 	}
-	s.BackendClient = pb.NewBackendClient(conn)
+	s.Backend1Client = pb.NewBackend1Client(conn)
+	if !sidecar {
+		conn = pkg.GetConn(utils.GetEnvVar("backend2_ADDR", true))
+	}
+	s.Backend2Client = pb.NewBackend2Client(conn)
 
 
 	port := 2000
@@ -46,6 +51,8 @@ func (s *Server) Run() error {
 		baseHandler = counter.GetHTTP1Middleware()(baseHandler)
 	}
 	mux.Handle("/f1", baseHandler)
+	mux.Handle("/f2", baseHandler)
+	mux.Handle("/f3", baseHandler)
 
 	srv := &http.Server{
 		Addr:    fmt.Sprintf(":%d", port),
@@ -73,7 +80,33 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 		utils.BusyLoop(96)
 		req := &pb.Request{}
 		var err error
-		_, err = s.BackendClient.F2(ctx, req)
+		_, err = s.Backend1Client.B1(ctx, req)
+		if err != nil {
+			log.Error("downstream call failed", "error", err)
+			http.Error(w, err.Error(), 500)
+			return
+		}
+
+
+	case "f2":
+		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("method", "f2", "rpc-id", rpcID))
+		utils.BusyLoop(128)
+		req := &pb.Request{}
+		var err error
+		_, err = s.Backend2Client.B2(ctx, req)
+		if err != nil {
+			log.Error("downstream call failed", "error", err)
+			http.Error(w, err.Error(), 500)
+			return
+		}
+
+
+	case "f3":
+		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("method", "f3", "rpc-id", rpcID))
+		utils.BusyLoop(160)
+		req := &pb.Request{}
+		var err error
+		_, err = s.Backend1Client.B1(ctx, req)
 		if err != nil {
 			log.Error("downstream call failed", "error", err)
 			http.Error(w, err.Error(), 500)

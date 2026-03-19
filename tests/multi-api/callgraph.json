@@ -1,0 +1,20 @@
+{
+  "nodes": [
+    {"id": "USER", "interfaces": [{"name": "USER"}]},
+    {"id": "frontend", "interfaces": [
+      {"name": "f1", "avg_rt": 0.3, "slo": 30, "priority": 0},
+      {"name": "f2", "avg_rt": 0.4, "slo": 35, "priority": 0},
+      {"name": "f3", "avg_rt": 0.5, "slo": 40, "priority": 0}
+    ], "cpu": 2},
+    {"id": "backend1", "interfaces": [{"name": "b1", "avg_rt": 1, "priority": 0}], "cpu": 3},
+    {"id": "backend2", "interfaces": [{"name": "b2", "avg_rt": 0.6, "priority": 0}], "cpu": 3}
+  ],
+  "edges": [
+    {"source": "USER", "target": "frontend:f1"},
+    {"source": "USER", "target": "frontend:f2"},
+    {"source": "USER", "target": "frontend:f3"},
+    {"source": "frontend:f1", "target": "backend1:b1"},
+    {"source": "frontend:f2", "target": "backend2:b2"},
+    {"source": "frontend:f3", "target": "backend1:b1"}
+  ]
+}

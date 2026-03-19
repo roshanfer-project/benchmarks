@@ -420,12 +420,17 @@ type entryServiceData struct {
 	Module        string
 	ServiceName   string
 	Port          int
-	EntryNode     *Node
+	Handlers      []entryHandlerData
 	Clients       []clientRef
-	Downstreams   []downstreamCall
 	EgressEnv     string
 	PortEnv       string
 	UseSingleConn bool
+}
+
+type entryHandlerData struct {
+	Interface      string
+	BusyLoopRepeats int
+	Downstreams    []downstreamCall
 }
 
 type clientRef struct {
@@ -442,31 +447,33 @@ type downstreamCall struct {
 }
 
 func generateEntryService(pg *ParsedGraph, module string, svcName string, outDir string) error {
-	entryNodeID := pg.EntryNodeID
-	entryNode := pg.Nodes[entryNodeID]
-	targets := pg.Downstream(entryNodeID)
 	seen := make(map[string]bool)
 	var clients []clientRef
 	egressEnv := svcName + "_EGRESS"
-	for _, t := range targets {
-		n := pg.Nodes[t]
-		if !seen[n.Microservice] {
-			seen[n.Microservice] = true
-			clients = append(clients, clientRef{n.Microservice, protoServiceName(n.Microservice), n.Microservice + "_ADDR"})
+	var handlers []entryHandlerData
+	for _, entryNode := range pg.EntryInterfaces() {
+		targets := pg.Downstream(entryNode.ID)
+		var downstreams []downstreamCall
+		for _, t := range targets {
+			n := pg.Nodes[t]
+			if !seen[n.Microservice] {
+				seen[n.Microservice] = true
+				clients = append(clients, clientRef{n.Microservice, protoServiceName(n.Microservice), n.Microservice + "_ADDR"})
+			}
+			downstreams = append(downstreams, downstreamCall{n.Microservice, protoServiceName(n.Microservice), n.GoMethodName(), n.Interface})
 		}
-	}
-	var downstreams []downstreamCall
-	for _, t := range targets {
-		n := pg.Nodes[t]
-		downstreams = append(downstreams, downstreamCall{n.Microservice, protoServiceName(n.Microservice), n.GoMethodName(), n.Interface})
+		handlers = append(handlers, entryHandlerData{
+			Interface:      entryNode.Interface,
+			BusyLoopRepeats: entryNode.BusyLoopRepeats(),
+			Downstreams:    downstreams,
+		})
 	}
 	data := entryServiceData{
 		Module:        module,
 		ServiceName:   svcName,
 		Port:          port,
-		EntryNode:     entryNode,
+		Handlers:      handlers,
 		Clients:       clients,
-		Downstreams:   downstreams,
 		EgressEnv:     egressEnv,
 		PortEnv:       svcName + "_PORT",
 		UseSingleConn: true,
@@ -479,6 +486,7 @@ var entryServiceTmpl = `package main
 import (
 	"fmt"
 	"net/http"
+	"strings"
 	"{{.Module}}/utils"
 
 	"google.golang.org/grpc/metadata"
@@ -515,12 +523,13 @@ func (s *Server) Run() error {
 		port = utils.StrToInt(utils.GetEnvVar("{{.PortEnv}}", true))
 	}
 	mux := http.NewServeMux()
-	var handler http.Handler = http.HandlerFunc(s.handler)
+	var baseHandler http.Handler = http.HandlerFunc(s.handler)
 	if sidecar && utils.GetEnvVar("queuing_export", false) == "true" {
 		counter := utils.NewCounterState(serviceName)
-		handler = counter.GetHTTP1Middleware()(handler)
+		baseHandler = counter.GetHTTP1Middleware()(baseHandler)
 	}
-	mux.Handle("/{{.EntryNode.Interface}}", handler)
+{{range .Handlers}}	mux.Handle("/{{.Interface}}", baseHandler)
+{{end}}
 	srv := &http.Server{
 		Addr:    fmt.Sprintf(":%d", port),
 		Handler: mux,
@@ -540,18 +549,25 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("method", "{{.EntryNode.Interface}}", "rpc-id", rpcID))
-	utils.BusyLoop({{.EntryNode.BusyLoopRepeats}})
-{{if .Downstreams}}	req := &pb.Request{}
-	var err error
-{{range .Downstreams}}	_, err = s.{{.ProtoMicroservice}}Client.{{.MethodName}}(ctx, req)
-	if err != nil {
-		log.Error("downstream call failed", "error", err)
-		http.Error(w, err.Error(), 500)
+	path := strings.TrimPrefix(r.URL.Path, "/")
+	switch path {
+{{range .Handlers}}	case "{{.Interface}}":
+		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("method", "{{.Interface}}", "rpc-id", rpcID))
+		utils.BusyLoop({{.BusyLoopRepeats}})
+{{if .Downstreams}}		req := &pb.Request{}
+		var err error
+{{range .Downstreams}}		_, err = s.{{.ProtoMicroservice}}Client.{{.MethodName}}(ctx, req)
+		if err != nil {
+			log.Error("downstream call failed", "error", err)
+			http.Error(w, err.Error(), 500)
+			return
+		}
+{{end}}
+{{end}}
+{{end}}	default:
+		http.Error(w, "not found", 404)
 		return
 	}
-{{end}}
-{{end}}
 	w.WriteHeader(200)
 	w.Write([]byte("ok"))
 }

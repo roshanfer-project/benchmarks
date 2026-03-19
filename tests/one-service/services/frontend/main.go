@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"strings"
 	"oneservice/utils"
 
 	"google.golang.org/grpc/metadata"
@@ -25,12 +26,13 @@ func (s *Server) Run() error {
 		port = utils.StrToInt(utils.GetEnvVar("frontend_PORT", true))
 	}
 	mux := http.NewServeMux()
-	var handler http.Handler = http.HandlerFunc(s.handler)
+	var baseHandler http.Handler = http.HandlerFunc(s.handler)
 	if sidecar && utils.GetEnvVar("queuing_export", false) == "true" {
 		counter := utils.NewCounterState(serviceName)
-		handler = counter.GetHTTP1Middleware()(handler)
+		baseHandler = counter.GetHTTP1Middleware()(baseHandler)
 	}
-	mux.Handle("/f1", handler)
+	mux.Handle("/f1", baseHandler)
+
 	srv := &http.Server{
 		Addr:    fmt.Sprintf(":%d", port),
 		Handler: mux,
@@ -50,9 +52,16 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("method", "f1", "rpc-id", rpcID))
-	utils.BusyLoop(160)
+	path := strings.TrimPrefix(r.URL.Path, "/")
+	switch path {
+	case "f1":
+		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("method", "f1", "rpc-id", rpcID))
+		utils.BusyLoop(160)
 
+	default:
+		http.Error(w, "not found", 404)
+		return
+	}
 	w.WriteHeader(200)
 	w.Write([]byte("ok"))
 }

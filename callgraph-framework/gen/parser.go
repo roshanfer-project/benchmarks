@@ -48,10 +48,10 @@ type Edge struct {
 }
 
 type ParsedGraph struct {
-	Nodes       map[string]*Node
-	Edges       []Edge
-	EntryNodeID string
-	Services    map[string][]*Node
+	Nodes        map[string]*Node
+	Edges        []Edge
+	EntryNodeIDs []string
+	Services     map[string][]*Node
 }
 
 func ParseCallGraph(path string) (*ParsedGraph, error) {
@@ -105,18 +105,22 @@ func buildParsedGraph(cg *CallGraph) (*ParsedGraph, error) {
 	}
 	for _, e := range cg.Edges {
 		if e.Source == "USER" {
-			if pg.EntryNodeID != "" {
-				return nil, fmt.Errorf("multiple USER entry points")
+			if _, ok := pg.Nodes[e.Target]; !ok {
+				return nil, fmt.Errorf("entry node %s not found", e.Target)
 			}
-			pg.EntryNodeID = e.Target
+			pg.EntryNodeIDs = append(pg.EntryNodeIDs, e.Target)
 		}
 		pg.Edges = append(pg.Edges, e)
 	}
-	if pg.EntryNodeID == "" {
+	if len(pg.EntryNodeIDs) == 0 {
 		return nil, fmt.Errorf("no USER entry point found")
 	}
-	if _, ok := pg.Nodes[pg.EntryNodeID]; !ok {
-		return nil, fmt.Errorf("entry node %s not found", pg.EntryNodeID)
+	// All USER targets must belong to the same service (frontend)
+	entrySvc := pg.Nodes[pg.EntryNodeIDs[0]].Microservice
+	for _, id := range pg.EntryNodeIDs {
+		if pg.Nodes[id].Microservice != entrySvc {
+			return nil, fmt.Errorf("all USER entry points must target same service; %s vs %s", pg.EntryNodeIDs[0], id)
+		}
 	}
 	return pg, nil
 }
@@ -210,7 +214,16 @@ func (pg *ParsedGraph) Downstream(nodeID string) []string {
 }
 
 func (pg *ParsedGraph) EntryMicroservice() string {
-	return pg.Nodes[pg.EntryNodeID].Microservice
+	return pg.Nodes[pg.EntryNodeIDs[0]].Microservice
+}
+
+// EntryInterfaces returns all entry nodes (APIs) that USER connects to.
+func (pg *ParsedGraph) EntryInterfaces() []*Node {
+	out := make([]*Node, 0, len(pg.EntryNodeIDs))
+	for _, id := range pg.EntryNodeIDs {
+		out = append(out, pg.Nodes[id])
+	}
+	return out
 }
 
 func (pg *ParsedGraph) CPUForService(svcName string) int {
@@ -227,16 +240,10 @@ func (pg *ParsedGraph) SidecarCPUForService(svcName string) int {
 	return 1
 }
 
-// UserEntryCount returns the number of edges from USER (interfaces USER connects to).
+// UserEntryCount returns the number of APIs (entry interfaces USER connects to).
 func (pg *ParsedGraph) UserEntryCount() int {
-	n := 0
-	for _, e := range pg.Edges {
-		if e.Source == "USER" {
-			n++
-		}
-	}
-	if n < 1 {
+	if len(pg.EntryNodeIDs) < 1 {
 		return 1
 	}
-	return n
+	return len(pg.EntryNodeIDs)
 }

@@ -37,11 +37,24 @@ func Check(pg *ParsedGraph) error {
 		}
 	}
 
-	// Connectivity: all nodes reachable from entry
-	reachable := reachableFrom(pg, pg.EntryNodeID)
+	// Connectivity: all nodes reachable from at least one entry
+	reachable := make(map[string]bool)
+	for _, entryID := range pg.EntryNodeIDs {
+		for id := range reachableFrom(pg, entryID) {
+			reachable[id] = true
+		}
+	}
 	for id := range pg.Nodes {
 		if !reachable[id] {
 			errs = append(errs, fmt.Sprintf("node %s unreachable from entry", id))
+		}
+	}
+
+	// Entry interfaces (APIs) must have slo and priority for sidecar mode
+	for _, entryID := range pg.EntryNodeIDs {
+		n := pg.Nodes[entryID]
+		if n.SLO == nil || n.Priority == nil {
+			errs = append(errs, fmt.Sprintf("entry interface %s must have slo and priority (required for sidecar mode)", entryID))
 		}
 	}
 

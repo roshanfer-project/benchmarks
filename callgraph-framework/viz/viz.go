@@ -22,6 +22,28 @@ func dotLabel(s string) string {
 	return `"` + strings.ReplaceAll(s, `"`, `\"`) + `"`
 }
 
+func reachableEdgesFrom(pg *gen.ParsedGraph, start string) []gen.Edge {
+	reachable := map[string]bool{start: true}
+	queue := []string{start}
+	for len(queue) > 0 {
+		cur := queue[0]
+		queue = queue[1:]
+		for _, t := range pg.Downstream(cur) {
+			if !reachable[t] {
+				reachable[t] = true
+				queue = append(queue, t)
+			}
+		}
+	}
+	var edges []gen.Edge
+	for _, e := range pg.Edges {
+		if reachable[e.Source] {
+			edges = append(edges, e)
+		}
+	}
+	return edges
+}
+
 func nodeLabel(n *gen.Node, isEntry bool) string {
 	parts := []string{n.Interface, fmt.Sprintf("rt:%.2g", n.AvgRT)}
 	if n.SLO != nil {
@@ -85,8 +107,36 @@ func Visualize(callgraphPath string, outPath string) error {
 		b.WriteString("  }\n")
 	}
 
+	// Color edges by API: compute reachable edges per entry, assign colors
+	apiColors := []string{"#2e86ab", "#a23b72", "#f18f01", "#c73e1d", "#3b1f2b", "#95c623"}
+	edgeToAPI := make(map[string]string) // "src->tgt" -> api (first API that reaches it)
+	for _, entryID := range pg.EntryNodeIDs {
+		api := pg.Nodes[entryID].Interface
+		// Include USER -> entry edge (reachableEdgesFrom only goes downstream)
+		userEdgeKey := "USER->" + entryID
+		if _, ok := edgeToAPI[userEdgeKey]; !ok {
+			edgeToAPI[userEdgeKey] = api
+		}
+		reachable := reachableEdgesFrom(pg, entryID)
+		for _, e := range reachable {
+			key := e.Source + "->" + e.Target
+			if _, ok := edgeToAPI[key]; !ok {
+				edgeToAPI[key] = api
+			}
+		}
+	}
+	apiToColor := make(map[string]string)
+	for i, entryID := range pg.EntryNodeIDs {
+		api := pg.Nodes[entryID].Interface
+		apiToColor[api] = apiColors[i%len(apiColors)]
+	}
 	for _, e := range pg.Edges {
-		b.WriteString("  " + dotID(e.Source) + " -> " + dotID(e.Target) + ";\n")
+		key := e.Source + "->" + e.Target
+		attr := ""
+		if api, ok := edgeToAPI[key]; ok {
+			attr = fmt.Sprintf(" [color=%q]", apiToColor[api])
+		}
+		b.WriteString("  " + dotID(e.Source) + " -> " + dotID(e.Target) + attr + ";\n")
 	}
 	b.WriteString("}\n")
 

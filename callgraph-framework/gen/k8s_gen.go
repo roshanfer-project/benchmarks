@@ -41,9 +41,11 @@ func GenerateK8s(pg *ParsedGraph, benchmarkName string, registry string, outDir 
 }
 
 func writeEntryPath(pg *ParsedGraph, outDir string) error {
-	entryNode := pg.Nodes[pg.EntryNodeID]
-	path := "/" + entryNode.Interface
-	return os.WriteFile(filepath.Join(outDir, "entry_path.txt"), []byte(path), 0644)
+	var paths []string
+	for _, n := range pg.EntryInterfaces() {
+		paths = append(paths, "/"+n.Interface)
+	}
+	return os.WriteFile(filepath.Join(outDir, "entry_path.txt"), []byte(strings.Join(paths, "\n")), 0644)
 }
 
 func generateAppYaml(pg *ParsedGraph, benchmarkName string, svcNames []string, outDir string) error {
@@ -150,10 +152,6 @@ const (
 )
 
 func generateSidecarConfigs(pg *ParsedGraph, benchmarkName string, svcNames []string, outDir string) error {
-	entryNode := pg.Nodes[pg.EntryNodeID]
-	if entryNode.SLO == nil || entryNode.Priority == nil {
-		return fmt.Errorf("entry interface %s must have slo and priority in call graph (required for sidecar mode)", entryNode.ID)
-	}
 	prefix := benchmarkName + "-"
 	entrySvc := pg.EntryMicroservice()
 	k8sDir := filepath.Join(outDir, "k8s")
@@ -168,7 +166,7 @@ func generateSidecarConfigs(pg *ParsedGraph, benchmarkName string, svcNames []st
 		cfg := buildSidecarServiceConfig(pg, prefix, name, kn, entrySvc)
 		configs = append(configs, fmt.Sprintf("  %s.yaml: |\n%s", kn, indent(cfg, 4)))
 	}
-	ingressCfg := buildIngressConfig(pg, prefix, entrySvc, entryNode)
+	ingressCfg := buildIngressConfig(pg, prefix, entrySvc)
 	configs = append(configs, fmt.Sprintf("  ingress.yaml: |\n%s", indent(ingressCfg, 4)))
 
 	cm := `apiVersion: v1
@@ -261,23 +259,23 @@ func buildSidecarServiceConfig(pg *ParsedGraph, prefix, svcName, kn, entrySvc st
 	return b.String()
 }
 
-func buildIngressConfig(pg *ParsedGraph, prefix, entrySvc string, entryNode *Node) string {
+const sidecarIngressBasePort = 3000
+
+func buildIngressConfig(pg *ParsedGraph, prefix, entrySvc string) string {
 	entryKn := k8sName(entrySvc)
 	entryHost := prefix + entryKn
-	slo, priority := *entryNode.SLO, *entryNode.Priority
 	numThreads := pg.UserEntryCount()
+	var routing, mapping strings.Builder
+	for i, n := range pg.EntryInterfaces() {
+		slo, priority := *n.SLO, *n.Priority
+		listenPort := sidecarIngressBasePort + i
+		routing.WriteString(fmt.Sprintf("  %s:\n    upstream:\n      host: %s\n      port: %d\n    slo: %d\n    priority: %d\n", n.Interface, entryHost, sidecarIngressPort, slo, priority))
+		mapping.WriteString(fmt.Sprintf("  %s:\n    downstreams:\n      - %s\n    listen_port: %d\n", n.Interface, n.Interface, listenPort))
+	}
 	return fmt.Sprintf(`routing:
-  %s:
-    upstream:
-      host: %s
-      port: %d
-    slo: %d
-    priority: %d
+%s
 mapping:
-  %s:
-    downstreams:
-      - %s
-    listen_port: %d
+%s
 ring_size: 4000
 buffer_count: 16384
 buffer_size: 10000
@@ -291,10 +289,8 @@ is_ingress: True
 is_frontend: False
 report_latency: True
 name: ingress
-`, entryNode.Interface, entryHost, sidecarIngressPort, slo, priority,
-		entryNode.Interface, entryNode.Interface, sidecarIngressPort,
-		numThreads,
-		sidecarIngressPort, sidecarAppPort)
+`, strings.TrimSuffix(routing.String(), "\n"), strings.TrimSuffix(mapping.String(), "\n"),
+		numThreads, sidecarIngressPort, sidecarAppPort)
 }
 
 func generateSidecarEnv(pg *ParsedGraph, benchmarkName string, svcNames []string, outDir string) error {
@@ -417,6 +413,36 @@ spec:
 func generateIngressYaml(pg *ParsedGraph, benchmarkName string, outDir string) error {
 	manifestsDir := filepath.Join(outDir, "k8s", "manifests")
 	cpu := pg.UserEntryCount() * 2
+	nApis := pg.UserEntryCount()
+	var portSpecs []string
+	for i := 0; i < nApis; i++ {
+		p := sidecarIngressBasePort + i
+		portSpecs = append(portSpecs, fmt.Sprintf("    - containerPort: %d", p))
+		portSpecs = append(portSpecs, fmt.Sprintf("    - containerPort: %d\n      protocol: UDP", p))
+	}
+	portSpecs = append(portSpecs, "    - containerPort: 4000", "    - containerPort: 4000\n      protocol: UDP")
+	var svcPorts []string
+	for i := 0; i < nApis; i++ {
+		p := sidecarIngressBasePort + i
+		svcPorts = append(svcPorts, fmt.Sprintf(`  - name: sidecar-%d-tcp
+    port: %d
+    targetPort: %d
+    nodePort: %d
+    protocol: TCP
+  - name: sidecar-%d-udp
+    port: %d
+    targetPort: %d
+    nodePort: %d
+    protocol: UDP`, p, p, p, p, p, p, p, p))
+	}
+	svcPorts = append(svcPorts, `  - name: sidecar-4000-tcp
+    port: 4000
+    targetPort: 4000
+    protocol: TCP
+  - name: sidecar-4000-udp
+    port: 4000
+    targetPort: 4000
+    protocol: UDP`)
 	yaml := fmt.Sprintf(`apiVersion: v1
 kind: Pod
 metadata:
@@ -443,12 +469,7 @@ spec:
       mountPath: /config.yaml
       subPath: ingress.yaml
     ports:
-    - containerPort: 3000
-    - containerPort: 3000
-      protocol: UDP
-    - containerPort: 4000
-    - containerPort: 4000
-      protocol: UDP
+%s
   volumes:
   - name: config-volume
     configMap:
@@ -465,25 +486,8 @@ spec:
   selector:
     app: ingress
   ports:
-  - name: sidecar-3000-tcp
-    port: 3000
-    targetPort: 3000
-    nodePort: 3000
-    protocol: TCP
-  - name: sidecar-3000-udp
-    port: 3000
-    targetPort: 3000
-    nodePort: 3000
-    protocol: UDP
-  - name: sidecar-4000-tcp
-    port: 4000
-    targetPort: 4000
-    protocol: TCP
-  - name: sidecar-4000-udp
-    port: 4000
-    targetPort: 4000
-    protocol: UDP
-`, cpu, cpu, benchmarkName)
+%s
+`, cpu, cpu, strings.Join(portSpecs, "\n"), benchmarkName, strings.Join(svcPorts, "\n"))
 	return os.WriteFile(filepath.Join(manifestsDir, "ingress.yaml"), []byte(yaml), 0644)
 }
 
@@ -850,7 +854,7 @@ echo "Logs collected."
 }
 
 func generateWrapperScripts(pg *ParsedGraph, outDir string) error {
-	entryNodes := pg.Services[pg.EntryMicroservice()]
+	entryNodes := pg.EntryInterfaces()
 	if len(entryNodes) == 0 {
 		return fmt.Errorf("no entry interfaces found")
 	}
@@ -860,15 +864,28 @@ func generateWrapperScripts(pg *ParsedGraph, outDir string) error {
 	}
 	sort.Strings(apis)
 
-	apiCases := ""
+	// run.sh (sidecar): each API on its own port
+	apiCasesSidecar := ""
 	for i, api := range apis {
+		port := sidecarIngressBasePort + i
 		if i == 0 {
-			apiCases += fmt.Sprintf("    if [ \"$API\" = %q ]; then\n        url=\"http://$address:3000/%s\"\n", api, api)
+			apiCasesSidecar += fmt.Sprintf("    if [ \"$API\" = %q ]; then\n        url=\"http://$address:%d/%s\"\n", api, port, api)
 		} else {
-			apiCases += fmt.Sprintf("    elif [ \"$API\" = %q ]; then\n        url=\"http://$address:3000/%s\"\n", api, api)
+			apiCasesSidecar += fmt.Sprintf("    elif [ \"$API\" = %q ]; then\n        url=\"http://$address:%d/%s\"\n", api, port, api)
 		}
 	}
-	apiCases += "    else\n        echo \"Unknown API: $API\"\n        exit 1\n    fi"
+	apiCasesSidecar += "    else\n        echo \"Unknown API: $API\"\n        exit 1\n    fi"
+
+	// run-plain.sh: all APIs on port 3000, path-based
+	apiCasesPlain := ""
+	for i, api := range apis {
+		if i == 0 {
+			apiCasesPlain += fmt.Sprintf("    if [ \"$API\" = %q ]; then\n        url=\"http://$address:3000/%s\"\n", api, api)
+		} else {
+			apiCasesPlain += fmt.Sprintf("    elif [ \"$API\" = %q ]; then\n        url=\"http://$address:3000/%s\"\n", api, api)
+		}
+	}
+	apiCasesPlain += "    else\n        echo \"Unknown API: $API\"\n        exit 1\n    fi"
 
 	runSh := `#!/bin/bash
 # Usage: $0 PROTOCOL BASE RATE DURATION API OUTPUT_DIR
@@ -890,7 +907,7 @@ if [ "$protocol" == "grpc" ]; then
     echo "GRPC is not supported"
     exit 1
 else
-` + apiCases + `
+` + apiCasesSidecar + `
     echo "url: $url"
     "$RWG_BINARY" run --url $url -d exp -D 2,$DURATION -r $BASE,$RATE -w 5000 -o $output_dir -t 15
     exit "$?"
@@ -926,7 +943,7 @@ if [ "$protocol" == "grpc" ]; then
     echo "GRPC is not supported"
     exit 1
 else
-` + apiCases + `
+` + apiCasesPlain + `
     echo "url: $url"
     if [ "$ignore_errors" = true ]; then
         "$RWG_BINARY" run --url $url -d exp -D 2,$DURATION -r $BASE,$RATE -w 10000 -o $output_dir -t 30 --ignore-errors
