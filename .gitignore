@@ -5,3 +5,4 @@ testbench
 k8s/kubeconfig
 tmp_apply
 hosts.txt
+*.pdf
