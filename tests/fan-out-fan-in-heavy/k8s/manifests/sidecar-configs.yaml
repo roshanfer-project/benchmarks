@@ -101,7 +101,7 @@ data:
         upstream:
           host: fan-out-fan-in-heavy-frontend
           port: 3000
-        slo: 100
+        slo: 80
         priority: 0
     mapping:
       f1:
