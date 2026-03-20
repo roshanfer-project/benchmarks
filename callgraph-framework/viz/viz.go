@@ -22,24 +22,21 @@ func dotLabel(s string) string {
 	return `"` + strings.ReplaceAll(s, `"`, `\"`) + `"`
 }
 
-func reachableEdgesFrom(pg *gen.ParsedGraph, start string) []gen.Edge {
-	reachable := map[string]bool{start: true}
-	queue := []string{start}
-	for len(queue) > 0 {
-		cur := queue[0]
-		queue = queue[1:]
-		for _, t := range pg.Downstream(cur) {
-			if !reachable[t] {
-				reachable[t] = true
-				queue = append(queue, t)
-			}
-		}
-	}
+func reachableEdgesFrom(pg *gen.ParsedGraph, entryID string) []gen.Edge {
+	apiName := pg.Nodes[entryID].Interface
+	reach := pg.ReachableFromWithAPI(entryID)
 	var edges []gen.Edge
 	for _, e := range pg.Edges {
-		if reachable[e.Source] {
-			edges = append(edges, e)
+		if e.Source == "USER" {
+			continue
 		}
+		if !reach[e.Source] || !reach[e.Target] {
+			continue
+		}
+		if !gen.EdgeVisible(e, apiName) {
+			continue
+		}
+		edges = append(edges, e)
 	}
 	return edges
 }
@@ -133,8 +130,18 @@ func Visualize(callgraphPath string, outPath string) error {
 	for _, e := range pg.Edges {
 		key := e.Source + "->" + e.Target
 		attr := ""
-		if api, ok := edgeToAPI[key]; ok {
-			attr = fmt.Sprintf(" [color=%q]", apiToColor[api])
+		colorKey := ""
+		if e.Source == "USER" {
+			colorKey = pg.Nodes[e.Target].Interface
+		} else if e.API != "" {
+			colorKey = e.API
+		} else if api, ok := edgeToAPI[key]; ok {
+			colorKey = api
+		}
+		if colorKey != "" {
+			if c, ok := apiToColor[colorKey]; ok {
+				attr = fmt.Sprintf(" [color=%q]", c)
+			}
 		}
 		b.WriteString("  " + dotID(e.Source) + " -> " + dotID(e.Target) + attr + ";\n")
 	}

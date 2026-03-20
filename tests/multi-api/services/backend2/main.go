@@ -9,6 +9,7 @@ import (
 	"multiapi/utils"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/reflection"
 )
 
@@ -56,7 +57,16 @@ func (s *Server) Run() error {
 
 func (s *Server) B2(ctx context.Context, req *pb.Request) (*pb.Response, error) {
 	utils.BusyLoop(192)
+	md, _ := metadata.FromIncomingContext(ctx)
+	api := ""
+	if v := md.Get("api"); len(v) == 1 {
+		api = v[0]
+	}
+	switch api {
+	case "f2":
 
+	default:
+	}
 	return &pb.Response{}, nil
 }
 

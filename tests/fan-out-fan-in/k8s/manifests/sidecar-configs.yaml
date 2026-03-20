@@ -64,6 +64,9 @@ data:
         downstreams:
           - benchmark.backend1/f2
           - benchmark.backend2/f3
+      g1:
+        downstreams:
+          - benchmark.backend1/f2
     ring_size: 1000
     buffer_count: 4096
     buffer_size: 80000
@@ -103,15 +106,25 @@ data:
           port: 3000
         slo: 28
         priority: 0
+      g1:
+        upstream:
+          host: fan-out-fan-in-frontend
+          port: 3000
+        slo: 16
+        priority: 0
     mapping:
       f1:
         downstreams:
           - f1
         listen_port: 3000
+      g1:
+        downstreams:
+          - g1
+        listen_port: 3001
     ring_size: 4000
     buffer_count: 16384
     buffer_size: 10000
-    num_threads: 1
+    num_threads: 2
     ingress_pool_connections: 200
     egress_listener_port: 3000
     ingress_listener_port: 4000

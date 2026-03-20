@@ -8,9 +8,9 @@
   ],
   "edges": [
     {"source": "USER", "target": "frontend:f1"},
-    {"source": "frontend:f1", "target": "backend1:f2"},
-    {"source": "frontend:f1", "target": "backend2:f3"},
-    {"source": "backend1:f2", "target": "shared:f4"},
-    {"source": "backend2:f3", "target": "shared:f4"}
+    {"source": "frontend:f1", "target": "backend1:f2", "api": "f1"},
+    {"source": "frontend:f1", "target": "backend2:f3", "api": "f1"},
+    {"source": "backend1:f2", "target": "shared:f4", "api": "f1"},
+    {"source": "backend2:f3", "target": "shared:f4", "api": "f1"}
   ]
 }

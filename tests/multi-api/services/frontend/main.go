@@ -76,7 +76,7 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 	path := strings.TrimPrefix(r.URL.Path, "/")
 	switch path {
 	case "f1":
-		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("method", "f1", "rpc-id", rpcID))
+		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "f1", "rpc-id", rpcID))
 		utils.BusyLoop(96)
 		req := &pb.Request{}
 		var err error
@@ -89,7 +89,7 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 
 
 	case "f2":
-		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("method", "f2", "rpc-id", rpcID))
+		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "f2", "rpc-id", rpcID))
 		utils.BusyLoop(128)
 		req := &pb.Request{}
 		var err error
@@ -102,7 +102,7 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 
 
 	case "f3":
-		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("method", "f3", "rpc-id", rpcID))
+		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "f3", "rpc-id", rpcID))
 		utils.BusyLoop(160)
 		req := &pb.Request{}
 		var err error

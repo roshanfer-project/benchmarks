@@ -278,11 +278,11 @@ func (s *CounterState) GetInterceptor() grpc.UnaryServerInterceptor {
 		if !ok {
 			panic("metadata not found in context")
 		}
-		method := md.Get("method")
-		if len(method) == 0 || len(method) > 1 {
-			panic("method not found in metadata")
+		keys := md.Get("api")
+		if len(keys) == 0 || len(keys) > 1 {
+			panic("api not found in metadata")
 		}
-		api := method[0]
+		api := keys[0]
 		s.IncrementInReq(api)
 		s.IncrementAcceptedRPCCounter(api)
 		resp, err := handler(ctx, req)
@@ -452,7 +452,7 @@ func generateEntryService(pg *ParsedGraph, module string, svcName string, outDir
 	egressEnv := svcName + "_EGRESS"
 	var handlers []entryHandlerData
 	for _, entryNode := range pg.EntryInterfaces() {
-		targets := pg.Downstream(entryNode.ID)
+		targets := pg.DownstreamForAPI(entryNode.ID, entryNode.Interface)
 		var downstreams []downstreamCall
 		for _, t := range targets {
 			n := pg.Nodes[t]
@@ -552,7 +552,7 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 	path := strings.TrimPrefix(r.URL.Path, "/")
 	switch path {
 {{range .Handlers}}	case "{{.Interface}}":
-		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("method", "{{.Interface}}", "rpc-id", rpcID))
+		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "{{.Interface}}", "rpc-id", rpcID))
 		utils.BusyLoop({{.BusyLoopRepeats}})
 {{if .Downstreams}}		req := &pb.Request{}
 		var err error
@@ -591,10 +591,15 @@ type grpcServiceData struct {
 	PortEnv          string
 }
 
-type grpcHandler struct {
-	Node        *Node
-	MethodName  string
+type grpcAPICase struct {
+	APIName     string
 	Downstreams []downstreamCall
+}
+
+type grpcHandler struct {
+	Node       *Node
+	MethodName string
+	APICases   []grpcAPICase
 }
 
 func generateGRPCService(pg *ParsedGraph, module string, svcName string, outDir string) error {
@@ -602,14 +607,17 @@ func generateGRPCService(pg *ParsedGraph, module string, svcName string, outDir 
 	allClients := make(map[string]bool)
 	var handlers []grpcHandler
 	for _, n := range nodes {
-		targets := pg.Downstream(n.ID)
-		var downstreams []downstreamCall
-		for _, t := range targets {
-			tn := pg.Nodes[t]
-			allClients[tn.Microservice] = true
-			downstreams = append(downstreams, downstreamCall{tn.Microservice, protoServiceName(tn.Microservice), tn.GoMethodName(), tn.Interface})
+		var cases []grpcAPICase
+		for _, api := range pg.APIsReachingNode(n.ID) {
+			var downstreams []downstreamCall
+			for _, t := range pg.DownstreamForAPI(n.ID, api) {
+				tn := pg.Nodes[t]
+				allClients[tn.Microservice] = true
+				downstreams = append(downstreams, downstreamCall{tn.Microservice, protoServiceName(tn.Microservice), tn.GoMethodName(), tn.Interface})
+			}
+			cases = append(cases, grpcAPICase{APIName: api, Downstreams: downstreams})
 		}
-		handlers = append(handlers, grpcHandler{Node: n, MethodName: n.GoMethodName(), Downstreams: downstreams})
+		handlers = append(handlers, grpcHandler{Node: n, MethodName: n.GoMethodName(), APICases: cases})
 	}
 	var clients []clientRef
 	for ms := range allClients {
@@ -640,6 +648,7 @@ import (
 	"{{.Module}}/utils"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/reflection"
 )
 
@@ -697,13 +706,23 @@ func (s *Server) Run() error {
 {{range .Handlers}}
 func (s *Server) {{.MethodName}}(ctx context.Context, req *pb.Request) (*pb.Response, error) {
 	utils.BusyLoop({{.Node.BusyLoopRepeats}})
-{{if .Downstreams}}	var err error
-{{range .Downstreams}}	_, err = s.{{.ProtoMicroservice}}Client.{{.MethodName}}(ctx, req)
-	if err != nil {
-		log.Error("downstream call failed", "error", err)
-		return nil, err
+	md, _ := metadata.FromIncomingContext(ctx)
+	api := ""
+	if v := md.Get("api"); len(v) == 1 {
+		api = v[0]
 	}
-{{end}}{{end}}
+	switch api {
+{{range .APICases}}	case "{{.APIName}}":
+{{if .Downstreams}}		var err error
+{{range .Downstreams}}		_, err = s.{{.ProtoMicroservice}}Client.{{.MethodName}}(ctx, req)
+		if err != nil {
+			log.Error("downstream call failed", "error", err)
+			return nil, err
+		}
+{{end}}
+{{end}}
+{{end}}	default:
+	}
 	return &pb.Response{}, nil
 }
 {{end}}

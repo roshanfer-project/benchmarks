@@ -13,8 +13,8 @@
     {"source": "USER", "target": "frontend:f1"},
     {"source": "USER", "target": "frontend:f2"},
     {"source": "USER", "target": "frontend:f3"},
-    {"source": "frontend:f1", "target": "backend1:b1"},
-    {"source": "frontend:f2", "target": "backend2:b2"},
-    {"source": "frontend:f3", "target": "backend1:b1"}
+    {"source": "frontend:f1", "target": "backend1:b1", "api": "f1"},
+    {"source": "frontend:f2", "target": "backend2:b2", "api": "f2"},
+    {"source": "frontend:f3", "target": "backend1:b1", "api": "f3"}
   ]
 }

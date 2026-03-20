@@ -17,6 +17,7 @@ service backend2 {
 
 service frontend {
   rpc f1(Request) returns (Response);
+  rpc g1(Request) returns (Response);
 }
 
 service shared {

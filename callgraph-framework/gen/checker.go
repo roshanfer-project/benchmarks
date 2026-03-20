@@ -37,10 +37,23 @@ func Check(pg *ParsedGraph) error {
 		}
 	}
 
-	// Connectivity: all nodes reachable from at least one entry
+	entryIface := make(map[string]bool)
+	for _, entryID := range pg.EntryNodeIDs {
+		entryIface[pg.Nodes[entryID].Interface] = true
+	}
+	for _, e := range pg.Edges {
+		if e.Source == "USER" {
+			continue
+		}
+		if e.API != "" && !entryIface[e.API] {
+			errs = append(errs, fmt.Sprintf("edge %s→%s: unknown api %q (not an entry interface)", e.Source, e.Target, e.API))
+		}
+	}
+
+	// Connectivity: all nodes reachable from at least one entry (per-api slices)
 	reachable := make(map[string]bool)
 	for _, entryID := range pg.EntryNodeIDs {
-		for id := range reachableFrom(pg, entryID) {
+		for id := range pg.ReachableFromWithAPI(entryID) {
 			reachable[id] = true
 		}
 	}
@@ -62,20 +75,4 @@ func Check(pg *ParsedGraph) error {
 		return fmt.Errorf("check failed:\n  %s", strings.Join(errs, "\n  "))
 	}
 	return nil
-}
-
-func reachableFrom(pg *ParsedGraph, start string) map[string]bool {
-	reachable := map[string]bool{start: true}
-	queue := []string{start}
-	for len(queue) > 0 {
-		cur := queue[0]
-		queue = queue[1:]
-		for _, t := range pg.Downstream(cur) {
-			if !reachable[t] {
-				reachable[t] = true
-				queue = append(queue, t)
-			}
-		}
-	}
-	return reachable
 }

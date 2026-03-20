@@ -81,11 +81,11 @@ func (s *CounterState) GetInterceptor() grpc.UnaryServerInterceptor {
 		if !ok {
 			panic("metadata not found in context")
 		}
-		method := md.Get("method")
-		if len(method) == 0 || len(method) > 1 {
-			panic("method not found in metadata")
+		keys := md.Get("api")
+		if len(keys) == 0 || len(keys) > 1 {
+			panic("api not found in metadata")
 		}
-		api := method[0]
+		api := keys[0]
 		s.IncrementInReq(api)
 		s.IncrementAcceptedRPCCounter(api)
 		resp, err := handler(ctx, req)

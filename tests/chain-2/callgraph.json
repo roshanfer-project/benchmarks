@@ -6,6 +6,6 @@
   ],
   "edges": [
     {"source": "USER", "target": "frontend:f1"},
-    {"source": "frontend:f1", "target": "backend:f2"}
+    {"source": "frontend:f1", "target": "backend:f2", "api": "f1"}
   ]
 }

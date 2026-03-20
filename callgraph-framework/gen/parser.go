@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"sort"
 	"strings"
 	"unicode"
 )
@@ -45,6 +46,19 @@ type Node struct {
 type Edge struct {
 	Source string `json:"source"`
 	Target string `json:"target"`
+	API    string `json:"api"`
+}
+
+// EdgeVisible is true if this edge may be used when the request's entry API is apiName.
+// Empty API on an edge means all APIs (legacy).
+func EdgeVisible(e Edge, apiName string) bool {
+	if e.Source == "USER" {
+		return true
+	}
+	if e.API == "" {
+		return true
+	}
+	return e.API == apiName
 }
 
 type ParsedGraph struct {
@@ -104,13 +118,20 @@ func buildParsedGraph(cg *CallGraph) (*ParsedGraph, error) {
 		}
 	}
 	for _, e := range cg.Edges {
+		edge := e
 		if e.Source == "USER" {
-			if _, ok := pg.Nodes[e.Target]; !ok {
+			tn, ok := pg.Nodes[e.Target]
+			if !ok {
 				return nil, fmt.Errorf("entry node %s not found", e.Target)
+			}
+			if edge.API == "" {
+				edge.API = tn.Interface
+			} else if edge.API != tn.Interface {
+				return nil, fmt.Errorf("USER edge to %s: api %q must match entry interface %q", e.Target, edge.API, tn.Interface)
 			}
 			pg.EntryNodeIDs = append(pg.EntryNodeIDs, e.Target)
 		}
-		pg.Edges = append(pg.Edges, e)
+		pg.Edges = append(pg.Edges, edge)
 	}
 	if len(pg.EntryNodeIDs) == 0 {
 		return nil, fmt.Errorf("no USER entry point found")
@@ -211,6 +232,56 @@ func (pg *ParsedGraph) Downstream(nodeID string) []string {
 		}
 	}
 	return targets
+}
+
+// DownstreamForAPI returns targets of edges from nodeID visible for the given entry API name.
+func (pg *ParsedGraph) DownstreamForAPI(nodeID string, apiName string) []string {
+	var targets []string
+	for _, e := range pg.Edges {
+		if e.Source != nodeID {
+			continue
+		}
+		if EdgeVisible(e, apiName) {
+			targets = append(targets, e.Target)
+		}
+	}
+	return targets
+}
+
+// ReachableFromWithAPI is BFS from entryID following only edges visible for that entry's API.
+func (pg *ParsedGraph) ReachableFromWithAPI(entryID string) map[string]bool {
+	apiName := pg.Nodes[entryID].Interface
+	reachable := map[string]bool{entryID: true}
+	queue := []string{entryID}
+	for len(queue) > 0 {
+		cur := queue[0]
+		queue = queue[1:]
+		for _, t := range pg.DownstreamForAPI(cur, apiName) {
+			if !reachable[t] {
+				reachable[t] = true
+				queue = append(queue, t)
+			}
+		}
+	}
+	return reachable
+}
+
+// APIsReachingNode returns sorted entry API names whose virtual graph includes nodeID.
+func (pg *ParsedGraph) APIsReachingNode(nodeID string) []string {
+	var out []string
+	seen := make(map[string]bool)
+	for _, eid := range pg.EntryNodeIDs {
+		iface := pg.Nodes[eid].Interface
+		if seen[iface] {
+			continue
+		}
+		if pg.ReachableFromWithAPI(eid)[nodeID] {
+			seen[iface] = true
+			out = append(out, iface)
+		}
+	}
+	sort.Strings(out)
+	return out
 }
 
 func (pg *ParsedGraph) EntryMicroservice() string {

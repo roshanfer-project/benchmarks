@@ -51,6 +51,7 @@ func (s *Server) Run() error {
 		baseHandler = counter.GetHTTP1Middleware()(baseHandler)
 	}
 	mux.Handle("/f1", baseHandler)
+	mux.Handle("/g1", baseHandler)
 
 	srv := &http.Server{
 		Addr:    fmt.Sprintf(":%d", port),
@@ -74,7 +75,7 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 	path := strings.TrimPrefix(r.URL.Path, "/")
 	switch path {
 	case "f1":
-		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("method", "f1", "rpc-id", rpcID))
+		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "f1", "rpc-id", rpcID))
 		utils.BusyLoop(64)
 		req := &pb.Request{}
 		var err error
@@ -85,6 +86,19 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		_, err = s.Backend2Client.F3(ctx, req)
+		if err != nil {
+			log.Error("downstream call failed", "error", err)
+			http.Error(w, err.Error(), 500)
+			return
+		}
+
+
+	case "g1":
+		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "g1", "rpc-id", rpcID))
+		utils.BusyLoop(64)
+		req := &pb.Request{}
+		var err error
+		_, err = s.Backend1Client.F2(ctx, req)
 		if err != nil {
 			log.Error("downstream call failed", "error", err)
 			http.Error(w, err.Error(), 500)

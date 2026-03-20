@@ -9,6 +9,7 @@ import (
 	"fanoutfanin/utils"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/reflection"
 )
 
@@ -66,13 +67,23 @@ func (s *Server) Run() error {
 
 func (s *Server) F3(ctx context.Context, req *pb.Request) (*pb.Response, error) {
 	utils.BusyLoop(128)
-	var err error
-	_, err = s.SharedClient.F4(ctx, req)
-	if err != nil {
-		log.Error("downstream call failed", "error", err)
-		return nil, err
+	md, _ := metadata.FromIncomingContext(ctx)
+	api := ""
+	if v := md.Get("api"); len(v) == 1 {
+		api = v[0]
 	}
+	switch api {
+	case "f1":
+		var err error
+		_, err = s.SharedClient.F4(ctx, req)
+		if err != nil {
+			log.Error("downstream call failed", "error", err)
+			return nil, err
+		}
 
+
+	default:
+	}
 	return &pb.Response{}, nil
 }
 
