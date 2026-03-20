@@ -110,9 +110,9 @@ for entry in "${HOSTS[@]}"; do
     
     ssh_exec "$node_user" "$node_host" "$CLONE_CMD"
     
-    # Initialize submodules
-    log_info "        Initializing submodules (rwg only)..."
-    ssh_exec "$node_user" "$node_host" "cd $DIR_NAME && git submodule update --init --recursive rwg"
+    # Initialize submodules (benchmarks: k8s/provision wrappers; rwg: load generator)
+    log_info "        Initializing submodules (benchmarks, rwg)..."
+    ssh_exec "$node_user" "$node_host" "cd $DIR_NAME && git submodule update --init --recursive benchmarks rwg"
 
     # Build rwg
     log_info "        Building rwg..."

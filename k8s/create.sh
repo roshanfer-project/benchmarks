@@ -78,6 +78,23 @@ ssh_exec() {
     ssh $SSH_OPTS "$user@$host" "$cmd"
 }
 
+# Pull admin kubeconfig from control plane and install locally (always use current SERVER_HOST).
+install_local_kubeconfig_from_server() {
+    log_info "Copying kubeconfig to $SCRIPT_DIR/kubeconfig..."
+    ssh $SSH_OPTS "$SERVER_User@$SERVER_HOST" "sudo cat /etc/rancher/k3s/k3s.yaml" > "$SCRIPT_DIR/kubeconfig"
+    sed -i "s/127.0.0.1/$SERVER_HOST/g" "$SCRIPT_DIR/kubeconfig"
+    sed -i "s|https://localhost:6443|https://${SERVER_HOST}:6443|g" "$SCRIPT_DIR/kubeconfig" || true
+    chmod 600 "$SCRIPT_DIR/kubeconfig"
+
+    mkdir -p ~/.kube
+    if [ -f ~/.kube/config ]; then
+        log_info "Backing up existing kubeconfig to ~/.kube/config.bak"
+        cp ~/.kube/config ~/.kube/config.bak
+    fi
+    cp "$SCRIPT_DIR/kubeconfig" ~/.kube/config
+    chmod 600 ~/.kube/config
+}
+
 # --- CHECK EXISTING CLUSTER ---
 check_cluster_ready() {
     export KUBECONFIG="$SCRIPT_DIR/kubeconfig"
@@ -99,7 +116,10 @@ check_cluster_ready() {
 }
 
 if check_cluster_ready; then
-    log_success "Cluster verified ready. Skipping setup."
+    log_success "Cluster verified ready. Skipping K3s reinstall."
+    install_local_kubeconfig_from_server
+    export KUBECONFIG="$SCRIPT_DIR/kubeconfig"
+    log_success "Local kubeconfig refreshed for $SERVER_HOST ($SCRIPT_DIR/kubeconfig, ~/.kube/config)."
     exit 0
 else
     log_info "Cluster not ready or missing. Cleaning up before installation..."
@@ -133,22 +153,7 @@ log_info "Configuring remote access for user $SERVER_User on $SERVER_HOST..."
 SETUP_KUBECONFIG_CMD="mkdir -p ~/.kube && sudo cp /etc/rancher/k3s/k3s.yaml ~/.kube/config && sudo chown \$(id -u):\$(id -g) ~/.kube/config && chmod 600 ~/.kube/config && echo 'export KUBECONFIG=~/.kube/config' >> ~/.bashrc"
 ssh_exec "$SERVER_User" "$SERVER_HOST" "$SETUP_KUBECONFIG_CMD"
 
-# Copy kubeconfig to local project directory
-log_info "Copying kubeconfig to $SCRIPT_DIR/kubeconfig..."
-ssh $SSH_OPTS "$SERVER_User@$SERVER_HOST" "sudo cat /etc/rancher/k3s/k3s.yaml" > "$SCRIPT_DIR/kubeconfig"
-# Replace localhost/127.0.0.1 with ssh hostname
-sed -i "s/127.0.0.1/$SERVER_HOST/g" "$SCRIPT_DIR/kubeconfig"
-chmod 600 "$SCRIPT_DIR/kubeconfig"
-
-# Install to default location for global usage
-mkdir -p ~/.kube
-if [ -f ~/.kube/config ]; then
-    log_info "Backing up existing kubeconfig to ~/.kube/config.bak"
-    mv ~/.kube/config ~/.kube/config.bak
-fi
-cp "$SCRIPT_DIR/kubeconfig" ~/.kube/config
-chmod 600 ~/.kube/config
-
+install_local_kubeconfig_from_server
 export KUBECONFIG="$SCRIPT_DIR/kubeconfig"
 log_success "Control plane initialized. Kubeconfig installed to ~/.kube/config and $SCRIPT_DIR/kubeconfig"
 
@@ -196,8 +201,29 @@ echo "Kubeconfig is installed in ~/.kube/config."
 echo "You can run 'kubectl get nodes' immediately."
 kubectl get nodes
 
-log_info "Waiting up to 10 seconds for all pods to be ready..."
-if ! kubectl wait --for=condition=Ready pod --all --all-namespaces --timeout=30s; then
+log_info "Waiting 30s for the API server to schedule system pods..."
+sleep 30
+
+log_info "Waiting for pods to appear (up to 120s, poll every 3s)..."
+pods_seen=0
+for _ in {1..40}; do
+    n=$(kubectl get pods -A --no-headers 2>/dev/null | wc -l)
+    n="${n// /}"
+    if [ "${n:-0}" -gt 0 ]; then
+        pods_seen=1
+        break
+    fi
+    sleep 3
+done
+
+if [ "$pods_seen" -eq 0 ]; then
+    log_error "No pods found after waiting. Current state:"
+    kubectl get pods -A 2>/dev/null || true
+    exit 1
+fi
+
+log_info "Waiting for all pods to be Ready (timeout 180s)..."
+if ! kubectl wait --for=condition=Ready pod --all --all-namespaces --timeout=180s; then
     log_error "Timeout: Not all pods are ready."
     echo "Current Pod Status:"
     kubectl get pods --all-namespaces
