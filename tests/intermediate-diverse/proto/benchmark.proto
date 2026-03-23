@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package benchmark;
+
+option go_package = "intermediatediverse/protobuf";
+
+message Request { string payload = 1; }
+message Response { string payload = 1; }
+
+service backend1 {
+  rpc b1(Request) returns (Response);
+}
+
+service backend2 {
+  rpc b2(Request) returns (Response);
+}
+
+service backend3 {
+  rpc b3(Request) returns (Response);
+}
+
+service frontend {
+  rpc f1(Request) returns (Response);
+  rpc f2(Request) returns (Response);
+  rpc f3(Request) returns (Response);
+}
+

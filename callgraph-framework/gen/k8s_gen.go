@@ -253,7 +253,7 @@ func buildSidecarServiceConfig(pg *ParsedGraph, prefix, svcName, kn, entrySvc st
 	cpuCount := pg.CPUForService(svcName)
 	overCommitment := pg.OverCommitmentForService(svcName)
 	if isEntry {
-		b.WriteString("is_frontend: True\nfrontend_pool_connections: 200\n")
+		b.WriteString(fmt.Sprintf("is_frontend: True\nfrontend_pool_connections: %d\n", pg.EffectiveConnectionPoolSize()))
 	}
 	b.WriteString(fmt.Sprintf("cpu_count: %d\nover_commitment: %.1f\n", cpuCount, overCommitment))
 	return b.String()
@@ -282,7 +282,7 @@ ring_size: 4000
 buffer_count: 16384
 buffer_size: 10000
 num_threads: %d
-ingress_pool_connections: 200
+ingress_pool_connections: %d
 egress_listener_port: %d
 ingress_listener_port: 4000
 ingress_upstream_host: localhost
@@ -292,7 +292,7 @@ is_frontend: False
 report_latency: True
 name: ingress
 `, strings.TrimSuffix(routing.String(), "\n"), strings.TrimSuffix(mapping.String(), "\n"),
-		numThreads, sidecarIngressPort, sidecarAppPort)
+		numThreads, pg.EffectiveConnectionPoolSize(), sidecarIngressPort, sidecarAppPort)
 }
 
 func generateSidecarEnv(pg *ParsedGraph, benchmarkName string, svcNames []string, outDir string) error {

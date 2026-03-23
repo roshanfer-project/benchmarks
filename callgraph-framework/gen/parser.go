@@ -12,6 +12,7 @@ import (
 
 const defaultAvgRT = 1.0
 const busyLoopScale = 320
+const defaultConnectionPoolSize = 200
 
 type CallGraph struct {
 	Nodes []ServiceNode `json:"nodes"`
@@ -19,11 +20,12 @@ type CallGraph struct {
 }
 
 type ServiceNode struct {
-	ID             string      `json:"id"`
-	Interfaces     []Interface `json:"interfaces"`
-	CPU            int         `json:"cpu"`
-	SidecarCPU     int         `json:"sidecar_cpu"`
-	OverCommitment float64     `json:"over_commitment"`
+	ID                 string      `json:"id"`
+	Interfaces         []Interface `json:"interfaces"`
+	CPU                int         `json:"cpu"`
+	SidecarCPU         int         `json:"sidecar_cpu"`
+	OverCommitment     float64     `json:"over_commitment"`
+	ConnectionPoolSize int         `json:"connection_pool_size,omitempty"`
 }
 
 type Interface struct {
@@ -64,10 +66,11 @@ func EdgeVisible(e Edge, apiName string) bool {
 }
 
 type ParsedGraph struct {
-	Nodes        map[string]*Node
-	Edges        []Edge
-	EntryNodeIDs []string
-	Services     map[string][]*Node
+	Nodes              map[string]*Node
+	Edges              []Edge
+	EntryNodeIDs       []string
+	Services           map[string][]*Node
+	ConnectionPoolSize int // 0: use defaultConnectionPoolSize
 }
 
 func ParseCallGraph(path string) (*ParsedGraph, error) {
@@ -146,7 +149,37 @@ func buildParsedGraph(cg *CallGraph) (*ParsedGraph, error) {
 			return nil, fmt.Errorf("all USER entry points must target same service; %s vs %s", pg.EntryNodeIDs[0], id)
 		}
 	}
+	for i := range cg.Nodes {
+		svc := &cg.Nodes[i]
+		if svc.ID == "USER" || svc.ID == entrySvc {
+			continue
+		}
+		if svc.ConnectionPoolSize != 0 {
+			return nil, fmt.Errorf("connection_pool_size is only valid on entry service %q, not %q", entrySvc, svc.ID)
+		}
+	}
+	for i := range cg.Nodes {
+		if cg.Nodes[i].ID != entrySvc {
+			continue
+		}
+		p := cg.Nodes[i].ConnectionPoolSize
+		if p < 0 {
+			return nil, fmt.Errorf("service %s: connection_pool_size must be >= 1", entrySvc)
+		}
+		if p > 0 {
+			pg.ConnectionPoolSize = p
+		}
+		break
+	}
 	return pg, nil
+}
+
+// EffectiveConnectionPoolSize returns connection_pool_size from the entry service, or the default if unset.
+func (pg *ParsedGraph) EffectiveConnectionPoolSize() int {
+	if pg.ConnectionPoolSize > 0 {
+		return pg.ConnectionPoolSize
+	}
+	return defaultConnectionPoolSize
 }
 
 // FullRPCName returns the gRPC full method name for sidecar config (without leading slash).

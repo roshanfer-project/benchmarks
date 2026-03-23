@@ -78,6 +78,10 @@ func Check(pg *ParsedGraph) error {
 		}
 	}
 
+	if pg.EffectiveConnectionPoolSize() < 1 {
+		errs = append(errs, "effective connection_pool_size must be >= 1")
+	}
+
 	if len(errs) > 0 {
 		return fmt.Errorf("check failed:\n  %s", strings.Join(errs, "\n  "))
 	}
