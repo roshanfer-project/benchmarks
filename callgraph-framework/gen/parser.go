@@ -19,10 +19,11 @@ type CallGraph struct {
 }
 
 type ServiceNode struct {
-	ID         string      `json:"id"`
-	Interfaces []Interface `json:"interfaces"`
-	CPU        int         `json:"cpu"`
-	SidecarCPU int         `json:"sidecar_cpu"`
+	ID             string      `json:"id"`
+	Interfaces     []Interface `json:"interfaces"`
+	CPU            int         `json:"cpu"`
+	SidecarCPU     int         `json:"sidecar_cpu"`
+	OverCommitment float64     `json:"over_commitment"`
 }
 
 type Interface struct {
@@ -33,14 +34,15 @@ type Interface struct {
 }
 
 type Node struct {
-	ID           string
-	Microservice string
-	Interface    string
-	AvgRT        float64
-	CPU          int
-	SidecarCPU   int
-	SLO          *int
-	Priority     *int
+	ID             string
+	Microservice   string
+	Interface      string
+	AvgRT          float64
+	CPU            int
+	SidecarCPU     int
+	OverCommitment float64
+	SLO            *int
+	Priority       *int
 }
 
 type Edge struct {
@@ -104,14 +106,15 @@ func buildParsedGraph(cg *CallGraph) (*ParsedGraph, error) {
 				avgRT = defaultAvgRT
 			}
 			node := &Node{
-				ID:           svc.ID + ":" + iface.Name,
-				Microservice: svc.ID,
-				Interface:    iface.Name,
-				AvgRT:        avgRT,
-				CPU:          cpu,
-				SidecarCPU:   sidecarCPU,
-				SLO:          iface.SLO,
-				Priority:     iface.Priority,
+				ID:             svc.ID + ":" + iface.Name,
+				Microservice:   svc.ID,
+				Interface:      iface.Name,
+				AvgRT:          avgRT,
+				CPU:            cpu,
+				SidecarCPU:     sidecarCPU,
+				OverCommitment: svc.OverCommitment,
+				SLO:            iface.SLO,
+				Priority:       iface.Priority,
 			}
 			pg.Nodes[node.ID] = node
 			pg.Services[svc.ID] = append(pg.Services[svc.ID], node)
@@ -309,6 +312,13 @@ func (pg *ParsedGraph) SidecarCPUForService(svcName string) int {
 		return nodes[0].SidecarCPU
 	}
 	return 1
+}
+
+func (pg *ParsedGraph) OverCommitmentForService(svcName string) float64 {
+	if nodes, ok := pg.Services[svcName]; ok && len(nodes) > 0 {
+		return nodes[0].OverCommitment
+	}
+	return 0
 }
 
 // UserEntryCount returns the number of APIs (entry interfaces USER connects to).

@@ -41,7 +41,7 @@ Requires [graphviz](https://graphviz.org/) (`dot` on PATH): `apt install graphvi
 
 ## Call Graph Format
 
-- `nodes`: one per microservice; `id`, `interfaces` (array of `{name, avg_rt}`), `cpu` (optional, default 1, used for cpu_count in sidecar config and app resources), `sidecar_cpu` (optional, default 1, used for num_threads in sidecar config; k8s sidecar gets 2× this)
+- `nodes`: one per microservice; `id`, `interfaces` (array of `{name, avg_rt}`), `cpu` (optional, default 1, used for cpu_count in sidecar config and app resources), `sidecar_cpu` (optional, default 1, used for num_threads in sidecar config; k8s sidecar gets 2× this), `over_commitment` (optional, default 0, must be in [0,1]; written to sidecar config)
 - `edges`: `source`, `target` as interface IDs (`microservice:interface`); `USER` → entry node. Optional **`api`**: entry interface name (`f1`, not `frontend:f1`). Omitted on `USER` edges means “derive from target”. Omitted on internal edges means the edge applies to **all** APIs (legacy). Multi-API benchmarks should set **`api`** on every internal edge so each API’s virtual graph is explicit.
 - Entry service sets gRPC metadata **`api`** on outbound calls (same string as on edges). Non-entry handlers `switch` on `api` for downstream calls.
 - Entry: HTTP/1 server; others: gRPC services

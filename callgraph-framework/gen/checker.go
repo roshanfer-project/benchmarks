@@ -13,6 +13,7 @@ func Check(pg *ParsedGraph) error {
 	if len(pg.Nodes) == 0 {
 		errs = append(errs, "no nodes defined")
 	}
+	ocChecked := make(map[string]bool)
 	for id, n := range pg.Nodes {
 		if n.Interface == "" {
 			errs = append(errs, fmt.Sprintf("node %s: empty interface name", id))
@@ -22,6 +23,12 @@ func Check(pg *ParsedGraph) error {
 		}
 		if n.CPU <= 0 {
 			errs = append(errs, fmt.Sprintf("node %s: cpu must be > 0", id))
+		}
+		if !ocChecked[n.Microservice] {
+			ocChecked[n.Microservice] = true
+			if n.OverCommitment < 0 || n.OverCommitment > 1 {
+				errs = append(errs, fmt.Sprintf("service %s: over_commitment must be between 0 and 1", n.Microservice))
+			}
 		}
 	}
 

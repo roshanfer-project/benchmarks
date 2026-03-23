@@ -251,7 +251,7 @@ func buildSidecarServiceConfig(pg *ParsedGraph, prefix, svcName, kn, entrySvc st
 	b.WriteString(fmt.Sprintf("name: %s\n", kn))
 
 	cpuCount := pg.CPUForService(svcName)
-	overCommitment := 1.0
+	overCommitment := pg.OverCommitmentForService(svcName)
 	if isEntry {
 		b.WriteString("is_frontend: True\nfrontend_pool_connections: 200\n")
 	}
@@ -641,7 +641,7 @@ func GenerateScripts(pg *ParsedGraph, benchmarkName string, outDir string) error
 
 func generateBuildScript(benchmarkName string, svcNames []string, outDir string) error {
 	type svcEntry struct {
-		Name   string
+		Name    string
 		K8sName string
 	}
 	var entries []svcEntry

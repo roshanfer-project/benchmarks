@@ -86,7 +86,8 @@ func Visualize(callgraphPath string, outPath string) error {
 	for _, svc := range svcNames {
 		nodes := pg.Services[svc]
 		cpu := pg.CPUForService(svc)
-		clusterLabel := fmt.Sprintf("%s\ncpu:%d", svc, cpu)
+		oc := pg.OverCommitmentForService(svc)
+		clusterLabel := fmt.Sprintf("%s\ncpu:%d\nover_commit:%g", svc, cpu, oc)
 		b.WriteString("  subgraph cluster_" + dotID(svc) + " {\n")
 		b.WriteString("    label=" + dotLabel(clusterLabel) + ";\n")
 		b.WriteString("    style=rounded;\n")
