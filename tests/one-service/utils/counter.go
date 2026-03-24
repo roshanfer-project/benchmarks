@@ -21,9 +21,13 @@ type CounterState struct {
 	inReq                   map[string]int64
 	outReq                  map[string]int64
 	maxQueue                map[string]int64
+	queueIntegral           map[string]float64
 	lock                    sync.Mutex
 	startOnce               sync.Once
+	startTime               time.Time
+	lastEventTime           time.Time
 	maxQueueGauge           *prometheus.GaugeVec
+	avgQueueGauge           *prometheus.GaugeVec
 	failedRPCCounterGauge   *prometheus.GaugeVec
 	acceptedRPCCounterGauge *prometheus.GaugeVec
 	registry                *prometheus.Registry
@@ -38,8 +42,10 @@ func NewCounterState(serviceName string) *CounterState {
 		inReq:              make(map[string]int64),
 		outReq:             make(map[string]int64),
 		maxQueue:           make(map[string]int64),
+		queueIntegral:      make(map[string]float64),
 		lock:               sync.Mutex{},
 		registry:           prometheus.NewRegistry(),
+		startTime:          time.Now(),
 	}
 	if strings.HasSuffix(serviceName, "-grpc") {
 		s.serviceName = serviceName[:len(serviceName)-len("-grpc")]
@@ -52,6 +58,10 @@ func NewCounterState(serviceName string) *CounterState {
 		prometheus.GaugeOpts{Name: "max_queue", Help: "Maximum queue length for each RPC method"},
 		[]string{"api"},
 	)
+	s.avgQueueGauge = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{Name: "avg_queue", Help: "Time-averaged queue length for each RPC method"},
+		[]string{"api"},
+	)
 	s.acceptedRPCCounterGauge = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{Name: "accepted_rpc_counter", Help: "Accepted RPC counter for each RPC method"},
 		[]string{"api"},
@@ -61,6 +71,7 @@ func NewCounterState(serviceName string) *CounterState {
 		[]string{"api"},
 	)
 	s.registry.MustRegister(s.maxQueueGauge)
+	s.registry.MustRegister(s.avgQueueGauge)
 	s.registry.MustRegister(s.acceptedRPCCounterGauge)
 	s.registry.MustRegister(s.failedRPCCounterGauge)
 	return s
@@ -113,8 +124,25 @@ func (s *CounterState) GetHTTP1Middleware() func(next http.Handler) http.Handler
 	}
 }
 
+func (s *CounterState) accumulateIntegral(now time.Time) {
+	if s.lastEventTime.IsZero() {
+		s.lastEventTime = now
+		return
+	}
+	dt := now.Sub(s.lastEventTime).Seconds()
+	if dt <= 0 {
+		return
+	}
+	for m := range s.inReq {
+		q := s.inReq[m] - s.outReq[m]
+		s.queueIntegral[m] += float64(q) * dt
+	}
+	s.lastEventTime = now
+}
+
 func (s *CounterState) IncrementInReq(method string) {
 	s.lock.Lock()
+	s.accumulateIntegral(time.Now())
 	s.inReq[method]++
 	s.UpdateMaxQueue(method)
 	s.lock.Unlock()
@@ -122,6 +150,7 @@ func (s *CounterState) IncrementInReq(method string) {
 
 func (s *CounterState) IncrementOutReq(method string) {
 	s.lock.Lock()
+	s.accumulateIntegral(time.Now())
 	s.outReq[method]++
 	s.UpdateMaxQueue(method)
 	s.lock.Unlock()
@@ -132,14 +161,6 @@ func (s *CounterState) UpdateMaxQueue(method string) {
 	if queueSize > s.maxQueue[method] {
 		s.maxQueue[method] = queueSize
 	}
-}
-
-func (s *CounterState) PushMaxQueue() {
-	s.lock.Lock()
-	for method, queueSize := range s.maxQueue {
-		s.maxQueueGauge.WithLabelValues(method).Set(float64(queueSize))
-	}
-	s.lock.Unlock()
 }
 
 func (s *CounterState) IncrementAcceptedRPCCounter(method string) {
@@ -173,7 +194,21 @@ func (s *CounterState) PushFailedRPCCounter() {
 func (s *CounterState) PushAll() {
 	t := time.NewTicker(1 * time.Second)
 	for range t.C {
-		s.PushMaxQueue()
+		s.lock.Lock()
+		now := time.Now()
+		s.accumulateIntegral(now)
+		for method, queueSize := range s.maxQueue {
+			s.maxQueueGauge.WithLabelValues(method).Set(float64(queueSize))
+		}
+		elapsed := now.Sub(s.startTime).Seconds()
+		if elapsed < 1e-9 {
+			elapsed = 1e-9
+		}
+		for method := range s.inReq {
+			avg := s.queueIntegral[method] / elapsed
+			s.avgQueueGauge.WithLabelValues(method).Set(avg)
+		}
+		s.lock.Unlock()
 		s.PushAcceptedRPCCounter()
 		s.PushFailedRPCCounter()
 		if err := push.New(s.promAddr, s.serviceName).Gatherer(s.registry).Push(); err != nil {
