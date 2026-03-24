@@ -13,9 +13,9 @@ import (
 	"google.golang.org/grpc/reflection"
 )
 
+
 type Server struct {
 	pb.UnimplementedSharedServer
-
 }
 
 const serviceName = "shared"

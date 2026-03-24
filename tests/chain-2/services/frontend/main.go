@@ -7,16 +7,14 @@ import (
 	"chain2/utils"
 
 	"google.golang.org/grpc/metadata"
-
 	"chain2/pkg"
 	pb "chain2/protobuf"
 	"google.golang.org/grpc"
-
 )
+
 
 type Server struct {
 	BackendClient pb.BackendClient
-
 }
 
 const serviceName = "frontend"

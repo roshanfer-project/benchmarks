@@ -48,9 +48,10 @@ type Node struct {
 }
 
 type Edge struct {
-	Source string `json:"source"`
-	Target string `json:"target"`
-	API    string `json:"api"`
+	Source string   `json:"source"`
+	Target string   `json:"target"`
+	API    string   `json:"api"`
+	Weight *float64 `json:"weight,omitempty"`
 }
 
 // EdgeVisible is true if this edge may be used when the request's entry API is apiName.
@@ -270,18 +271,28 @@ func (pg *ParsedGraph) Downstream(nodeID string) []string {
 	return targets
 }
 
-// DownstreamForAPI returns targets of edges from nodeID visible for the given entry API name.
-func (pg *ParsedGraph) DownstreamForAPI(nodeID string, apiName string) []string {
-	var targets []string
+// OutgoingEdgesForAPI returns edges from nodeID visible for the given entry API (JSON order).
+func (pg *ParsedGraph) OutgoingEdgesForAPI(nodeID string, apiName string) []Edge {
+	var out []Edge
 	for _, e := range pg.Edges {
 		if e.Source != nodeID {
 			continue
 		}
 		if EdgeVisible(e, apiName) {
-			targets = append(targets, e.Target)
+			out = append(out, e)
 		}
 	}
-	return targets
+	return out
+}
+
+// DownstreamForAPI returns targets of edges from nodeID visible for the given entry API name.
+func (pg *ParsedGraph) DownstreamForAPI(nodeID string, apiName string) []string {
+	edges := pg.OutgoingEdgesForAPI(nodeID, apiName)
+	out := make([]string, len(edges))
+	for i, e := range edges {
+		out[i] = e.Target
+	}
+	return out
 }
 
 // ReachableFromWithAPI is BFS from entryID following only edges visible for that entry's API.

@@ -7,17 +7,15 @@ import (
 	"fanout/utils"
 
 	"google.golang.org/grpc/metadata"
-
 	"fanout/pkg"
 	pb "fanout/protobuf"
 	"google.golang.org/grpc"
-
 )
+
 
 type Server struct {
 	Backend1Client pb.Backend1Client
 	Backend2Client pb.Backend2Client
-
 }
 
 const serviceName = "frontend"

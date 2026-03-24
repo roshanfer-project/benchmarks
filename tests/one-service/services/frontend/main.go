@@ -7,11 +7,10 @@ import (
 	"oneservice/utils"
 
 	"google.golang.org/grpc/metadata"
-
 )
 
-type Server struct {
 
+type Server struct {
 }
 
 const serviceName = "frontend"

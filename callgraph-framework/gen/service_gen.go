@@ -452,20 +452,23 @@ func GetServerOptions() []grpc.ServerOption {
 }
 
 type entryServiceData struct {
-	Module        string
-	ServiceName   string
-	Port          int
-	Handlers      []entryHandlerData
-	Clients       []clientRef
-	EgressEnv     string
-	PortEnv       string
-	UseSingleConn bool
+	Module               string
+	ServiceName          string
+	Port                 int
+	Handlers             []entryHandlerData
+	Clients              []clientRef
+	EgressEnv            string
+	PortEnv              string
+	UseSingleConn        bool
+	NeedWeightedRouting  bool
 }
 
 type entryHandlerData struct {
-	Interface      string
+	Interface       string
 	BusyLoopRepeats int
-	Downstreams    []downstreamCall
+	HasWeighted     bool
+	WeightedArms    []weightedArm
+	Downstreams     []downstreamCall
 }
 
 type clientRef struct {
@@ -477,8 +480,63 @@ type clientRef struct {
 type downstreamCall struct {
 	Microservice      string
 	ProtoMicroservice string
-	MethodName       string
-	Interface        string
+	MethodName        string
+	Interface         string
+}
+
+type weightedArm struct {
+	Until             float64
+	IsFirst           bool
+	IsLast            bool
+	ProtoMicroservice string
+	MethodName        string
+}
+
+func buildWeightedArms(edges []Edge, pg *ParsedGraph) []weightedArm {
+	var arms []weightedArm
+	cum := 0.0
+	for i, e := range edges {
+		n := pg.Nodes[e.Target]
+		cum += *e.Weight
+		a := weightedArm{
+			ProtoMicroservice: protoServiceName(n.Microservice),
+			MethodName:        n.GoMethodName(),
+		}
+		if i == 0 {
+			a.IsFirst = true
+			a.Until = cum
+		} else if i == len(edges)-1 {
+			a.IsLast = true
+		} else {
+			a.Until = cum
+		}
+		arms = append(arms, a)
+	}
+	return arms
+}
+
+// routingFromEdges returns sequential downstream calls, or weighted arms when multiple weighted edges.
+func routingFromEdges(pg *ParsedGraph, edges []Edge) (hasWeighted bool, arms []weightedArm, seq []downstreamCall) {
+	anyW := false
+	for _, e := range edges {
+		if e.Weight != nil {
+			anyW = true
+			break
+		}
+	}
+	if !anyW {
+		for _, e := range edges {
+			tn := pg.Nodes[e.Target]
+			seq = append(seq, downstreamCall{tn.Microservice, protoServiceName(tn.Microservice), tn.GoMethodName(), tn.Interface})
+		}
+		return false, nil, seq
+	}
+	if len(edges) == 1 {
+		tn := pg.Nodes[edges[0].Target]
+		seq = append(seq, downstreamCall{tn.Microservice, protoServiceName(tn.Microservice), tn.GoMethodName(), tn.Interface})
+		return false, nil, seq
+	}
+	return true, buildWeightedArms(edges, pg), nil
 }
 
 func generateEntryService(pg *ParsedGraph, module string, svcName string, outDir string) error {
@@ -486,32 +544,38 @@ func generateEntryService(pg *ParsedGraph, module string, svcName string, outDir
 	var clients []clientRef
 	egressEnv := svcName + "_EGRESS"
 	var handlers []entryHandlerData
+	needRand := false
 	for _, entryNode := range pg.EntryInterfaces() {
-		targets := pg.DownstreamForAPI(entryNode.ID, entryNode.Interface)
-		var downstreams []downstreamCall
-		for _, t := range targets {
-			n := pg.Nodes[t]
+		edges := pg.OutgoingEdgesForAPI(entryNode.ID, entryNode.Interface)
+		for _, e := range edges {
+			n := pg.Nodes[e.Target]
 			if !seen[n.Microservice] {
 				seen[n.Microservice] = true
 				clients = append(clients, clientRef{n.Microservice, protoServiceName(n.Microservice), n.Microservice + "_ADDR"})
 			}
-			downstreams = append(downstreams, downstreamCall{n.Microservice, protoServiceName(n.Microservice), n.GoMethodName(), n.Interface})
+		}
+		hasW, arms, seq := routingFromEdges(pg, edges)
+		if hasW {
+			needRand = true
 		}
 		handlers = append(handlers, entryHandlerData{
-			Interface:      entryNode.Interface,
+			Interface:       entryNode.Interface,
 			BusyLoopRepeats: entryNode.BusyLoopRepeats(),
-			Downstreams:    downstreams,
+			HasWeighted:     hasW,
+			WeightedArms:    arms,
+			Downstreams:     seq,
 		})
 	}
 	data := entryServiceData{
-		Module:        module,
-		ServiceName:   svcName,
-		Port:          port,
-		Handlers:      handlers,
-		Clients:       clients,
-		EgressEnv:     egressEnv,
-		PortEnv:       svcName + "_PORT",
-		UseSingleConn: true,
+		Module:              module,
+		ServiceName:         svcName,
+		Port:                port,
+		Handlers:            handlers,
+		Clients:             clients,
+		EgressEnv:           egressEnv,
+		PortEnv:             svcName + "_PORT",
+		UseSingleConn:       true,
+		NeedWeightedRouting: needRand,
 	}
 	return renderTemplate(entryServiceTmpl, data, filepath.Join(outDir, "services", svcName, "main.go"))
 }
@@ -524,17 +588,43 @@ import (
 	"strings"
 	"{{.Module}}/utils"
 
-	"google.golang.org/grpc/metadata"
-{{if .Clients}}
+	"google.golang.org/grpc/metadata"{{if .Clients}}
 	"{{.Module}}/pkg"
 	pb "{{.Module}}/protobuf"
-	"google.golang.org/grpc"
-{{end}}
+	"google.golang.org/grpc"{{end}}{{if .NeedWeightedRouting}}
+	"math/rand"
+	"os"
+	"strconv"
+	"sync"
+	"time"{{end}}
 )
 
-type Server struct {
-{{range .Clients}}	{{.ProtoMicroservice}}Client pb.{{.ProtoMicroservice}}Client
+{{if .NeedWeightedRouting}}var routingRng struct {
+	mu sync.Mutex
+	r  *rand.Rand
+}
+
+func init() {
+	seed := time.Now().UnixNano()
+	if s := os.Getenv("ROUTING_SEED"); s != "" {
+		if v, err := strconv.ParseInt(s, 10, 64); err == nil {
+			seed = v
+		}
+	}
+	routingRng.r = rand.New(rand.NewSource(seed))
+}
+
+func routingFloat() float64 {
+	routingRng.mu.Lock()
+	defer routingRng.mu.Unlock()
+	return routingRng.r.Float64()
+}
+
 {{end}}
+type Server struct {
+{{- range .Clients}}
+	{{.ProtoMicroservice}}Client pb.{{.ProtoMicroservice}}Client
+{{- end}}
 }
 
 const serviceName = "{{.ServiceName}}"
@@ -591,7 +681,20 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 {{range .Handlers}}	case "{{.Interface}}":
 		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "{{.Interface}}", "rpc-id", rpcID))
 		utils.BusyLoop({{.BusyLoopRepeats}})
-{{if .Downstreams}}		req := &pb.Request{}
+{{if .HasWeighted}}		u := routingFloat()
+		req := &pb.Request{}
+		var err error
+{{range .WeightedArms}}{{if .IsFirst}}		if u < {{printf "%.9g" .Until}} {
+{{else if .IsLast}}		} else {
+{{else}}		} else if u < {{printf "%.9g" .Until}} {
+{{end}}			_, err = s.{{.ProtoMicroservice}}Client.{{.MethodName}}(ctx, req)
+{{end}}		}
+		if err != nil {
+			log.Error("downstream call failed", "error", err)
+			http.Error(w, err.Error(), 500)
+			return
+		}
+{{else if .Downstreams}}		req := &pb.Request{}
 		var err error
 {{range .Downstreams}}		_, err = s.{{.ProtoMicroservice}}Client.{{.MethodName}}(ctx, req)
 		if err != nil {
@@ -618,19 +721,22 @@ func main() {
 `
 
 type grpcServiceData struct {
-	Module           string
-	ServiceName      string
-	ProtoServiceName string
-	Port             int
-	Handlers         []grpcHandler
-	Clients          []clientRef
-	EgressEnv        string
-	PortEnv          string
+	Module              string
+	ServiceName         string
+	ProtoServiceName    string
+	Port                int
+	Handlers            []grpcHandler
+	Clients             []clientRef
+	EgressEnv           string
+	PortEnv             string
+	NeedWeightedRouting bool
 }
 
 type grpcAPICase struct {
-	APIName     string
-	Downstreams []downstreamCall
+	APIName      string
+	HasWeighted  bool
+	WeightedArms []weightedArm
+	Downstreams  []downstreamCall
 }
 
 type grpcHandler struct {
@@ -643,16 +749,20 @@ func generateGRPCService(pg *ParsedGraph, module string, svcName string, outDir 
 	nodes := pg.Services[svcName]
 	allClients := make(map[string]bool)
 	var handlers []grpcHandler
+	needRand := false
 	for _, n := range nodes {
 		var cases []grpcAPICase
 		for _, api := range pg.APIsReachingNode(n.ID) {
-			var downstreams []downstreamCall
-			for _, t := range pg.DownstreamForAPI(n.ID, api) {
-				tn := pg.Nodes[t]
+			edges := pg.OutgoingEdgesForAPI(n.ID, api)
+			for _, e := range edges {
+				tn := pg.Nodes[e.Target]
 				allClients[tn.Microservice] = true
-				downstreams = append(downstreams, downstreamCall{tn.Microservice, protoServiceName(tn.Microservice), tn.GoMethodName(), tn.Interface})
 			}
-			cases = append(cases, grpcAPICase{APIName: api, Downstreams: downstreams})
+			hasW, arms, seq := routingFromEdges(pg, edges)
+			if hasW {
+				needRand = true
+			}
+			cases = append(cases, grpcAPICase{APIName: api, HasWeighted: hasW, WeightedArms: arms, Downstreams: seq})
 		}
 		handlers = append(handlers, grpcHandler{Node: n, MethodName: n.GoMethodName(), APICases: cases})
 	}
@@ -662,14 +772,15 @@ func generateGRPCService(pg *ParsedGraph, module string, svcName string, outDir 
 	}
 	sort.Slice(clients, func(i, j int) bool { return clients[i].Microservice < clients[j].Microservice })
 	data := grpcServiceData{
-		Module:           module,
-		ServiceName:      svcName,
-		ProtoServiceName: protoServiceName(svcName),
-		Port:             port,
-		Handlers:         handlers,
-		Clients:          clients,
-		EgressEnv:        svcName + "_EGRESS",
-		PortEnv:          svcName + "_PORT",
+		Module:              module,
+		ServiceName:         svcName,
+		ProtoServiceName:    protoServiceName(svcName),
+		Port:                port,
+		Handlers:            handlers,
+		Clients:             clients,
+		EgressEnv:           svcName + "_EGRESS",
+		PortEnv:             svcName + "_PORT",
+		NeedWeightedRouting: needRand,
 	}
 	return renderTemplate(grpcServiceTmpl, data, filepath.Join(outDir, "services", svcName, "main.go"))
 }
@@ -686,13 +797,41 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
-	"google.golang.org/grpc/reflection"
+	"google.golang.org/grpc/reflection"{{if .NeedWeightedRouting}}
+	"math/rand"
+	"os"
+	"strconv"
+	"sync"
+	"time"{{end}}
 )
 
+{{if .NeedWeightedRouting}}var routingRng struct {
+	mu sync.Mutex
+	r  *rand.Rand
+}
+
+func init() {
+	seed := time.Now().UnixNano()
+	if s := os.Getenv("ROUTING_SEED"); s != "" {
+		if v, err := strconv.ParseInt(s, 10, 64); err == nil {
+			seed = v
+		}
+	}
+	routingRng.r = rand.New(rand.NewSource(seed))
+}
+
+func routingFloat() float64 {
+	routingRng.mu.Lock()
+	defer routingRng.mu.Unlock()
+	return routingRng.r.Float64()
+}
+
+{{end}}
 type Server struct {
 	pb.Unimplemented{{.ProtoServiceName}}Server
-{{range .Clients}}	{{.ProtoMicroservice}}Client pb.{{.ProtoMicroservice}}Client
-{{end}}
+{{- range .Clients}}
+	{{.ProtoMicroservice}}Client pb.{{.ProtoMicroservice}}Client
+{{- end}}
 }
 
 const serviceName = "{{.ServiceName}}"
@@ -750,7 +889,18 @@ func (s *Server) {{.MethodName}}(ctx context.Context, req *pb.Request) (*pb.Resp
 	}
 	switch api {
 {{range .APICases}}	case "{{.APIName}}":
-{{if .Downstreams}}		var err error
+{{if .HasWeighted}}		u := routingFloat()
+		var err error
+{{range .WeightedArms}}{{if .IsFirst}}		if u < {{printf "%.9g" .Until}} {
+{{else if .IsLast}}		} else {
+{{else}}		} else if u < {{printf "%.9g" .Until}} {
+{{end}}			_, err = s.{{.ProtoMicroservice}}Client.{{.MethodName}}(ctx, req)
+{{end}}		}
+		if err != nil {
+			log.Error("downstream call failed", "error", err)
+			return nil, err
+		}
+{{else if .Downstreams}}		var err error
 {{range .Downstreams}}		_, err = s.{{.ProtoMicroservice}}Client.{{.MethodName}}(ctx, req)
 		if err != nil {
 			log.Error("downstream call failed", "error", err)

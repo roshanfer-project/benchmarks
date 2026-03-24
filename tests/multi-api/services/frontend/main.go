@@ -7,17 +7,15 @@ import (
 	"multiapi/utils"
 
 	"google.golang.org/grpc/metadata"
-
 	"multiapi/pkg"
 	pb "multiapi/protobuf"
 	"google.golang.org/grpc"
-
 )
+
 
 type Server struct {
 	Backend1Client pb.Backend1Client
 	Backend2Client pb.Backend2Client
-
 }
 
 const serviceName = "frontend"

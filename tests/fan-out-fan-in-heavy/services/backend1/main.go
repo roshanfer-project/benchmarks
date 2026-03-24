@@ -13,10 +13,10 @@ import (
 	"google.golang.org/grpc/reflection"
 )
 
+
 type Server struct {
 	pb.UnimplementedBackend1Server
 	SharedClient pb.SharedClient
-
 }
 
 const serviceName = "backend1"

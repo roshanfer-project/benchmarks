@@ -13,9 +13,9 @@ import (
 	"google.golang.org/grpc/reflection"
 )
 
+
 type Server struct {
 	pb.UnimplementedBackend1Server
-
 }
 
 const serviceName = "backend1"

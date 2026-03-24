@@ -7,18 +7,16 @@ import (
 	"intermediatediverse/utils"
 
 	"google.golang.org/grpc/metadata"
-
 	"intermediatediverse/pkg"
 	pb "intermediatediverse/protobuf"
 	"google.golang.org/grpc"
-
 )
+
 
 type Server struct {
 	Backend1Client pb.Backend1Client
 	Backend2Client pb.Backend2Client
 	Backend3Client pb.Backend3Client
-
 }
 
 const serviceName = "frontend"

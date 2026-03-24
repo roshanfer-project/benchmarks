@@ -5,6 +5,53 @@ import (
 	"strings"
 )
 
+const weightEpsilon = 1e-6
+
+func checkEdgeWeights(pg *ParsedGraph, errs *[]string) {
+	for _, e := range pg.Edges {
+		if e.Source == "USER" && e.Weight != nil {
+			*errs = append(*errs, "weight on USER edge is not allowed")
+			break
+		}
+	}
+	entryAPIs := make([]string, 0, len(pg.EntryNodeIDs))
+	for _, eid := range pg.EntryNodeIDs {
+		entryAPIs = append(entryAPIs, pg.Nodes[eid].Interface)
+	}
+	for nodeID := range pg.Nodes {
+		for _, apiName := range entryAPIs {
+			edges := pg.OutgoingEdgesForAPI(nodeID, apiName)
+			if len(edges) == 0 {
+				continue
+			}
+			nWeighted := 0
+			for _, e := range edges {
+				if e.Weight != nil {
+					nWeighted++
+				}
+			}
+			if nWeighted == 0 {
+				continue
+			}
+			if nWeighted != len(edges) {
+				*errs = append(*errs, fmt.Sprintf("%s (api %q): mix of weighted and unweighted outgoing edges", nodeID, apiName))
+				continue
+			}
+			var sum float64
+			for _, e := range edges {
+				w := *e.Weight
+				if w <= 0 {
+					*errs = append(*errs, fmt.Sprintf("edge %s→%s: weight must be > 0", e.Source, e.Target))
+				}
+				sum += w
+			}
+			if sum < 1-weightEpsilon || sum > 1+weightEpsilon {
+				*errs = append(*errs, fmt.Sprintf("%s (api %q): weights sum to %g, want 1", nodeID, apiName, sum))
+			}
+		}
+	}
+}
+
 // Check validates connectivity and sanity of the parsed call graph.
 func Check(pg *ParsedGraph) error {
 	var errs []string
@@ -81,6 +128,8 @@ func Check(pg *ParsedGraph) error {
 	if pg.EffectiveConnectionPoolSize() < 1 {
 		errs = append(errs, "effective connection_pool_size must be >= 1")
 	}
+
+	checkEdgeWeights(pg, &errs)
 
 	if len(errs) > 0 {
 		return fmt.Errorf("check failed:\n  %s", strings.Join(errs, "\n  "))

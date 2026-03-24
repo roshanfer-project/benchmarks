@@ -144,6 +144,14 @@ func Visualize(callgraphPath string, outPath string) error {
 				attr = fmt.Sprintf(" [color=%q]", c)
 			}
 		}
+		if e.Weight != nil {
+			lbl := fmt.Sprintf("%.2g", *e.Weight)
+			if attr == "" {
+				attr = " [label=" + dotLabel(lbl) + "]"
+			} else {
+				attr = attr[:len(attr)-1] + ", label=" + dotLabel(lbl) + "]"
+			}
+		}
 		b.WriteString("  " + dotID(e.Source) + " -> " + dotID(e.Target) + attr + ";\n")
 	}
 	b.WriteString("}\n")
