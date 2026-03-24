@@ -1,16 +1,86 @@
 {
   "nodes": [
-    {"id": "USER", "interfaces": [{"name": "USER"}]},
-    {"id": "frontend", "interfaces": [{"name": "f1", "avg_rt": 0.4, "slo": 100, "priority": 0}], "cpu": 2},
-    {"id": "backend1", "interfaces": [{"name": "f2", "avg_rt": 1.5, "priority": 0}], "cpu": 3},
-    {"id": "backend2", "interfaces": [{"name": "f3", "avg_rt": 1, "priority": 0}], "cpu": 3},
-    {"id": "shared", "interfaces": [{"name": "f4", "avg_rt": 2.0, "priority": 0}], "cpu": 5}
+    {
+      "id": "USER",
+      "interfaces": [
+        {
+          "name": "USER"
+        }
+      ]
+    },
+    {
+      "id": "frontend",
+      "interfaces": [
+        {
+          "name": "f1",
+          "avg_rt": 0.4,
+          "slo": 100,
+          "priority": 0
+        }
+      ],
+      "cpu": 2,
+      "over_commitment": 1
+    },
+    {
+      "id": "backend1",
+      "interfaces": [
+        {
+          "name": "f2",
+          "avg_rt": 1.5,
+          "priority": 0
+        }
+      ],
+      "cpu": 3,
+      "over_commitment": 1
+    },
+    {
+      "id": "backend2",
+      "interfaces": [
+        {
+          "name": "f3",
+          "avg_rt": 1,
+          "priority": 0
+        }
+      ],
+      "cpu": 3,
+      "over_commitment": 1
+    },
+    {
+      "id": "shared",
+      "interfaces": [
+        {
+          "name": "f4",
+          "avg_rt": 2.0,
+          "priority": 0
+        }
+      ],
+      "cpu": 5
+    }
   ],
   "edges": [
-    {"source": "USER", "target": "frontend:f1"},
-    {"source": "frontend:f1", "target": "backend1:f2", "api": "f1"},
-    {"source": "frontend:f1", "target": "backend2:f3", "api": "f1"},
-    {"source": "backend1:f2", "target": "shared:f4", "api": "f1"},
-    {"source": "backend2:f3", "target": "shared:f4", "api": "f1"}
+    {
+      "source": "USER",
+      "target": "frontend:f1"
+    },
+    {
+      "source": "frontend:f1",
+      "target": "backend1:f2",
+      "api": "f1"
+    },
+    {
+      "source": "frontend:f1",
+      "target": "backend2:f3",
+      "api": "f1"
+    },
+    {
+      "source": "backend1:f2",
+      "target": "shared:f4",
+      "api": "f1"
+    },
+    {
+      "source": "backend2:f3",
+      "target": "shared:f4",
+      "api": "f1"
+    }
   ]
 }

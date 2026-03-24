@@ -61,12 +61,12 @@ kubectl delete service -l app=ms-7103 --ignore-not-found
 kubectl delete pod -l app=ms-9105 --ignore-not-found --wait=true
 kubectl delete service -l app=ms-9105 --ignore-not-found
 kubectl delete configmap alibaba-large-config --ignore-not-found
+kubectl delete deployment prometheus prometheus-pushgateway --ignore-not-found --wait=true
+kubectl delete service prometheus prometheus-pushgateway prometheus-external --ignore-not-found
+kubectl delete configmap prometheus-config --ignore-not-found
 if [ "$MODE" = "sidecar" ]; then
   kubectl delete pod -l app=ingress --ignore-not-found --wait=true
   kubectl delete service -l app=ingress --ignore-not-found
   kubectl delete configmap sidecar-configs --ignore-not-found
-  kubectl delete deployment prometheus prometheus-pushgateway --ignore-not-found --wait=true
-  kubectl delete service prometheus prometheus-pushgateway prometheus-external --ignore-not-found
-  kubectl delete configmap prometheus-config --ignore-not-found
 fi
 echo "Destroy complete."

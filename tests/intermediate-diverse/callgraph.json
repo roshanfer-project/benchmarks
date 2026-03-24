@@ -1,27 +1,100 @@
 {
   "nodes": [
-    {"id": "USER", "interfaces": [{"name": "USER"}]},
+    {
+      "id": "USER",
+      "interfaces": [
+        {
+          "name": "USER"
+        }
+      ]
+    },
     {
       "id": "frontend",
       "interfaces": [
-        {"name": "f1", "avg_rt": 0.2, "slo": 30, "priority": 0},
-        {"name": "f2", "avg_rt": 0.2, "slo": 40, "priority": 0},
-        {"name": "f3", "avg_rt": 0.2, "slo": 50, "priority": 0}
+        {
+          "name": "f1",
+          "avg_rt": 0.2,
+          "slo": 30,
+          "priority": 0
+        },
+        {
+          "name": "f2",
+          "avg_rt": 0.2,
+          "slo": 40,
+          "priority": 0
+        },
+        {
+          "name": "f3",
+          "avg_rt": 0.2,
+          "slo": 50,
+          "priority": 0
+        }
       ],
       "cpu": 2,
       "over_commitment": 1,
       "connection_pool_size": 300
     },
-    {"id": "backend1", "interfaces": [{"name": "b1", "avg_rt": 1, "priority": 0}], "cpu": 1},
-    {"id": "backend2", "interfaces": [{"name": "b2", "avg_rt": 2, "priority": 0}], "cpu": 2},
-    {"id": "backend3", "interfaces": [{"name": "b3", "avg_rt": 4, "priority": 0}], "cpu": 3}
+    {
+      "id": "backend1",
+      "interfaces": [
+        {
+          "name": "b1",
+          "avg_rt": 1,
+          "priority": 0
+        }
+      ],
+      "cpu": 1
+    },
+    {
+      "id": "backend2",
+      "interfaces": [
+        {
+          "name": "b2",
+          "avg_rt": 2,
+          "priority": 0
+        }
+      ],
+      "cpu": 2
+    },
+    {
+      "id": "backend3",
+      "interfaces": [
+        {
+          "name": "b3",
+          "avg_rt": 4,
+          "priority": 0
+        }
+      ],
+      "cpu": 3
+    }
   ],
   "edges": [
-    {"source": "USER", "target": "frontend:f1"},
-    {"source": "USER", "target": "frontend:f2"},
-    {"source": "USER", "target": "frontend:f3"},
-    {"source": "frontend:f1", "target": "backend1:b1", "api": "f1"},
-    {"source": "frontend:f2", "target": "backend2:b2", "api": "f2"},
-    {"source": "frontend:f3", "target": "backend3:b3", "api": "f3"}
+    {
+      "source": "USER",
+      "target": "frontend:f1"
+    },
+    {
+      "source": "USER",
+      "target": "frontend:f2"
+    },
+    {
+      "source": "USER",
+      "target": "frontend:f3"
+    },
+    {
+      "source": "frontend:f1",
+      "target": "backend1:b1",
+      "api": "f1"
+    },
+    {
+      "source": "frontend:f2",
+      "target": "backend2:b2",
+      "api": "f2"
+    },
+    {
+      "source": "frontend:f3",
+      "target": "backend3:b3",
+      "api": "f3"
+    }
   ]
 }

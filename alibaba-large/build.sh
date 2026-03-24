@@ -16,10 +16,21 @@ fi
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT_DIR"
 
-if [ -d "../sidecar" ]; then
+# Find sidecar dir (benchmarks/sidecar) - works for nested benchmarks like tests/one-service
+SIDECAR_DIR=""
+D="$ROOT_DIR"
+while [ -n "$D" ] && [ "$D" != "/" ]; do
+  if [ -d "$D/sidecar" ]; then
+    SIDECAR_DIR="$D/sidecar"
+    break
+  fi
+  D="$(cd "$D/.." && pwd)"
+done
+
+if [ -n "$SIDECAR_DIR" ]; then
   echo "Building sidecar..."
-  (cd ../sidecar && ./build.sh Release)
-  docker build -f ../sidecar/Dockerfile -t "${REGISTRY}/sidecar-sidecar:${TAG}" ../sidecar
+  (cd "$SIDECAR_DIR" && ./build.sh Release)
+  docker build -f "$SIDECAR_DIR/Dockerfile" -t "${REGISTRY}/sidecar-sidecar:${TAG}" "$SIDECAR_DIR"
 fi
 
 echo "Building MS_12657..."
@@ -82,7 +93,7 @@ echo "Building MS_9105..."
 docker build --build-arg SERVICE=services/MS_9105 -f Dockerfile -t "${REGISTRY}/${BENCH}-ms-9105:${TAG}" .
 
 echo "Pushing images..."
-if [ -d "../sidecar" ]; then
+if [ -n "$SIDECAR_DIR" ]; then
   docker push "${REGISTRY}/sidecar-sidecar:${TAG}"
 fi
 docker push "${REGISTRY}/${BENCH}-ms-12657:${TAG}"

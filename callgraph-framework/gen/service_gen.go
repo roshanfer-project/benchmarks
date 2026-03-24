@@ -524,7 +524,9 @@ func (s *Server) Run() error {
 	}
 	mux := http.NewServeMux()
 	var baseHandler http.Handler = http.HandlerFunc(s.handler)
-	if sidecar && utils.GetEnvVar("queuing_export", false) == "true" {
+	plain := utils.GetEnvVar("plain", false) == "true"
+	queuingExport := utils.GetEnvVar("queuing_export", false) == "true"
+	if plain || (sidecar && queuingExport) {
 		counter := utils.NewCounterState(serviceName)
 		baseHandler = counter.GetHTTP1Middleware()(baseHandler)
 	}

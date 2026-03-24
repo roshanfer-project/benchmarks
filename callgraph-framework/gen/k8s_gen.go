@@ -141,6 +141,7 @@ func generatePlainEnv(pg *ParsedGraph, benchmarkName string, svcNames []string, 
 		lines = append(lines, name+"_ADDR="+svcDNS)
 	}
 	lines = append(lines, "PORT="+fmt.Sprintf("%d", port))
+	lines = append(lines, "", "PROM_ADDR=prometheus-pushgateway:9091")
 	k8sDir := filepath.Join(outDir, "k8s")
 	return os.WriteFile(filepath.Join(k8sDir, "plain.env"), []byte(strings.Join(lines, "\n")), 0644)
 }
@@ -781,6 +782,10 @@ else
   kubectl create configmap {{.BenchmarkName}}-config --from-env-file=k8s/plain.env --dry-run=client -o yaml > "$TMP_DIR/configmap.yaml"
   kubectl apply -f "$TMP_DIR/configmap.yaml"
 
+  kubectl apply -f k8s/manifests/prometheus.yaml
+  kubectl wait --for=condition=ready pod -l app=prometheus-pushgateway --timeout=60s || true
+  kubectl wait --for=condition=ready pod -l app=prometheus --timeout=60s || true
+
   for SVC in {{range $i, $e := .K8sOrder}}{{if $i}} {{end}}{{$e}}{{end}}; do
     sed "s|${BENCH}-${SVC}:latest|${REGISTRY}/${BENCH}-${SVC}:${TAG}|g" "k8s/manifests/${SVC}.yaml" > "$TMP_DIR/${SVC}.yaml"
     kubectl apply -f "$TMP_DIR/${SVC}.yaml"
@@ -815,13 +820,13 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT_DIR"
 ` + strings.Join(parts, "\n") + `
 kubectl delete configmap ` + benchmarkName + `-config --ignore-not-found
+kubectl delete deployment prometheus prometheus-pushgateway --ignore-not-found --wait=true
+kubectl delete service prometheus prometheus-pushgateway prometheus-external --ignore-not-found
+kubectl delete configmap prometheus-config --ignore-not-found
 if [ "$MODE" = "sidecar" ]; then
   kubectl delete pod -l app=ingress --ignore-not-found --wait=true
   kubectl delete service -l app=ingress --ignore-not-found
   kubectl delete configmap sidecar-configs --ignore-not-found
-  kubectl delete deployment prometheus prometheus-pushgateway --ignore-not-found --wait=true
-  kubectl delete service prometheus prometheus-pushgateway prometheus-external --ignore-not-found
-  kubectl delete configmap prometheus-config --ignore-not-found
 fi
 echo "Destroy complete."
 `

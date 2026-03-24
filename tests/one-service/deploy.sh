@@ -38,6 +38,10 @@ else
   kubectl create configmap one-service-config --from-env-file=k8s/plain.env --dry-run=client -o yaml > "$TMP_DIR/configmap.yaml"
   kubectl apply -f "$TMP_DIR/configmap.yaml"
 
+  kubectl apply -f k8s/manifests/prometheus.yaml
+  kubectl wait --for=condition=ready pod -l app=prometheus-pushgateway --timeout=60s || true
+  kubectl wait --for=condition=ready pod -l app=prometheus --timeout=60s || true
+
   for SVC in frontend; do
     sed "s|${BENCH}-${SVC}:latest|${REGISTRY}/${BENCH}-${SVC}:${TAG}|g" "k8s/manifests/${SVC}.yaml" > "$TMP_DIR/${SVC}.yaml"
     kubectl apply -f "$TMP_DIR/${SVC}.yaml"

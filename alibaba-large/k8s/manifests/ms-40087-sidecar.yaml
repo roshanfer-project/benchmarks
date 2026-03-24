@@ -1,0 +1,77 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: ms-40087
+  labels:
+    app: ms-40087
+spec:
+  containers:
+  - name: app
+    image: alibaba-large-ms-40087:latest
+    resources:
+      requests:
+        cpu: "3"
+      limits:
+        cpu: "3"
+    env:
+    - name: GOMAXPROCS
+      value: "3"
+    envFrom:
+    - configMapRef:
+        name: alibaba-large-config
+    ports:
+    - containerPort: 2000
+  - name: sidecar
+    image: sidecar-sidecar:latest
+    env:
+    - name: PROC_NAME
+      value: "ms-40087-sidecar"
+    - name: GLOG_logtostderr
+      value: "1"
+    resources:
+      requests:
+        cpu: "2"
+      limits:
+        cpu: "2"
+    volumeMounts:
+    - name: config-volume
+      mountPath: /config.yaml
+      subPath: ms-40087.yaml
+    ports:
+    - containerPort: 3000
+    - containerPort: 4000
+    - containerPort: 3000
+      protocol: UDP
+    - containerPort: 4000
+      protocol: UDP
+  volumes:
+  - name: config-volume
+    configMap:
+      name: sidecar-configs
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alibaba-large-ms-40087
+  labels:
+    app: ms-40087
+spec:
+  selector:
+    app: ms-40087
+  ports:
+  - name: sidecar-ingress-tcp
+    port: 3000
+    targetPort: 3000
+    protocol: TCP
+  - name: sidecar-ingress-udp
+    port: 3000
+    targetPort: 3000
+    protocol: UDP
+  - name: sidecar-egress-tcp
+    port: 4000
+    targetPort: 4000
+    protocol: TCP
+  - name: sidecar-egress-udp
+    port: 4000
+    targetPort: 4000
+    protocol: UDP

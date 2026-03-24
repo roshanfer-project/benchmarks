@@ -3,12 +3,15 @@ package main
 import (
 	"fmt"
 	"net/http"
-	"alibabalarge/pkg"
-	pb "alibabalarge/protobuf"
+	"strings"
 	"alibabalarge/utils"
 
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
+
+	"alibabalarge/pkg"
+	pb "alibabalarge/protobuf"
+	"google.golang.org/grpc"
+
 )
 
 type Server struct {
@@ -116,17 +119,21 @@ func (s *Server) Run() error {
 	}
 	s.MS_9105Client = pb.NewMS_9105Client(conn)
 
+
 	port := 2000
 	if sidecar {
 		port = utils.StrToInt(utils.GetEnvVar("MS_64512_PORT", true))
 	}
 	mux := http.NewServeMux()
-	var handler http.Handler = http.HandlerFunc(s.handler)
-	if sidecar && utils.GetEnvVar("queuing_export", false) == "true" {
+	var baseHandler http.Handler = http.HandlerFunc(s.handler)
+	plain := utils.GetEnvVar("plain", false) == "true"
+	queuingExport := utils.GetEnvVar("queuing_export", false) == "true"
+	if plain || (sidecar && queuingExport) {
 		counter := utils.NewCounterState(serviceName)
-		handler = counter.GetHTTP1Middleware()(handler)
+		baseHandler = counter.GetHTTP1Middleware()(baseHandler)
 	}
-	mux.Handle("/Z8trRkp4mp", handler)
+	mux.Handle("/Z8trRkp4mp", baseHandler)
+
 	srv := &http.Server{
 		Addr:    fmt.Sprintf(":%d", port),
 		Handler: mux,
@@ -146,143 +153,151 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("method", "Z8trRkp4mp", "rpc-id", rpcID))
-	utils.BusyLoop(288)
-	req := &pb.Request{}
-	var err error
-	_, err = s.MS_14758Client.MuJZ40NDv(ctx, req)
-	if err != nil {
-		log.Error("downstream call failed", "error", err)
-		http.Error(w, err.Error(), 500)
-		return
-	}
-	_, err = s.MS_19439Client.KvuxGZYcwm(ctx, req)
-	if err != nil {
-		log.Error("downstream call failed", "error", err)
-		http.Error(w, err.Error(), 500)
-		return
-	}
-	_, err = s.MS_21298Client.Te9DKpWLH7(ctx, req)
-	if err != nil {
-		log.Error("downstream call failed", "error", err)
-		http.Error(w, err.Error(), 500)
-		return
-	}
-	_, err = s.MS_21298Client.QRB35KFger(ctx, req)
-	if err != nil {
-		log.Error("downstream call failed", "error", err)
-		http.Error(w, err.Error(), 500)
-		return
-	}
-	_, err = s.MS_25781Client.QsLpARXiz2(ctx, req)
-	if err != nil {
-		log.Error("downstream call failed", "error", err)
-		http.Error(w, err.Error(), 500)
-		return
-	}
-	_, err = s.MS_25806Client.M0PIREyu4Tb(ctx, req)
-	if err != nil {
-		log.Error("downstream call failed", "error", err)
-		http.Error(w, err.Error(), 500)
-		return
-	}
-	_, err = s.MS_25806Client.FQN3ARekoW(ctx, req)
-	if err != nil {
-		log.Error("downstream call failed", "error", err)
-		http.Error(w, err.Error(), 500)
-		return
-	}
-	_, err = s.MS_2687Client.VdboDuPbKj(ctx, req)
-	if err != nil {
-		log.Error("downstream call failed", "error", err)
-		http.Error(w, err.Error(), 500)
-		return
-	}
-	_, err = s.MS_40087Client.M2QxmWDHq1O(ctx, req)
-	if err != nil {
-		log.Error("downstream call failed", "error", err)
-		http.Error(w, err.Error(), 500)
-		return
-	}
-	_, err = s.MS_40087Client.M5ISZV1SCx(ctx, req)
-	if err != nil {
-		log.Error("downstream call failed", "error", err)
-		http.Error(w, err.Error(), 500)
-		return
-	}
-	_, err = s.MS_43032Client.ZSdnWDdKmj(ctx, req)
-	if err != nil {
-		log.Error("downstream call failed", "error", err)
-		http.Error(w, err.Error(), 500)
-		return
-	}
-	_, err = s.MS_51783Client.ZMa4ZJ012X(ctx, req)
-	if err != nil {
-		log.Error("downstream call failed", "error", err)
-		http.Error(w, err.Error(), 500)
-		return
-	}
-	_, err = s.MS_51787Client.RypaFB4PfJ(ctx, req)
-	if err != nil {
-		log.Error("downstream call failed", "error", err)
-		http.Error(w, err.Error(), 500)
-		return
-	}
-	_, err = s.MS_53792Client.M8JkkxghEWB(ctx, req)
-	if err != nil {
-		log.Error("downstream call failed", "error", err)
-		http.Error(w, err.Error(), 500)
-		return
-	}
-	_, err = s.MS_58796Client.AbNb_BH36(ctx, req)
-	if err != nil {
-		log.Error("downstream call failed", "error", err)
-		http.Error(w, err.Error(), 500)
-		return
-	}
-	_, err = s.MS_62039Client.NK4Gw2Phix(ctx, req)
-	if err != nil {
-		log.Error("downstream call failed", "error", err)
-		http.Error(w, err.Error(), 500)
-		return
-	}
-	_, err = s.MS_66921Client.EFOECNqigM(ctx, req)
-	if err != nil {
-		log.Error("downstream call failed", "error", err)
-		http.Error(w, err.Error(), 500)
-		return
-	}
-	_, err = s.MS_67465Client.WIe9Cm5AqE(ctx, req)
-	if err != nil {
-		log.Error("downstream call failed", "error", err)
-		http.Error(w, err.Error(), 500)
-		return
-	}
-	_, err = s.MS_70124Client.V0Gqd6H7Nw(ctx, req)
-	if err != nil {
-		log.Error("downstream call failed", "error", err)
-		http.Error(w, err.Error(), 500)
-		return
-	}
-	_, err = s.MS_7103Client.RswWe4AhfE(ctx, req)
-	if err != nil {
-		log.Error("downstream call failed", "error", err)
-		http.Error(w, err.Error(), 500)
-		return
-	}
-	_, err = s.MS_9105Client.ByihMu7_9Z(ctx, req)
-	if err != nil {
-		log.Error("downstream call failed", "error", err)
-		http.Error(w, err.Error(), 500)
-		return
-	}
-	_, err = s.MS_9105Client.MsD67GoyH2(ctx, req)
-	if err != nil {
-		log.Error("downstream call failed", "error", err)
-		http.Error(w, err.Error(), 500)
-		return
-	}
+	path := strings.TrimPrefix(r.URL.Path, "/")
+	switch path {
+	case "Z8trRkp4mp":
+		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "Z8trRkp4mp", "rpc-id", rpcID))
+		utils.BusyLoop(288)
+		req := &pb.Request{}
+		var err error
+		_, err = s.MS_14758Client.MuJZ40NDv(ctx, req)
+		if err != nil {
+			log.Error("downstream call failed", "error", err)
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		_, err = s.MS_19439Client.KvuxGZYcwm(ctx, req)
+		if err != nil {
+			log.Error("downstream call failed", "error", err)
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		_, err = s.MS_21298Client.Te9DKpWLH7(ctx, req)
+		if err != nil {
+			log.Error("downstream call failed", "error", err)
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		_, err = s.MS_21298Client.QRB35KFger(ctx, req)
+		if err != nil {
+			log.Error("downstream call failed", "error", err)
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		_, err = s.MS_25781Client.QsLpARXiz2(ctx, req)
+		if err != nil {
+			log.Error("downstream call failed", "error", err)
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		_, err = s.MS_25806Client.M0PIREyu4Tb(ctx, req)
+		if err != nil {
+			log.Error("downstream call failed", "error", err)
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		_, err = s.MS_25806Client.FQN3ARekoW(ctx, req)
+		if err != nil {
+			log.Error("downstream call failed", "error", err)
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		_, err = s.MS_2687Client.VdboDuPbKj(ctx, req)
+		if err != nil {
+			log.Error("downstream call failed", "error", err)
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		_, err = s.MS_40087Client.M2QxmWDHq1O(ctx, req)
+		if err != nil {
+			log.Error("downstream call failed", "error", err)
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		_, err = s.MS_40087Client.M5ISZV1SCx(ctx, req)
+		if err != nil {
+			log.Error("downstream call failed", "error", err)
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		_, err = s.MS_43032Client.ZSdnWDdKmj(ctx, req)
+		if err != nil {
+			log.Error("downstream call failed", "error", err)
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		_, err = s.MS_51783Client.ZMa4ZJ012X(ctx, req)
+		if err != nil {
+			log.Error("downstream call failed", "error", err)
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		_, err = s.MS_51787Client.RypaFB4PfJ(ctx, req)
+		if err != nil {
+			log.Error("downstream call failed", "error", err)
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		_, err = s.MS_53792Client.M8JkkxghEWB(ctx, req)
+		if err != nil {
+			log.Error("downstream call failed", "error", err)
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		_, err = s.MS_58796Client.AbNb_BH36(ctx, req)
+		if err != nil {
+			log.Error("downstream call failed", "error", err)
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		_, err = s.MS_62039Client.NK4Gw2Phix(ctx, req)
+		if err != nil {
+			log.Error("downstream call failed", "error", err)
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		_, err = s.MS_66921Client.EFOECNqigM(ctx, req)
+		if err != nil {
+			log.Error("downstream call failed", "error", err)
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		_, err = s.MS_67465Client.WIe9Cm5AqE(ctx, req)
+		if err != nil {
+			log.Error("downstream call failed", "error", err)
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		_, err = s.MS_70124Client.V0Gqd6H7Nw(ctx, req)
+		if err != nil {
+			log.Error("downstream call failed", "error", err)
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		_, err = s.MS_7103Client.RswWe4AhfE(ctx, req)
+		if err != nil {
+			log.Error("downstream call failed", "error", err)
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		_, err = s.MS_9105Client.ByihMu7_9Z(ctx, req)
+		if err != nil {
+			log.Error("downstream call failed", "error", err)
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		_, err = s.MS_9105Client.MsD67GoyH2(ctx, req)
+		if err != nil {
+			log.Error("downstream call failed", "error", err)
+			http.Error(w, err.Error(), 500)
+			return
+		}
 
+
+	default:
+		http.Error(w, "not found", 404)
+		return
+	}
 	w.WriteHeader(200)
 	w.Write([]byte("ok"))
 }

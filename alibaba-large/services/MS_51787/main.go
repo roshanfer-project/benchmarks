@@ -9,6 +9,7 @@ import (
 	"alibabalarge/utils"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/reflection"
 )
 
@@ -76,28 +77,38 @@ func (s *Server) Run() error {
 
 func (s *Server) RypaFB4PfJ(ctx context.Context, req *pb.Request) (*pb.Response, error) {
 	utils.BusyLoop(358)
-	var err error
-	_, err = s.MS_25806Client.M0PIREyu4Tb(ctx, req)
-	if err != nil {
-		log.Error("downstream call failed", "error", err)
-		return nil, err
+	md, _ := metadata.FromIncomingContext(ctx)
+	api := ""
+	if v := md.Get("api"); len(v) == 1 {
+		api = v[0]
 	}
-	_, err = s.MS_44246Client.NRLDYEHBqx(ctx, req)
-	if err != nil {
-		log.Error("downstream call failed", "error", err)
-		return nil, err
-	}
-	_, err = s.MS_56113Client.M0PIREyu4Tb(ctx, req)
-	if err != nil {
-		log.Error("downstream call failed", "error", err)
-		return nil, err
-	}
-	_, err = s.MS_56113Client.KuU4P3BCru(ctx, req)
-	if err != nil {
-		log.Error("downstream call failed", "error", err)
-		return nil, err
-	}
+	switch api {
+	case "Z8trRkp4mp":
+		var err error
+		_, err = s.MS_25806Client.M0PIREyu4Tb(ctx, req)
+		if err != nil {
+			log.Error("downstream call failed", "error", err)
+			return nil, err
+		}
+		_, err = s.MS_44246Client.NRLDYEHBqx(ctx, req)
+		if err != nil {
+			log.Error("downstream call failed", "error", err)
+			return nil, err
+		}
+		_, err = s.MS_56113Client.M0PIREyu4Tb(ctx, req)
+		if err != nil {
+			log.Error("downstream call failed", "error", err)
+			return nil, err
+		}
+		_, err = s.MS_56113Client.KuU4P3BCru(ctx, req)
+		if err != nil {
+			log.Error("downstream call failed", "error", err)
+			return nil, err
+		}
 
+
+	default:
+	}
 	return &pb.Response{}, nil
 }
 

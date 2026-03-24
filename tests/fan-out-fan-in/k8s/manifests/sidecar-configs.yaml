@@ -24,7 +24,7 @@ data:
     report_latency: True
     name: backend1
     cpu_count: 2
-    over_commitment: 0.0
+    over_commitment: 1.0
     
   backend2.yaml: |
     routing:
@@ -47,7 +47,7 @@ data:
     report_latency: True
     name: backend2
     cpu_count: 2
-    over_commitment: 0.0
+    over_commitment: 1.0
     
   frontend.yaml: |
     routing:
@@ -80,7 +80,7 @@ data:
     is_frontend: True
     frontend_pool_connections: 200
     cpu_count: 2
-    over_commitment: 0.0
+    over_commitment: 1.0
     
   shared.yaml: |
     mapping:

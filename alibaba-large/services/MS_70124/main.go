@@ -9,6 +9,7 @@ import (
 	"alibabalarge/utils"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/reflection"
 )
 
@@ -66,13 +67,23 @@ func (s *Server) Run() error {
 
 func (s *Server) V0Gqd6H7Nw(ctx context.Context, req *pb.Request) (*pb.Response, error) {
 	utils.BusyLoop(1164)
-	var err error
-	_, err = s.MS_56113Client.M0PIREyu4Tb(ctx, req)
-	if err != nil {
-		log.Error("downstream call failed", "error", err)
-		return nil, err
+	md, _ := metadata.FromIncomingContext(ctx)
+	api := ""
+	if v := md.Get("api"); len(v) == 1 {
+		api = v[0]
 	}
+	switch api {
+	case "Z8trRkp4mp":
+		var err error
+		_, err = s.MS_56113Client.M0PIREyu4Tb(ctx, req)
+		if err != nil {
+			log.Error("downstream call failed", "error", err)
+			return nil, err
+		}
 
+
+	default:
+	}
 	return &pb.Response{}, nil
 }
 
