@@ -60,8 +60,9 @@ func Visualize(callgraphPath string, outPath string) error {
 
 	var b strings.Builder
 	b.WriteString("digraph G {\n")
-	b.WriteString("  rankdir=TB;\n")
-	b.WriteString("  splines=curved;\n")
+	b.WriteString("  rankdir=LR;\n")
+	// splines=true (not curved): edge labels sit on the visible path more reliably
+	b.WriteString("  splines=true;\n")
 	b.WriteString("  nodesep=0.5;\n")
 	b.WriteString("  ranksep=0.8;\n")
 	b.WriteString("  fontname=\"Helvetica\";\n")
@@ -130,7 +131,6 @@ func Visualize(callgraphPath string, outPath string) error {
 	}
 	for _, e := range pg.Edges {
 		key := e.Source + "->" + e.Target
-		attr := ""
 		colorKey := ""
 		if e.Source == "USER" {
 			colorKey = pg.Nodes[e.Target].Interface
@@ -139,18 +139,25 @@ func Visualize(callgraphPath string, outPath string) error {
 		} else if api, ok := edgeToAPI[key]; ok {
 			colorKey = api
 		}
+		var parts []string
+		var edgeHex string
 		if colorKey != "" {
 			if c, ok := apiToColor[colorKey]; ok {
-				attr = fmt.Sprintf(" [color=%q]", c)
+				parts = append(parts, fmt.Sprintf("color=%q", c))
+				edgeHex = c
 			}
 		}
 		if e.Weight != nil {
-			lbl := fmt.Sprintf("%.2g", *e.Weight)
-			if attr == "" {
-				attr = " [label=" + dotLabel(lbl) + "]"
-			} else {
-				attr = attr[:len(attr)-1] + ", label=" + dotLabel(lbl) + "]"
+			lbl := fmt.Sprintf("p=%.2f", *e.Weight)
+			parts = append(parts, "label="+dotLabel(lbl))
+			parts = append(parts, "fontsize=10")
+			if edgeHex != "" {
+				parts = append(parts, fmt.Sprintf("fontcolor=%q", edgeHex))
 			}
+		}
+		attr := ""
+		if len(parts) > 0 {
+			attr = " [" + strings.Join(parts, ", ") + "]"
 		}
 		b.WriteString("  " + dotID(e.Source) + " -> " + dotID(e.Target) + attr + ";\n")
 	}
