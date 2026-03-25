@@ -10,12 +10,12 @@ spec:
     image: prob-route-fanout-backend7:latest
     resources:
       requests:
-        cpu: "2"
+        cpu: "1"
       limits:
-        cpu: "2"
+        cpu: "1"
     env:
     - name: GOMAXPROCS
-      value: "2"
+      value: "1"
     envFrom:
     - configMapRef:
         name: prob-route-fanout-config
