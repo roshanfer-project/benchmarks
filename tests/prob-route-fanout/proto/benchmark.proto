@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+package benchmark;
+
+option go_package = "probroutefanout/protobuf";
+
+message Request { string payload = 1; }
+message Response { string payload = 1; }
+
+service backend1 {
+  rpc f2(Request) returns (Response);
+}
+
+service backend2 {
+  rpc f3(Request) returns (Response);
+}
+
+service backend3 {
+  rpc f4(Request) returns (Response);
+}
+
+service backend4 {
+  rpc f5(Request) returns (Response);
+}
+
+service backend5 {
+  rpc f6(Request) returns (Response);
+}
+
+service backend6 {
+  rpc f7(Request) returns (Response);
+}
+
+service backend7 {
+  rpc f8(Request) returns (Response);
+}
+
+service frontend {
+  rpc f1(Request) returns (Response);
+}
+

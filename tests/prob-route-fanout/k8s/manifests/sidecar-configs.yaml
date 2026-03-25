@@ -1,0 +1,205 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sidecar-configs
+data:
+  backend1.yaml: |
+    routing:
+      benchmark.backend2/f3:
+        upstream:
+          host: prob-route-fanout-backend2
+          port: 3000
+      benchmark.backend3/f4:
+        upstream:
+          host: prob-route-fanout-backend3
+          port: 3000
+    mapping:
+      benchmark.backend1/f2:
+        downstreams:
+          - benchmark.backend2/f3
+          - benchmark.backend3/f4
+    ring_size: 1000
+    buffer_count: 1024
+    buffer_size: 80000
+    num_threads: 1
+    egress_listener_port: 4000
+    ingress_listener_port: 3000
+    ingress_upstream_host: localhost
+    ingress_upstream_port: 2000
+    report_latency: True
+    name: backend1
+    cpu_count: 3
+    over_commitment: 0.0
+    
+  backend2.yaml: |
+    routing:
+      benchmark.backend4/f5:
+        upstream:
+          host: prob-route-fanout-backend4
+          port: 3000
+    mapping:
+      benchmark.backend2/f3:
+        downstreams:
+          - benchmark.backend4/f5
+    ring_size: 1000
+    buffer_count: 1024
+    buffer_size: 80000
+    num_threads: 1
+    egress_listener_port: 4000
+    ingress_listener_port: 3000
+    ingress_upstream_host: localhost
+    ingress_upstream_port: 2000
+    report_latency: True
+    name: backend2
+    cpu_count: 2
+    over_commitment: 0.0
+    
+  backend3.yaml: |
+    mapping:
+      benchmark.backend3/f4:
+    ring_size: 1000
+    buffer_count: 1024
+    buffer_size: 80000
+    num_threads: 1
+    egress_listener_port: 4000
+    ingress_listener_port: 3000
+    ingress_upstream_host: localhost
+    ingress_upstream_port: 2000
+    report_latency: True
+    name: backend3
+    cpu_count: 2
+    over_commitment: 0.0
+    
+  backend4.yaml: |
+    routing:
+      benchmark.backend5/f6:
+        upstream:
+          host: prob-route-fanout-backend5
+          port: 3000
+      benchmark.backend6/f7:
+        upstream:
+          host: prob-route-fanout-backend6
+          port: 3000
+      benchmark.backend7/f8:
+        upstream:
+          host: prob-route-fanout-backend7
+          port: 3000
+    mapping:
+      benchmark.backend4/f5:
+        downstreams:
+          - benchmark.backend5/f6
+          - benchmark.backend6/f7
+          - benchmark.backend7/f8
+    ring_size: 1000
+    buffer_count: 1024
+    buffer_size: 80000
+    num_threads: 1
+    egress_listener_port: 4000
+    ingress_listener_port: 3000
+    ingress_upstream_host: localhost
+    ingress_upstream_port: 2000
+    report_latency: True
+    name: backend4
+    cpu_count: 3
+    over_commitment: 0.0
+    
+  backend5.yaml: |
+    mapping:
+      benchmark.backend5/f6:
+    ring_size: 1000
+    buffer_count: 1024
+    buffer_size: 80000
+    num_threads: 1
+    egress_listener_port: 4000
+    ingress_listener_port: 3000
+    ingress_upstream_host: localhost
+    ingress_upstream_port: 2000
+    report_latency: True
+    name: backend5
+    cpu_count: 1
+    over_commitment: 0.0
+    
+  backend6.yaml: |
+    mapping:
+      benchmark.backend6/f7:
+    ring_size: 1000
+    buffer_count: 1024
+    buffer_size: 80000
+    num_threads: 1
+    egress_listener_port: 4000
+    ingress_listener_port: 3000
+    ingress_upstream_host: localhost
+    ingress_upstream_port: 2000
+    report_latency: True
+    name: backend6
+    cpu_count: 2
+    over_commitment: 0.0
+    
+  backend7.yaml: |
+    mapping:
+      benchmark.backend7/f8:
+    ring_size: 1000
+    buffer_count: 1024
+    buffer_size: 80000
+    num_threads: 1
+    egress_listener_port: 4000
+    ingress_listener_port: 3000
+    ingress_upstream_host: localhost
+    ingress_upstream_port: 2000
+    report_latency: True
+    name: backend7
+    cpu_count: 2
+    over_commitment: 0.0
+    
+  frontend.yaml: |
+    routing:
+      benchmark.backend1/f2:
+        upstream:
+          host: prob-route-fanout-backend1
+          port: 3000
+    mapping:
+      f1:
+        downstreams:
+          - benchmark.backend1/f2
+    ring_size: 1000
+    buffer_count: 4096
+    buffer_size: 80000
+    num_threads: 1
+    egress_listener_port: 4000
+    ingress_listener_port: 3000
+    ingress_upstream_host: localhost
+    ingress_upstream_port: 2000
+    report_latency: True
+    name: frontend
+    is_frontend: True
+    frontend_pool_connections: 200
+    cpu_count: 3
+    over_commitment: 0.0
+    
+  ingress.yaml: |
+    routing:
+      f1:
+        upstream:
+          host: prob-route-fanout-frontend
+          port: 3000
+        slo: 28
+        priority: 0
+    mapping:
+      f1:
+        downstreams:
+          - f1
+        listen_port: 3000
+    ring_size: 4000
+    buffer_count: 16384
+    buffer_size: 10000
+    num_threads: 1
+    ingress_pool_connections: 200
+    egress_listener_port: 3000
+    ingress_listener_port: 4000
+    ingress_upstream_host: localhost
+    ingress_upstream_port: 2000
+    is_ingress: True
+    is_frontend: False
+    report_latency: True
+    name: ingress
+    
