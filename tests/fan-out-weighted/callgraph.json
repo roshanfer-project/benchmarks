@@ -18,7 +18,7 @@
           "priority": 0
         }
       ],
-      "cpu": 2,
+      "cpu": 4,
       "over_commitment": 1
     },
     {
@@ -37,7 +37,7 @@
       "interfaces": [
         {
           "name": "f3",
-          "avg_rt": 1,
+          "avg_rt": 1.5,
           "priority": 0
         }
       ],
