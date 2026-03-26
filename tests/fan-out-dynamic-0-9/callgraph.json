@@ -29,14 +29,14 @@
           "priority": 0
         }
       ],
-      "cpu": 1
+      "cpu": 2
     },
     {
       "id": "backend2",
       "interfaces": [
         {
           "name": "f3",
-          "avg_rt": 3,
+          "avg_rt": 6,
           "priority": 0
         }
       ],
