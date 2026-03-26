@@ -1,0 +1,38 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: backend2
+  labels:
+    app: backend2
+spec:
+  containers:
+  - name: app
+    image: fan-out-dynamic-0-9-backend2:latest
+    resources:
+      requests:
+        cpu: "1"
+      limits:
+        cpu: "1"
+    env:
+    - name: GOMAXPROCS
+      value: "1"
+    envFrom:
+    - configMapRef:
+        name: fan-out-dynamic-0-9-config
+    ports:
+    - containerPort: 2000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fan-out-dynamic-0-9-backend2
+  labels:
+    app: backend2
+spec:
+  selector:
+    app: backend2
+  ports:
+  - name: http
+    port: 2000
+    targetPort: 2000
+    protocol: TCP
