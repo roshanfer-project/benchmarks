@@ -154,6 +154,12 @@ func Visualize(callgraphPath string, outPath string) error {
 			if edgeHex != "" {
 				parts = append(parts, fmt.Sprintf("fontcolor=%q", edgeHex))
 			}
+		} else if e.Parallel {
+			parts = append(parts, "label="+dotLabel("parallel"))
+			parts = append(parts, "fontsize=10")
+			if edgeHex != "" {
+				parts = append(parts, fmt.Sprintf("fontcolor=%q", edgeHex))
+			}
 		}
 		attr := ""
 		if len(parts) > 0 {

@@ -1,0 +1,38 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: backend1
+  labels:
+    app: backend1
+spec:
+  containers:
+  - name: app
+    image: pfanout-2-backend1:latest
+    resources:
+      requests:
+        cpu: "2"
+      limits:
+        cpu: "2"
+    env:
+    - name: GOMAXPROCS
+      value: "2"
+    envFrom:
+    - configMapRef:
+        name: pfanout-2-config
+    ports:
+    - containerPort: 2000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pfanout-2-backend1
+  labels:
+    app: backend1
+spec:
+  selector:
+    app: backend1
+  ports:
+  - name: http
+    port: 2000
+    targetPort: 2000
+    protocol: TCP

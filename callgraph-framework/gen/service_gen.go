@@ -461,12 +461,14 @@ type entryServiceData struct {
 	PortEnv              string
 	UseSingleConn        bool
 	NeedWeightedRouting  bool
+	NeedParallel         bool
 }
 
 type entryHandlerData struct {
 	Interface       string
 	BusyLoopRepeats int
 	HasWeighted     bool
+	ParallelFanout  bool
 	WeightedArms    []weightedArm
 	Downstreams     []downstreamCall
 }
@@ -515,8 +517,8 @@ func buildWeightedArms(edges []Edge, pg *ParsedGraph) []weightedArm {
 	return arms
 }
 
-// routingFromEdges returns sequential downstream calls, or weighted arms when multiple weighted edges.
-func routingFromEdges(pg *ParsedGraph, edges []Edge) (hasWeighted bool, arms []weightedArm, seq []downstreamCall) {
+// routingFromEdges returns weighted arms, or sequential/parallel downstream list (parallelFanout only when unweighted multi-edge and all edges Parallel).
+func routingFromEdges(pg *ParsedGraph, edges []Edge) (hasWeighted bool, parallelFanout bool, arms []weightedArm, seq []downstreamCall) {
 	anyW := false
 	for _, e := range edges {
 		if e.Weight != nil {
@@ -529,14 +531,14 @@ func routingFromEdges(pg *ParsedGraph, edges []Edge) (hasWeighted bool, arms []w
 			tn := pg.Nodes[e.Target]
 			seq = append(seq, downstreamCall{tn.Microservice, protoServiceName(tn.Microservice), tn.GoMethodName(), tn.Interface})
 		}
-		return false, nil, seq
+		return false, IsParallelFanoutGroup(edges), nil, seq
 	}
 	if len(edges) == 1 {
 		tn := pg.Nodes[edges[0].Target]
 		seq = append(seq, downstreamCall{tn.Microservice, protoServiceName(tn.Microservice), tn.GoMethodName(), tn.Interface})
-		return false, nil, seq
+		return false, false, nil, seq
 	}
-	return true, buildWeightedArms(edges, pg), nil
+	return true, false, buildWeightedArms(edges, pg), nil
 }
 
 func generateEntryService(pg *ParsedGraph, module string, svcName string, outDir string) error {
@@ -545,6 +547,7 @@ func generateEntryService(pg *ParsedGraph, module string, svcName string, outDir
 	egressEnv := svcName + "_EGRESS"
 	var handlers []entryHandlerData
 	needRand := false
+	needPar := false
 	for _, entryNode := range pg.EntryInterfaces() {
 		edges := pg.OutgoingEdgesForAPI(entryNode.ID, entryNode.Interface)
 		for _, e := range edges {
@@ -554,14 +557,18 @@ func generateEntryService(pg *ParsedGraph, module string, svcName string, outDir
 				clients = append(clients, clientRef{n.Microservice, protoServiceName(n.Microservice), n.Microservice + "_ADDR"})
 			}
 		}
-		hasW, arms, seq := routingFromEdges(pg, edges)
+		hasW, par, arms, seq := routingFromEdges(pg, edges)
 		if hasW {
 			needRand = true
+		}
+		if par {
+			needPar = true
 		}
 		handlers = append(handlers, entryHandlerData{
 			Interface:       entryNode.Interface,
 			BusyLoopRepeats: entryNode.BusyLoopRepeats(),
 			HasWeighted:     hasW,
+			ParallelFanout:  par,
 			WeightedArms:    arms,
 			Downstreams:     seq,
 		})
@@ -576,6 +583,7 @@ func generateEntryService(pg *ParsedGraph, module string, svcName string, outDir
 		PortEnv:             svcName + "_PORT",
 		UseSingleConn:       true,
 		NeedWeightedRouting: needRand,
+		NeedParallel:        needPar,
 	}
 	return renderTemplate(entryServiceTmpl, data, filepath.Join(outDir, "services", svcName, "main.go"))
 }
@@ -596,7 +604,8 @@ import (
 	"os"
 	"strconv"
 	"sync"
-	"time"{{end}}
+	"time"{{else if .NeedParallel}}
+	"sync"{{end}}
 )
 
 {{if .NeedWeightedRouting}}var routingRng struct {
@@ -694,6 +703,28 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), 500)
 			return
 		}
+{{else if .ParallelFanout}}		req := &pb.Request{}
+		var wg sync.WaitGroup
+		var errMu sync.Mutex
+		var firstErr error
+{{range .Downstreams}}		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, e := s.{{.ProtoMicroservice}}Client.{{.MethodName}}(ctx, req)
+			if e != nil {
+				errMu.Lock()
+				if firstErr == nil {
+					firstErr = e
+				}
+				errMu.Unlock()
+			}
+		}()
+{{end}}		wg.Wait()
+		if firstErr != nil {
+			log.Error("downstream call failed", "error", firstErr)
+			http.Error(w, firstErr.Error(), 500)
+			return
+		}
 {{else if .Downstreams}}		req := &pb.Request{}
 		var err error
 {{range .Downstreams}}		_, err = s.{{.ProtoMicroservice}}Client.{{.MethodName}}(ctx, req)
@@ -730,13 +761,15 @@ type grpcServiceData struct {
 	EgressEnv           string
 	PortEnv             string
 	NeedWeightedRouting bool
+	NeedParallel        bool
 }
 
 type grpcAPICase struct {
-	APIName      string
-	HasWeighted  bool
-	WeightedArms []weightedArm
-	Downstreams  []downstreamCall
+	APIName        string
+	HasWeighted    bool
+	ParallelFanout bool
+	WeightedArms   []weightedArm
+	Downstreams    []downstreamCall
 }
 
 type grpcHandler struct {
@@ -750,6 +783,7 @@ func generateGRPCService(pg *ParsedGraph, module string, svcName string, outDir 
 	allClients := make(map[string]bool)
 	var handlers []grpcHandler
 	needRand := false
+	needPar := false
 	for _, n := range nodes {
 		var cases []grpcAPICase
 		for _, api := range pg.APIsReachingNode(n.ID) {
@@ -758,11 +792,14 @@ func generateGRPCService(pg *ParsedGraph, module string, svcName string, outDir 
 				tn := pg.Nodes[e.Target]
 				allClients[tn.Microservice] = true
 			}
-			hasW, arms, seq := routingFromEdges(pg, edges)
+			hasW, par, arms, seq := routingFromEdges(pg, edges)
 			if hasW {
 				needRand = true
 			}
-			cases = append(cases, grpcAPICase{APIName: api, HasWeighted: hasW, WeightedArms: arms, Downstreams: seq})
+			if par {
+				needPar = true
+			}
+			cases = append(cases, grpcAPICase{APIName: api, HasWeighted: hasW, ParallelFanout: par, WeightedArms: arms, Downstreams: seq})
 		}
 		handlers = append(handlers, grpcHandler{Node: n, MethodName: n.GoMethodName(), APICases: cases})
 	}
@@ -781,6 +818,7 @@ func generateGRPCService(pg *ParsedGraph, module string, svcName string, outDir 
 		EgressEnv:           svcName + "_EGRESS",
 		PortEnv:             svcName + "_PORT",
 		NeedWeightedRouting: needRand,
+		NeedParallel:        needPar,
 	}
 	return renderTemplate(grpcServiceTmpl, data, filepath.Join(outDir, "services", svcName, "main.go"))
 }
@@ -802,7 +840,8 @@ import (
 	"os"
 	"strconv"
 	"sync"
-	"time"{{end}}
+	"time"{{else if .NeedParallel}}
+	"sync"{{end}}
 )
 
 {{if .NeedWeightedRouting}}var routingRng struct {
@@ -899,6 +938,26 @@ func (s *Server) {{.MethodName}}(ctx context.Context, req *pb.Request) (*pb.Resp
 		if err != nil {
 			log.Error("downstream call failed", "error", err)
 			return nil, err
+		}
+{{else if .ParallelFanout}}		var wg sync.WaitGroup
+		var errMu sync.Mutex
+		var firstErr error
+{{range .Downstreams}}		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, e := s.{{.ProtoMicroservice}}Client.{{.MethodName}}(ctx, req)
+			if e != nil {
+				errMu.Lock()
+				if firstErr == nil {
+					firstErr = e
+				}
+				errMu.Unlock()
+			}
+		}()
+{{end}}		wg.Wait()
+		if firstErr != nil {
+			log.Error("downstream call failed", "error", firstErr)
+			return nil, firstErr
 		}
 {{else if .Downstreams}}		var err error
 {{range .Downstreams}}		_, err = s.{{.ProtoMicroservice}}Client.{{.MethodName}}(ctx, req)

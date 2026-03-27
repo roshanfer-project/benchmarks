@@ -48,10 +48,11 @@ type Node struct {
 }
 
 type Edge struct {
-	Source string   `json:"source"`
-	Target string   `json:"target"`
-	API    string   `json:"api"`
-	Weight *float64 `json:"weight,omitempty"`
+	Source   string   `json:"source"`
+	Target   string   `json:"target"`
+	API      string   `json:"api"`
+	Weight   *float64 `json:"weight,omitempty"`
+	Parallel bool     `json:"parallel,omitempty"`
 }
 
 // EdgeVisible is true if this edge may be used when the request's entry API is apiName.
@@ -283,6 +284,29 @@ func (pg *ParsedGraph) OutgoingEdgesForAPI(nodeID string, apiName string) []Edge
 		}
 	}
 	return out
+}
+
+// IsParallelFanoutGroup is true when len >= 2, all edges unweighted, and every edge has Parallel set.
+func IsParallelFanoutGroup(edges []Edge) bool {
+	if len(edges) < 2 {
+		return false
+	}
+	for _, e := range edges {
+		if e.Weight != nil || !e.Parallel {
+			return false
+		}
+	}
+	return true
+}
+
+// NodeUsesParallelFanout is true if some entry API sees a parallel fan-out from nodeID.
+func (pg *ParsedGraph) NodeUsesParallelFanout(nodeID string) bool {
+	for _, api := range pg.APIsReachingNode(nodeID) {
+		if IsParallelFanoutGroup(pg.OutgoingEdgesForAPI(nodeID, api)) {
+			return true
+		}
+	}
+	return false
 }
 
 // DownstreamForAPI returns targets of edges from nodeID visible for the given entry API name.

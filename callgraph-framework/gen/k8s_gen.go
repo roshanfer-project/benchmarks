@@ -241,6 +241,9 @@ func buildSidecarServiceConfig(pg *ParsedGraph, prefix, svcName, kn, entrySvc st
 				tn := pg.Nodes[targetID]
 				b.WriteString(fmt.Sprintf("      - %s\n", tn.FullRPCName()))
 			}
+			if len(targets) > 1 && pg.NodeUsesParallelFanout(n.ID) {
+				b.WriteString("    pfanout: true\n")
+			}
 		} else {
 			b.WriteString(fmt.Sprintf("  %s:\n", key))
 		}

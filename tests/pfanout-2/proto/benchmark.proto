@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package benchmark;
+
+option go_package = "pfanout2/protobuf";
+
+message Request { string payload = 1; }
+message Response { string payload = 1; }
+
+service backend1 {
+  rpc svc(Request) returns (Response);
+}
+
+service backend2 {
+  rpc svc(Request) returns (Response);
+}
+
+service frontend {
+  rpc api(Request) returns (Response);
+}
+

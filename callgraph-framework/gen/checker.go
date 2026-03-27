@@ -2,6 +2,7 @@ package gen
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -48,6 +49,109 @@ func checkEdgeWeights(pg *ParsedGraph, errs *[]string) {
 			if sum < 1-weightEpsilon || sum > 1+weightEpsilon {
 				*errs = append(*errs, fmt.Sprintf("%s (api %q): weights sum to %g, want 1", nodeID, apiName, sum))
 			}
+		}
+	}
+}
+
+func sortedEdgeTargets(edges []Edge) []string {
+	t := make([]string, len(edges))
+	for i, e := range edges {
+		t[i] = e.Target
+	}
+	sort.Strings(t)
+	return t
+}
+
+func stringSliceEqual(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+// checkFanOutAndParallel enforces parallel vs weighted vs sequential trichotomy and cross-API rules for parallel.
+func checkFanOutAndParallel(pg *ParsedGraph, errs *[]string) {
+	entryAPIs := make([]string, 0, len(pg.EntryNodeIDs))
+	seen := make(map[string]bool)
+	for _, eid := range pg.EntryNodeIDs {
+		iface := pg.Nodes[eid].Interface
+		if !seen[iface] {
+			seen[iface] = true
+			entryAPIs = append(entryAPIs, iface)
+		}
+	}
+
+	for _, e := range pg.Edges {
+		if e.Parallel && e.Weight != nil {
+			*errs = append(*errs, fmt.Sprintf("edge %s→%s: parallel and weight are mutually exclusive", e.Source, e.Target))
+		}
+	}
+
+	for nodeID := range pg.Nodes {
+		for _, apiName := range entryAPIs {
+			edges := pg.OutgoingEdgesForAPI(nodeID, apiName)
+			if len(edges) < 2 {
+				continue
+			}
+			nWeighted := 0
+			nParallel := 0
+			for _, e := range edges {
+				if e.Weight != nil {
+					nWeighted++
+				}
+				if e.Parallel {
+					nParallel++
+				}
+			}
+			if nWeighted == len(edges) {
+				if nParallel > 0 {
+					*errs = append(*errs, fmt.Sprintf("%s (api %q): parallel not allowed on weighted fan-out edges", nodeID, apiName))
+				}
+				continue
+			}
+			if nWeighted > 0 {
+				continue
+			}
+			if nParallel > 0 && nParallel < len(edges) {
+				*errs = append(*errs, fmt.Sprintf("%s (api %q): parallel must be true on every edge in the fan-out group or false/omitted on all", nodeID, apiName))
+			}
+		}
+	}
+
+	for nodeID := range pg.Nodes {
+		apis := pg.APIsReachingNode(nodeID)
+		var ref []string
+		hasParallel := false
+		for _, api := range apis {
+			edges := pg.OutgoingEdgesForAPI(nodeID, api)
+			if !IsParallelFanoutGroup(edges) {
+				continue
+			}
+			st := sortedEdgeTargets(edges)
+			if !hasParallel {
+				ref = st
+				hasParallel = true
+				continue
+			}
+			if !stringSliceEqual(ref, st) {
+				*errs = append(*errs, fmt.Sprintf("%s: parallel fan-out targets differ across entry APIs (sidecar mapping is one row per method)", nodeID))
+				break
+			}
+		}
+		if !hasParallel {
+			continue
+		}
+		for _, api := range apis {
+			edges := pg.OutgoingEdgesForAPI(nodeID, api)
+			if IsParallelFanoutGroup(edges) {
+				continue
+			}
+			*errs = append(*errs, fmt.Sprintf("%s (api %q): parallel fan-out from this node for another entry API requires the same parallel fan-out here", nodeID, api))
 		}
 	}
 }
@@ -130,6 +234,7 @@ func Check(pg *ParsedGraph) error {
 	}
 
 	checkEdgeWeights(pg, &errs)
+	checkFanOutAndParallel(pg, &errs)
 
 	if len(errs) > 0 {
 		return fmt.Errorf("check failed:\n  %s", strings.Join(errs, "\n  "))
