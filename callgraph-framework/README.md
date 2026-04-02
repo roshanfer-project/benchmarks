@@ -37,7 +37,7 @@ Requires [graphviz](https://graphviz.org/) (`dot` on PATH): `apt install graphvi
 - `push.sh [tag]` — push all images (run after build)
 - `deploy.sh [plain|sidecar] [debug]` — deploy to K8s (uses `TAG`, `REGISTRY`). `./deploy.sh sidecar debug` enables workload debug (see below). `debug` is only valid with `sidecar`, not with plain mode.
 - `destroy.sh` — tear down
-- `collect_logs.sh` — collect pod logs
+- `collect_logs.sh` — collect pod logs. If the environment variable `COLLECT_SIDECAR_NANOLOG=1` is set (done by `exec` when `--nanolog-debug` is enabled) and mode is `sidecar`, the script also `kubectl cp`s `/compressedLog` from each sidecar container into `$OUTPUT_DIR` as `*-sidecar.clog` (plus ingress as `*-ingress-sidecar.clog`). Decompression uses `benchmarks/sidecar/external/NanoLog/runtime/decompressor` from the repo checkout that runs the executor.
 
 ### Sidecar deploy debug
 
