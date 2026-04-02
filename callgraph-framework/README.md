@@ -35,9 +35,40 @@ Requires [graphviz](https://graphviz.org/) (`dot` on PATH): `apt install graphvi
 
 - `build.sh [tag]` — build all images
 - `push.sh [tag]` — push all images (run after build)
-- `deploy.sh` — deploy to K8s (uses TAG env var)
+- `deploy.sh [plain|sidecar] [debug]` — deploy to K8s (uses `TAG`, `REGISTRY`). `./deploy.sh sidecar debug` enables workload debug (see below). `debug` is only valid with `sidecar`, not with plain mode.
 - `destroy.sh` — tear down
 - `collect_logs.sh` — collect pod logs
+
+### Sidecar deploy debug
+
+Use `./deploy.sh sidecar debug` after `./build.sh` / `./push.sh` as usual. Requires [mikefarah yq](https://github.com/mikefarah/yq) v4 on `PATH` (the script exits with an install hint if it is missing).
+
+Debug mode only changes **workload** manifests (`*-sidecar.yaml`, `ingress.yaml`) under a temp copy before `kubectl apply`: every `Pod` gets `spec.restartPolicy: Never`. If you set `SIDECAR_GLOG_V` and/or `SIDECAR_GLOG_VMODULE` (or define them in `k8s/sidecar-debug-glog.env`), the `sidecar` container also gets `GLOG_v` / `GLOG_vmodule` (existing entries with those names are replaced). You can use debug mode for **restart behavior only** without setting any verbosity. **Prometheus** is still applied from `k8s/manifests/prometheus.yaml` exactly like non-debug sidecar deploy.
+
+Set verbosity via environment (or optional file — see precedence below):
+
+- `SIDECAR_GLOG_V` — maps to glog `GLOG_v` (e.g. `2` enables `VLOG(0)`–`VLOG(2)` globally where other filters allow).
+- `SIDECAR_GLOG_VMODULE` — maps to `GLOG_vmodule`; patterns use **source file basenames** (no `.cc`), e.g. `state=2`, `connection=1`, `event_loop=3`.
+
+Examples:
+
+```bash
+export SIDECAR_GLOG_V=2
+./deploy.sh sidecar debug
+```
+
+```bash
+export SIDECAR_GLOG_VMODULE=state=2,connection=1
+./deploy.sh sidecar debug
+```
+
+```bash
+export SIDECAR_GLOG_V=1
+export SIDECAR_GLOG_VMODULE=event_loop=3
+./deploy.sh sidecar debug
+```
+
+Optional `k8s/sidecar-debug-glog.env` under **this** benchmark’s `k8s/` (next to that benchmark’s `deploy.sh`). A file in another directory (e.g. `tests/one-service/k8s/...`) is not read when you deploy from `tests/fan-out-dynamic-0-9` — copy, symlink, or recreate it there. Same variable names as above, `#` comments allowed; script reads it only in the debug branch. **Precedence:** values already set in the environment win; the file fills `SIDECAR_GLOG_V` / `SIDECAR_GLOG_VMODULE` only when those variables are unset, so `SIDECAR_GLOG_V=3 ./deploy.sh sidecar debug` overrides a value from the file.
 
 ## Call Graph Format
 

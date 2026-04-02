@@ -14,7 +14,7 @@
         {
           "name": "f1",
           "avg_rt": 0.3,
-          "slo": 30,
+          "slo": 40,
           "priority": 0
         }
       ],
