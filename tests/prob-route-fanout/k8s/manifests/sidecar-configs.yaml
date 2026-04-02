@@ -18,6 +18,7 @@ data:
         downstreams:
           - benchmark.backend2/f3
           - benchmark.backend3/f4
+        dfanout: true
     ring_size: 1000
     buffer_count: 1024
     buffer_size: 80000
@@ -90,6 +91,7 @@ data:
           - benchmark.backend5/f6
           - benchmark.backend6/f7
           - benchmark.backend7/f8
+        dfanout: true
     ring_size: 1000
     buffer_count: 1024
     buffer_size: 80000

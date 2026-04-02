@@ -309,6 +309,29 @@ func (pg *ParsedGraph) NodeUsesParallelFanout(nodeID string) bool {
 	return false
 }
 
+// IsWeightedFanoutGroup is true when len >= 2 and every edge has a weight.
+func IsWeightedFanoutGroup(edges []Edge) bool {
+	if len(edges) < 2 {
+		return false
+	}
+	for _, e := range edges {
+		if e.Weight == nil {
+			return false
+		}
+	}
+	return true
+}
+
+// NodeUsesWeightedFanout is true if some entry API sees a weighted fan-out from nodeID.
+func (pg *ParsedGraph) NodeUsesWeightedFanout(nodeID string) bool {
+	for _, api := range pg.APIsReachingNode(nodeID) {
+		if IsWeightedFanoutGroup(pg.OutgoingEdgesForAPI(nodeID, api)) {
+			return true
+		}
+	}
+	return false
+}
+
 // DownstreamForAPI returns targets of edges from nodeID visible for the given entry API name.
 func (pg *ParsedGraph) DownstreamForAPI(nodeID string, apiName string) []string {
 	edges := pg.OutgoingEdgesForAPI(nodeID, apiName)

@@ -243,6 +243,8 @@ func buildSidecarServiceConfig(pg *ParsedGraph, prefix, svcName, kn, entrySvc st
 			}
 			if len(targets) > 1 && pg.NodeUsesParallelFanout(n.ID) {
 				b.WriteString("    pfanout: true\n")
+			} else if len(targets) > 1 && pg.NodeUsesWeightedFanout(n.ID) {
+				b.WriteString("    dfanout: true\n")
 			}
 		} else {
 			b.WriteString(fmt.Sprintf("  %s:\n", key))
