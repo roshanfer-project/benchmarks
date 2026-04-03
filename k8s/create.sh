@@ -85,14 +85,7 @@ install_local_kubeconfig_from_server() {
     sed -i "s/127.0.0.1/$SERVER_HOST/g" "$SCRIPT_DIR/kubeconfig"
     sed -i "s|https://localhost:6443|https://${SERVER_HOST}:6443|g" "$SCRIPT_DIR/kubeconfig" || true
     chmod 600 "$SCRIPT_DIR/kubeconfig"
-
-    mkdir -p ~/.kube
-    if [ -f ~/.kube/config ]; then
-        log_info "Backing up existing kubeconfig to ~/.kube/config.bak"
-        cp ~/.kube/config ~/.kube/config.bak
-    fi
-    cp "$SCRIPT_DIR/kubeconfig" ~/.kube/config
-    chmod 600 ~/.kube/config
+    log_success "Kubeconfig saved to $SCRIPT_DIR/kubeconfig (use direnv to set KUBECONFIG automatically)"
 }
 
 # --- CHECK EXISTING CLUSTER ---
@@ -119,7 +112,7 @@ if check_cluster_ready; then
     log_success "Cluster verified ready. Skipping K3s reinstall."
     install_local_kubeconfig_from_server
     export KUBECONFIG="$SCRIPT_DIR/kubeconfig"
-    log_success "Local kubeconfig refreshed for $SERVER_HOST ($SCRIPT_DIR/kubeconfig, ~/.kube/config)."
+    log_success "Local kubeconfig refreshed for $SERVER_HOST ($SCRIPT_DIR/kubeconfig)."
     exit 0
 else
     log_info "Cluster not ready or missing. Cleaning up before installation..."
@@ -155,7 +148,7 @@ ssh_exec "$SERVER_User" "$SERVER_HOST" "$SETUP_KUBECONFIG_CMD"
 
 install_local_kubeconfig_from_server
 export KUBECONFIG="$SCRIPT_DIR/kubeconfig"
-log_success "Control plane initialized. Kubeconfig installed to ~/.kube/config and $SCRIPT_DIR/kubeconfig"
+log_success "Control plane initialized. Kubeconfig at $SCRIPT_DIR/kubeconfig"
 
 # Check for kubectl and install if missing
 if ! command -v kubectl &> /dev/null; then
@@ -197,8 +190,7 @@ log_success "All agents installed."
 
 log_success "Cluster setup complete!"
 echo ""
-echo "Kubeconfig is installed in ~/.kube/config."
-echo "You can run 'kubectl get nodes' immediately."
+echo "Kubeconfig at $SCRIPT_DIR/kubeconfig (direnv sets KUBECONFIG automatically)."
 kubectl get nodes
 
 log_info "Waiting 30s for the API server to schedule system pods..."
