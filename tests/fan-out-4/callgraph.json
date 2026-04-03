@@ -30,7 +30,7 @@
           "priority": 0
         }
       ],
-      "cpu": 2
+      "cpu": 3
     },
     {
       "id": "backend2",
@@ -41,7 +41,7 @@
           "priority": 0
         }
       ],
-      "cpu": 2
+      "cpu": 3
     },
     {
       "id": "backend3",
@@ -52,7 +52,7 @@
           "priority": 0
         }
       ],
-      "cpu": 2
+      "cpu": 4
     },
     {
       "id": "backend4",
@@ -63,7 +63,7 @@
           "priority": 0
         }
       ],
-      "cpu": 2
+      "cpu": 4
     }
   ],
   "edges": [

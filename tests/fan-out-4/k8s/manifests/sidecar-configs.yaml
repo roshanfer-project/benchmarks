@@ -16,7 +16,7 @@ data:
     ingress_upstream_port: 2000
     report_latency: True
     name: backend1
-    cpu_count: 2
+    cpu_count: 3
     over_commitment: 0.0
     
   backend2.yaml: |
@@ -32,7 +32,7 @@ data:
     ingress_upstream_port: 2000
     report_latency: True
     name: backend2
-    cpu_count: 2
+    cpu_count: 3
     over_commitment: 0.0
     
   backend3.yaml: |
@@ -48,7 +48,7 @@ data:
     ingress_upstream_port: 2000
     report_latency: True
     name: backend3
-    cpu_count: 2
+    cpu_count: 4
     over_commitment: 0.0
     
   backend4.yaml: |
@@ -64,7 +64,7 @@ data:
     ingress_upstream_port: 2000
     report_latency: True
     name: backend4
-    cpu_count: 2
+    cpu_count: 4
     over_commitment: 0.0
     
   frontend.yaml: |
