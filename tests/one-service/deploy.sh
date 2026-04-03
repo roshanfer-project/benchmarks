@@ -26,6 +26,26 @@ cd "$ROOT_DIR"
 TMP_DIR="k8s/tmp_apply"
 mkdir -p "$TMP_DIR"
 
+kubectl_wait_ready_or_fail() {
+  local app=$1
+  local to=$2
+  if kubectl wait --for=condition=Ready pod -l "app=${app}" --timeout="${to}s"; then
+    return 0
+  fi
+  echo "=== deploy.sh: kubectl wait failed for app=${app} (timeout=${to}s) ===" >&2
+  kubectl get pods -l "app=${app}" -o wide >&2 || true
+  kubectl describe pod -l "app=${app}" >&2 || true
+  local p
+  while IFS= read -r p; do
+    [ -z "$p" ] && continue
+    echo "=== logs ${p} (current) ===" >&2
+    kubectl logs "$p" --all-containers=true --tail=200 >&2 || true
+    echo "=== logs ${p} (previous) ===" >&2
+    kubectl logs "$p" --all-containers=true --previous --tail=200 >&2 || true
+  done < <(kubectl get pods -l "app=${app}" -o name 2>/dev/null)
+  exit 1
+}
+
 sidecar_debug_require_yq() {
   command -v yq >/dev/null 2>&1 || {
     echo "deploy.sh sidecar debug needs mikefarah yq v4: https://github.com/mikefarah/yq" >&2
@@ -79,8 +99,8 @@ if [ "$MODE" = "sidecar" ]; then
   kubectl apply -f k8s/manifests/sidecar-configs.yaml
 
   kubectl apply -f k8s/manifests/prometheus.yaml
-  kubectl wait --for=condition=ready pod -l app=prometheus-pushgateway --timeout=60s || true
-  kubectl wait --for=condition=ready pod -l app=prometheus --timeout=60s || true
+  kubectl_wait_ready_or_fail prometheus-pushgateway 60
+  kubectl_wait_ready_or_fail prometheus 60
 
   for SVC in frontend; do
     sed "s|sidecar-sidecar:latest|${REGISTRY}/sidecar-sidecar:${TAG}|g" "k8s/manifests/${SVC}-sidecar.yaml" | \
@@ -89,7 +109,7 @@ if [ "$MODE" = "sidecar" ]; then
       sidecar_debug_patch_workload_yaml "$TMP_DIR/${SVC}-sidecar.yaml"
     fi
     kubectl apply -f "$TMP_DIR/${SVC}-sidecar.yaml"
-    kubectl wait --for=condition=Ready pod -l app=${SVC} --timeout=${WAIT_TIMEOUT}s
+    kubectl_wait_ready_or_fail "${SVC}" "${WAIT_TIMEOUT}"
   done
 
   sed "s|sidecar-sidecar:latest|${REGISTRY}/sidecar-sidecar:${TAG}|g" k8s/manifests/ingress.yaml > "$TMP_DIR/ingress.yaml"
@@ -97,19 +117,19 @@ if [ "$MODE" = "sidecar" ]; then
     sidecar_debug_patch_workload_yaml "$TMP_DIR/ingress.yaml"
   fi
   kubectl apply -f "$TMP_DIR/ingress.yaml"
-  kubectl wait --for=condition=Ready pod -l app=ingress --timeout=30s || true
+  kubectl_wait_ready_or_fail ingress 30
 else
   kubectl create configmap one-service-config --from-env-file=k8s/plain.env --dry-run=client -o yaml > "$TMP_DIR/configmap.yaml"
   kubectl apply -f "$TMP_DIR/configmap.yaml"
 
   kubectl apply -f k8s/manifests/prometheus.yaml
-  kubectl wait --for=condition=ready pod -l app=prometheus-pushgateway --timeout=60s || true
-  kubectl wait --for=condition=ready pod -l app=prometheus --timeout=60s || true
+  kubectl_wait_ready_or_fail prometheus-pushgateway 60
+  kubectl_wait_ready_or_fail prometheus 60
 
   for SVC in frontend; do
     sed "s|${BENCH}-${SVC}:latest|${REGISTRY}/${BENCH}-${SVC}:${TAG}|g" "k8s/manifests/${SVC}.yaml" > "$TMP_DIR/${SVC}.yaml"
     kubectl apply -f "$TMP_DIR/${SVC}.yaml"
-    kubectl wait --for=condition=Ready pod -l app=${SVC} --timeout=${WAIT_TIMEOUT}s
+    kubectl_wait_ready_or_fail "${SVC}" "${WAIT_TIMEOUT}"
   done
 
   kubectl apply -f k8s/manifests/entry.yaml
