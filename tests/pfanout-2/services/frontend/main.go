@@ -77,6 +77,7 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 	case "api":
 		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "api", "rpc-id", rpcID))
 		utils.BusyLoop(96)
+
 		req := &pb.Request{}
 		var wg sync.WaitGroup
 		var errMu sync.Mutex

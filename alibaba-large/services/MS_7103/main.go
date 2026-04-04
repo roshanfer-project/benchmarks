@@ -13,9 +13,9 @@ import (
 	"google.golang.org/grpc/reflection"
 )
 
+
 type Server struct {
 	pb.UnimplementedMS_7103Server
-
 }
 
 const serviceName = "MS_7103"
@@ -57,6 +57,7 @@ func (s *Server) Run() error {
 
 func (s *Server) HnZO60J2RH(ctx context.Context, req *pb.Request) (*pb.Response, error) {
 	utils.BusyLoop(694)
+
 	md, _ := metadata.FromIncomingContext(ctx)
 	api := ""
 	if v := md.Get("api"); len(v) == 1 {
@@ -72,6 +73,7 @@ func (s *Server) HnZO60J2RH(ctx context.Context, req *pb.Request) (*pb.Response,
 
 func (s *Server) RswWe4AhfE(ctx context.Context, req *pb.Request) (*pb.Response, error) {
 	utils.BusyLoop(691)
+
 	md, _ := metadata.FromIncomingContext(ctx)
 	api := ""
 	if v := md.Get("api"); len(v) == 1 {

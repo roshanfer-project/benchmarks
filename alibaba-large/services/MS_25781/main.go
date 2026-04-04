@@ -13,10 +13,10 @@ import (
 	"google.golang.org/grpc/reflection"
 )
 
+
 type Server struct {
 	pb.UnimplementedMS_25781Server
 	MS_7103Client pb.MS_7103Client
-
 }
 
 const serviceName = "MS_25781"
@@ -67,6 +67,7 @@ func (s *Server) Run() error {
 
 func (s *Server) QsLpARXiz2(ctx context.Context, req *pb.Request) (*pb.Response, error) {
 	utils.BusyLoop(860)
+
 	md, _ := metadata.FromIncomingContext(ctx)
 	api := ""
 	if v := md.Get("api"); len(v) == 1 {

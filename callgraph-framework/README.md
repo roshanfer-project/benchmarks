@@ -72,7 +72,20 @@ Optional `k8s/sidecar-debug-glog.env` under **this** benchmark’s `k8s/` (next 
 
 ## Call Graph Format
 
-- `nodes`: one per microservice; `id`, `interfaces` (array of `{name, avg_rt}`), `cpu` (optional, default 1, used for cpu_count in sidecar config and app resources), `sidecar_cpu` (optional, default 1, used for num_threads in sidecar config; k8s sidecar gets 2× this), `over_commitment` (optional, default 0, must be in [0,1]; written to sidecar config)
+- `nodes`: one per microservice; `id`, `interfaces` (see **service time** below), `cpu` (optional, default 1, used for cpu_count in sidecar config and app resources), `sidecar_cpu` (optional, default 1, used for num_threads in sidecar config; k8s sidecar gets 2× this), `over_commitment` (optional, default 0, must be in [0,1]; written to sidecar config)
+
+### Service time per interface
+
+Each workload interface (not the synthetic `USER` node) must specify **exactly one** of:
+
+- **`avg_rt`** (number, ≥ 0): fixed busy-loop service time (same units as before; there is no default—omit nothing).
+- **`bimodal`**: `{ "rt": [t0, t1], "prob": [p0, p1] }` with two strictly positive `rt` values and probabilities strictly in `(0,1)` summing to 1. Per request, one mode is chosen at random (`ROUTING_SEED` applies, same as weighted routing).
+
+Do not set both `avg_rt` and `bimodal` on the same interface.
+
+Older graphs that omitted `avg_rt` (previously treated as `1.0`) must add an explicit `avg_rt` on each workload interface.
+
+Example bimodal backend: [`../tests/chain-2-bimodal/callgraph.json`](../tests/chain-2-bimodal/callgraph.json).
 - `edges`: `source`, `target` as interface IDs (`microservice:interface`); `USER` → entry node. Optional **`api`**: entry interface name (`f1`, not `frontend:f1`). Omitted on `USER` edges means “derive from target”. Omitted on internal edges means the edge applies to **all** APIs (legacy). Multi-API benchmarks should set **`api`** on every internal edge so each API’s virtual graph is explicit.
 
   **Fan-out groups** (two or more outgoing edges from the same `(source, entry-api)`): exactly **one** of:

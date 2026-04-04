@@ -78,6 +78,7 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 	case "f1":
 		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "f1", "rpc-id", rpcID))
 		utils.BusyLoop(96)
+
 		req := &pb.Request{}
 		var err error
 		_, err = s.Backend1Client.B1(ctx, req)
@@ -91,6 +92,7 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 	case "f2":
 		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "f2", "rpc-id", rpcID))
 		utils.BusyLoop(128)
+
 		req := &pb.Request{}
 		var err error
 		_, err = s.Backend2Client.B2(ctx, req)
@@ -104,6 +106,7 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 	case "f3":
 		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "f3", "rpc-id", rpcID))
 		utils.BusyLoop(160)
+
 		req := &pb.Request{}
 		var err error
 		_, err = s.Backend1Client.B1(ctx, req)

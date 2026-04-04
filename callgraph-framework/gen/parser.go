@@ -10,7 +10,6 @@ import (
 	"unicode"
 )
 
-const defaultAvgRT = 1.0
 const busyLoopScale = 320
 const defaultConnectionPoolSize = 200
 
@@ -28,11 +27,18 @@ type ServiceNode struct {
 	ConnectionPoolSize int         `json:"connection_pool_size,omitempty"`
 }
 
+// BimodalSpec is two-component service time: BusyLoop duration is rt[i] with probability prob[i].
+type BimodalSpec struct {
+	RT   []float64 `json:"rt"`
+	Prob []float64 `json:"prob"`
+}
+
 type Interface struct {
-	Name     string  `json:"name"`
-	AvgRT    float64 `json:"avg_rt"`
-	SLO      *int    `json:"slo"`
-	Priority *int    `json:"priority"`
+	Name     string         `json:"name"`
+	AvgRT    *float64       `json:"avg_rt,omitempty"`
+	Bimodal  *BimodalSpec   `json:"bimodal,omitempty"`
+	SLO      *int           `json:"slo"`
+	Priority *int           `json:"priority"`
 }
 
 type Node struct {
@@ -40,6 +46,14 @@ type Node struct {
 	Microservice   string
 	Interface      string
 	AvgRT          float64
+	Bimodal        bool
+	BimodalP0      float64
+	BimodalR0      int
+	BimodalR1      int
+	BimodalRT0     float64
+	BimodalRT1     float64
+	BimodalProb0   float64
+	BimodalProb1   float64
 	CPU            int
 	SidecarCPU     int
 	OverCommitment float64
@@ -106,20 +120,36 @@ func buildParsedGraph(cg *CallGraph) (*ParsedGraph, error) {
 			continue
 		}
 		for _, iface := range svc.Interfaces {
-			avgRT := iface.AvgRT
-			if avgRT == 0 {
-				avgRT = defaultAvgRT
+			id := svc.ID + ":" + iface.Name
+			if iface.Bimodal != nil && iface.AvgRT != nil {
+				return nil, fmt.Errorf("node %s: set only one of avg_rt or bimodal", id)
+			}
+			if iface.Bimodal == nil && iface.AvgRT == nil {
+				return nil, fmt.Errorf("node %s: must set exactly one of avg_rt or bimodal", id)
 			}
 			node := &Node{
-				ID:             svc.ID + ":" + iface.Name,
+				ID:             id,
 				Microservice:   svc.ID,
 				Interface:      iface.Name,
-				AvgRT:          avgRT,
 				CPU:            cpu,
 				SidecarCPU:     sidecarCPU,
 				OverCommitment: svc.OverCommitment,
 				SLO:            iface.SLO,
 				Priority:       iface.Priority,
+			}
+			if iface.Bimodal != nil {
+				b := iface.Bimodal
+				node.Bimodal = true
+				if len(b.RT) != 2 || len(b.Prob) != 2 {
+					return nil, fmt.Errorf("node %s: bimodal requires rt and prob of length 2", id)
+				}
+				node.BimodalP0 = b.Prob[0]
+				node.BimodalRT0, node.BimodalRT1 = b.RT[0], b.RT[1]
+				node.BimodalProb0, node.BimodalProb1 = b.Prob[0], b.Prob[1]
+				node.BimodalR0 = repeatsFromServiceTime(b.RT[0])
+				node.BimodalR1 = repeatsFromServiceTime(b.RT[1])
+			} else {
+				node.AvgRT = *iface.AvgRT
 			}
 			pg.Nodes[node.ID] = node
 			pg.Services[svc.ID] = append(pg.Services[svc.ID], node)
@@ -190,12 +220,20 @@ func (n *Node) FullRPCName() string {
 	return "benchmark." + n.Microservice + "/" + n.ProtoMethodName()
 }
 
-func (n *Node) BusyLoopRepeats() int {
-	repeats := int(n.AvgRT * busyLoopScale)
+func repeatsFromServiceTime(rt float64) int {
+	repeats := int(rt * busyLoopScale)
 	if repeats < 1 {
 		repeats = 1
 	}
 	return repeats
+}
+
+// BusyLoopRepeats is only valid when n is not bimodal (codegen uses BimodalR0/R1 otherwise).
+func (n *Node) BusyLoopRepeats() int {
+	if n.Bimodal {
+		panic("BusyLoopRepeats called on bimodal node")
+	}
+	return repeatsFromServiceTime(n.AvgRT)
 }
 
 func (n *Node) ProtoMethodName() string {

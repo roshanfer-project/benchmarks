@@ -13,9 +13,9 @@ import (
 	"google.golang.org/grpc/reflection"
 )
 
+
 type Server struct {
 	pb.UnimplementedMS_12657Server
-
 }
 
 const serviceName = "MS_12657"
@@ -57,6 +57,7 @@ func (s *Server) Run() error {
 
 func (s *Server) KiMcs4YawB(ctx context.Context, req *pb.Request) (*pb.Response, error) {
 	utils.BusyLoop(441)
+
 	md, _ := metadata.FromIncomingContext(ctx)
 	api := ""
 	if v := md.Get("api"); len(v) == 1 {

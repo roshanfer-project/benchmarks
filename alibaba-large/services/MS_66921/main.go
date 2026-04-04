@@ -13,10 +13,10 @@ import (
 	"google.golang.org/grpc/reflection"
 )
 
+
 type Server struct {
 	pb.UnimplementedMS_66921Server
 	MS_43754Client pb.MS_43754Client
-
 }
 
 const serviceName = "MS_66921"
@@ -67,6 +67,7 @@ func (s *Server) Run() error {
 
 func (s *Server) EFOECNqigM(ctx context.Context, req *pb.Request) (*pb.Response, error) {
 	utils.BusyLoop(339)
+
 	md, _ := metadata.FromIncomingContext(ctx)
 	api := ""
 	if v := md.Get("api"); len(v) == 1 {

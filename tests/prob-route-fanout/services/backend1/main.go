@@ -18,7 +18,7 @@ import (
 	"time"
 )
 
-var routingRng struct {
+var benchRng struct {
 	mu sync.Mutex
 	r  *rand.Rand
 }
@@ -30,13 +30,13 @@ func init() {
 			seed = v
 		}
 	}
-	routingRng.r = rand.New(rand.NewSource(seed))
+	benchRng.r = rand.New(rand.NewSource(seed))
 }
 
-func routingFloat() float64 {
-	routingRng.mu.Lock()
-	defer routingRng.mu.Unlock()
-	return routingRng.r.Float64()
+func benchFloat() float64 {
+	benchRng.mu.Lock()
+	defer benchRng.mu.Unlock()
+	return benchRng.r.Float64()
 }
 
 
@@ -98,6 +98,7 @@ func (s *Server) Run() error {
 
 func (s *Server) F2(ctx context.Context, req *pb.Request) (*pb.Response, error) {
 	utils.BusyLoop(192)
+
 	md, _ := metadata.FromIncomingContext(ctx)
 	api := ""
 	if v := md.Get("api"); len(v) == 1 {
@@ -105,7 +106,7 @@ func (s *Server) F2(ctx context.Context, req *pb.Request) (*pb.Response, error) 
 	}
 	switch api {
 	case "f1":
-		u := routingFloat()
+		u := benchFloat()
 		var err error
 		if u < 0.6 {
 			_, err = s.Backend2Client.F3(ctx, req)

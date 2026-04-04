@@ -452,25 +452,29 @@ func GetServerOptions() []grpc.ServerOption {
 }
 
 type entryServiceData struct {
-	Module               string
-	ServiceName          string
-	Port                 int
-	Handlers             []entryHandlerData
-	Clients              []clientRef
-	EgressEnv            string
-	PortEnv              string
-	UseSingleConn        bool
-	NeedWeightedRouting  bool
-	NeedParallel         bool
+	Module         string
+	ServiceName    string
+	Port           int
+	Handlers       []entryHandlerData
+	Clients        []clientRef
+	EgressEnv      string
+	PortEnv        string
+	UseSingleConn  bool
+	NeedBenchRng   bool
+	NeedParallel   bool
 }
 
 type entryHandlerData struct {
-	Interface       string
-	BusyLoopRepeats int
-	HasWeighted     bool
-	ParallelFanout  bool
-	WeightedArms    []weightedArm
-	Downstreams     []downstreamCall
+	Interface        string
+	BusyLoopRepeats  int
+	Bimodal          bool
+	BimodalP0        float64
+	BimodalR0        int
+	BimodalR1        int
+	HasWeighted      bool
+	ParallelFanout   bool
+	WeightedArms     []weightedArm
+	Downstreams      []downstreamCall
 }
 
 type clientRef struct {
@@ -546,7 +550,7 @@ func generateEntryService(pg *ParsedGraph, module string, svcName string, outDir
 	var clients []clientRef
 	egressEnv := svcName + "_EGRESS"
 	var handlers []entryHandlerData
-	needRand := false
+	needBenchRng := false
 	needPar := false
 	for _, entryNode := range pg.EntryInterfaces() {
 		edges := pg.OutgoingEdgesForAPI(entryNode.ID, entryNode.Interface)
@@ -559,31 +563,40 @@ func generateEntryService(pg *ParsedGraph, module string, svcName string, outDir
 		}
 		hasW, par, arms, seq := routingFromEdges(pg, edges)
 		if hasW {
-			needRand = true
+			needBenchRng = true
 		}
 		if par {
 			needPar = true
 		}
-		handlers = append(handlers, entryHandlerData{
-			Interface:       entryNode.Interface,
-			BusyLoopRepeats: entryNode.BusyLoopRepeats(),
-			HasWeighted:     hasW,
-			ParallelFanout:  par,
-			WeightedArms:    arms,
-			Downstreams:     seq,
-		})
+		hd := entryHandlerData{
+			Interface:      entryNode.Interface,
+			HasWeighted:    hasW,
+			ParallelFanout: par,
+			WeightedArms:   arms,
+			Downstreams:    seq,
+		}
+		if entryNode.Bimodal {
+			needBenchRng = true
+			hd.Bimodal = true
+			hd.BimodalP0 = entryNode.BimodalP0
+			hd.BimodalR0 = entryNode.BimodalR0
+			hd.BimodalR1 = entryNode.BimodalR1
+		} else {
+			hd.BusyLoopRepeats = entryNode.BusyLoopRepeats()
+		}
+		handlers = append(handlers, hd)
 	}
 	data := entryServiceData{
-		Module:              module,
-		ServiceName:         svcName,
-		Port:                port,
-		Handlers:            handlers,
-		Clients:             clients,
-		EgressEnv:           egressEnv,
-		PortEnv:             svcName + "_PORT",
-		UseSingleConn:       true,
-		NeedWeightedRouting: needRand,
-		NeedParallel:        needPar,
+		Module:        module,
+		ServiceName:   svcName,
+		Port:          port,
+		Handlers:      handlers,
+		Clients:       clients,
+		EgressEnv:     egressEnv,
+		PortEnv:       svcName + "_PORT",
+		UseSingleConn: true,
+		NeedBenchRng:  needBenchRng,
+		NeedParallel:  needPar,
 	}
 	return renderTemplate(entryServiceTmpl, data, filepath.Join(outDir, "services", svcName, "main.go"))
 }
@@ -599,7 +612,7 @@ import (
 	"google.golang.org/grpc/metadata"{{if .Clients}}
 	"{{.Module}}/pkg"
 	pb "{{.Module}}/protobuf"
-	"google.golang.org/grpc"{{end}}{{if .NeedWeightedRouting}}
+	"google.golang.org/grpc"{{end}}{{if .NeedBenchRng}}
 	"math/rand"
 	"os"
 	"strconv"
@@ -608,7 +621,7 @@ import (
 	"sync"{{end}}
 )
 
-{{if .NeedWeightedRouting}}var routingRng struct {
+{{if .NeedBenchRng}}var benchRng struct {
 	mu sync.Mutex
 	r  *rand.Rand
 }
@@ -620,13 +633,13 @@ func init() {
 			seed = v
 		}
 	}
-	routingRng.r = rand.New(rand.NewSource(seed))
+	benchRng.r = rand.New(rand.NewSource(seed))
 }
 
-func routingFloat() float64 {
-	routingRng.mu.Lock()
-	defer routingRng.mu.Unlock()
-	return routingRng.r.Float64()
+func benchFloat() float64 {
+	benchRng.mu.Lock()
+	defer benchRng.mu.Unlock()
+	return benchRng.r.Float64()
 }
 
 {{end}}
@@ -689,8 +702,15 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 	switch path {
 {{range .Handlers}}	case "{{.Interface}}":
 		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "{{.Interface}}", "rpc-id", rpcID))
-		utils.BusyLoop({{.BusyLoopRepeats}})
-{{if .HasWeighted}}		u := routingFloat()
+{{if .Bimodal}}		u := benchFloat()
+		if u < {{printf "%.9g" .BimodalP0}} {
+			utils.BusyLoop({{.BimodalR0}})
+		} else {
+			utils.BusyLoop({{.BimodalR1}})
+		}
+{{else}}		utils.BusyLoop({{.BusyLoopRepeats}})
+{{end}}
+{{if .HasWeighted}}		u := benchFloat()
 		req := &pb.Request{}
 		var err error
 {{range .WeightedArms}}{{if .IsFirst}}		if u < {{printf "%.9g" .Until}} {
@@ -752,16 +772,16 @@ func main() {
 `
 
 type grpcServiceData struct {
-	Module              string
-	ServiceName         string
-	ProtoServiceName    string
-	Port                int
-	Handlers            []grpcHandler
-	Clients             []clientRef
-	EgressEnv           string
-	PortEnv             string
-	NeedWeightedRouting bool
-	NeedParallel        bool
+	Module           string
+	ServiceName      string
+	ProtoServiceName string
+	Port             int
+	Handlers         []grpcHandler
+	Clients          []clientRef
+	EgressEnv        string
+	PortEnv          string
+	NeedBenchRng     bool
+	NeedParallel     bool
 }
 
 type grpcAPICase struct {
@@ -782,9 +802,12 @@ func generateGRPCService(pg *ParsedGraph, module string, svcName string, outDir 
 	nodes := pg.Services[svcName]
 	allClients := make(map[string]bool)
 	var handlers []grpcHandler
-	needRand := false
+	needBenchRng := false
 	needPar := false
 	for _, n := range nodes {
+		if n.Bimodal {
+			needBenchRng = true
+		}
 		var cases []grpcAPICase
 		for _, api := range pg.APIsReachingNode(n.ID) {
 			edges := pg.OutgoingEdgesForAPI(n.ID, api)
@@ -794,7 +817,7 @@ func generateGRPCService(pg *ParsedGraph, module string, svcName string, outDir 
 			}
 			hasW, par, arms, seq := routingFromEdges(pg, edges)
 			if hasW {
-				needRand = true
+				needBenchRng = true
 			}
 			if par {
 				needPar = true
@@ -809,16 +832,16 @@ func generateGRPCService(pg *ParsedGraph, module string, svcName string, outDir 
 	}
 	sort.Slice(clients, func(i, j int) bool { return clients[i].Microservice < clients[j].Microservice })
 	data := grpcServiceData{
-		Module:              module,
-		ServiceName:         svcName,
-		ProtoServiceName:    protoServiceName(svcName),
-		Port:                port,
-		Handlers:            handlers,
-		Clients:             clients,
-		EgressEnv:           svcName + "_EGRESS",
-		PortEnv:             svcName + "_PORT",
-		NeedWeightedRouting: needRand,
-		NeedParallel:        needPar,
+		Module:           module,
+		ServiceName:      svcName,
+		ProtoServiceName: protoServiceName(svcName),
+		Port:             port,
+		Handlers:         handlers,
+		Clients:          clients,
+		EgressEnv:        svcName + "_EGRESS",
+		PortEnv:          svcName + "_PORT",
+		NeedBenchRng:     needBenchRng,
+		NeedParallel:     needPar,
 	}
 	return renderTemplate(grpcServiceTmpl, data, filepath.Join(outDir, "services", svcName, "main.go"))
 }
@@ -835,7 +858,7 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
-	"google.golang.org/grpc/reflection"{{if .NeedWeightedRouting}}
+	"google.golang.org/grpc/reflection"{{if .NeedBenchRng}}
 	"math/rand"
 	"os"
 	"strconv"
@@ -844,7 +867,7 @@ import (
 	"sync"{{end}}
 )
 
-{{if .NeedWeightedRouting}}var routingRng struct {
+{{if .NeedBenchRng}}var benchRng struct {
 	mu sync.Mutex
 	r  *rand.Rand
 }
@@ -856,13 +879,13 @@ func init() {
 			seed = v
 		}
 	}
-	routingRng.r = rand.New(rand.NewSource(seed))
+	benchRng.r = rand.New(rand.NewSource(seed))
 }
 
-func routingFloat() float64 {
-	routingRng.mu.Lock()
-	defer routingRng.mu.Unlock()
-	return routingRng.r.Float64()
+func benchFloat() float64 {
+	benchRng.mu.Lock()
+	defer benchRng.mu.Unlock()
+	return benchRng.r.Float64()
 }
 
 {{end}}
@@ -920,7 +943,14 @@ func (s *Server) Run() error {
 
 {{range .Handlers}}
 func (s *Server) {{.MethodName}}(ctx context.Context, req *pb.Request) (*pb.Response, error) {
-	utils.BusyLoop({{.Node.BusyLoopRepeats}})
+{{if .Node.Bimodal}}	u := benchFloat()
+	if u < {{printf "%.9g" .Node.BimodalP0}} {
+		utils.BusyLoop({{.Node.BimodalR0}})
+	} else {
+		utils.BusyLoop({{.Node.BimodalR1}})
+	}
+{{else}}	utils.BusyLoop({{.Node.BusyLoopRepeats}})
+{{end}}
 	md, _ := metadata.FromIncomingContext(ctx)
 	api := ""
 	if v := md.Get("api"); len(v) == 1 {
@@ -928,7 +958,7 @@ func (s *Server) {{.MethodName}}(ctx context.Context, req *pb.Request) (*pb.Resp
 	}
 	switch api {
 {{range .APICases}}	case "{{.APIName}}":
-{{if .HasWeighted}}		u := routingFloat()
+{{if .HasWeighted}}		u := benchFloat()
 		var err error
 {{range .WeightedArms}}{{if .IsFirst}}		if u < {{printf "%.9g" .Until}} {
 {{else if .IsLast}}		} else {

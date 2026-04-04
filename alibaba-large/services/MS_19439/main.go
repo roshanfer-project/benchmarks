@@ -13,12 +13,12 @@ import (
 	"google.golang.org/grpc/reflection"
 )
 
+
 type Server struct {
 	pb.UnimplementedMS_19439Server
 	MS_12657Client pb.MS_12657Client
 	MS_45067Client pb.MS_45067Client
 	MS_7103Client pb.MS_7103Client
-
 }
 
 const serviceName = "MS_19439"
@@ -77,6 +77,7 @@ func (s *Server) Run() error {
 
 func (s *Server) KvuxGZYcwm(ctx context.Context, req *pb.Request) (*pb.Response, error) {
 	utils.BusyLoop(627)
+
 	md, _ := metadata.FromIncomingContext(ctx)
 	api := ""
 	if v := md.Get("api"); len(v) == 1 {
@@ -109,6 +110,7 @@ func (s *Server) KvuxGZYcwm(ctx context.Context, req *pb.Request) (*pb.Response,
 
 func (s *Server) UfXkUzqEz3(ctx context.Context, req *pb.Request) (*pb.Response, error) {
 	utils.BusyLoop(396)
+
 	md, _ := metadata.FromIncomingContext(ctx)
 	api := ""
 	if v := md.Get("api"); len(v) == 1 {

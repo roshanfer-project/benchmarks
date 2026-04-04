@@ -17,7 +17,7 @@ import (
 	"time"
 )
 
-var routingRng struct {
+var benchRng struct {
 	mu sync.Mutex
 	r  *rand.Rand
 }
@@ -29,13 +29,13 @@ func init() {
 			seed = v
 		}
 	}
-	routingRng.r = rand.New(rand.NewSource(seed))
+	benchRng.r = rand.New(rand.NewSource(seed))
 }
 
-func routingFloat() float64 {
-	routingRng.mu.Lock()
-	defer routingRng.mu.Unlock()
-	return routingRng.r.Float64()
+func benchFloat() float64 {
+	benchRng.mu.Lock()
+	defer benchRng.mu.Unlock()
+	return benchRng.r.Float64()
 }
 
 
@@ -102,7 +102,8 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 	case "f1":
 		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "f1", "rpc-id", rpcID))
 		utils.BusyLoop(96)
-		u := routingFloat()
+
+		u := benchFloat()
 		req := &pb.Request{}
 		var err error
 		if u < 0.9 {

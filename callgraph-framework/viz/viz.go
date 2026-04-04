@@ -42,7 +42,14 @@ func reachableEdgesFrom(pg *gen.ParsedGraph, entryID string) []gen.Edge {
 }
 
 func nodeLabel(n *gen.Node, isEntry bool) string {
-	parts := []string{n.Interface, fmt.Sprintf("rt:%.2g", n.AvgRT)}
+	var rtLine string
+	if n.Bimodal {
+		rtLine = fmt.Sprintf("bimodal:%.2g@%.2g+%.2g@%.2g",
+			n.BimodalRT0, n.BimodalProb0, n.BimodalRT1, n.BimodalProb1)
+	} else {
+		rtLine = fmt.Sprintf("rt:%.2g", n.AvgRT)
+	}
+	parts := []string{n.Interface, rtLine}
 	if n.SLO != nil {
 		parts = append(parts, fmt.Sprintf("slo:%d", *n.SLO))
 	}

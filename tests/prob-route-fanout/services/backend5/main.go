@@ -57,6 +57,7 @@ func (s *Server) Run() error {
 
 func (s *Server) F6(ctx context.Context, req *pb.Request) (*pb.Response, error) {
 	utils.BusyLoop(102)
+
 	md, _ := metadata.FromIncomingContext(ctx)
 	api := ""
 	if v := md.Get("api"); len(v) == 1 {

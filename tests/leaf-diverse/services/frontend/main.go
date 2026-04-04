@@ -60,9 +60,11 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "f1", "rpc-id", rpcID))
 		utils.BusyLoop(3200)
 
+
 	case "f2":
 		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "f2", "rpc-id", rpcID))
 		utils.BusyLoop(6400)
+
 
 	default:
 		http.Error(w, "not found", 404)

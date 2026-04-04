@@ -169,7 +169,19 @@ func Check(pg *ParsedGraph) error {
 		if n.Interface == "" {
 			errs = append(errs, fmt.Sprintf("node %s: empty interface name", id))
 		}
-		if n.AvgRT < 0 {
+		if n.Bimodal {
+			if n.BimodalRT0 <= 0 || n.BimodalRT1 <= 0 {
+				errs = append(errs, fmt.Sprintf("node %s: bimodal rt must be > 0", id))
+			}
+			p0, p1 := n.BimodalProb0, n.BimodalProb1
+			if p0 <= weightEpsilon || p0 >= 1-weightEpsilon || p1 <= weightEpsilon || p1 >= 1-weightEpsilon {
+				errs = append(errs, fmt.Sprintf("node %s: bimodal prob must be in (0,1)", id))
+			}
+			sum := p0 + p1
+			if sum < 1-weightEpsilon || sum > 1+weightEpsilon {
+				errs = append(errs, fmt.Sprintf("node %s: bimodal prob sum is %g, want 1", id, sum))
+			}
+		} else if n.AvgRT < 0 {
 			errs = append(errs, fmt.Sprintf("node %s: negative avg_rt", id))
 		}
 		if n.CPU <= 0 {

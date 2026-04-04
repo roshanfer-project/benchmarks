@@ -71,6 +71,7 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 	case "f1":
 		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "f1", "rpc-id", rpcID))
 		utils.BusyLoop(96)
+
 		req := &pb.Request{}
 		var err error
 		_, err = s.BackendClient.F2(ctx, req)

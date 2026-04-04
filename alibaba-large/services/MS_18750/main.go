@@ -13,9 +13,9 @@ import (
 	"google.golang.org/grpc/reflection"
 )
 
+
 type Server struct {
 	pb.UnimplementedMS_18750Server
-
 }
 
 const serviceName = "MS_18750"
@@ -57,6 +57,7 @@ func (s *Server) Run() error {
 
 func (s *Server) Vs2NQhH1Hq(ctx context.Context, req *pb.Request) (*pb.Response, error) {
 	utils.BusyLoop(480)
+
 	md, _ := metadata.FromIncomingContext(ctx)
 	api := ""
 	if v := md.Get("api"); len(v) == 1 {
