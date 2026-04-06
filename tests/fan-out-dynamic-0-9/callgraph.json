@@ -18,7 +18,7 @@
           "priority": 0
         }
       ],
-      "cpu": 4
+      "cpu": 2
     },
     {
       "id": "backend1",
