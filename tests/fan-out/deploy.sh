@@ -74,14 +74,13 @@ sidecar_debug_patch_workload_yaml() {
   if [ -n "$GV_VAL" ] || [ -n "$VM_VAL" ]; then
     yq eval-all '
 select(.kind == "Pod") |= (.spec.containers |= map(
-  if .name == "sidecar" then
+  select(.name == "sidecar") |= (
     (.env // []) as $e |
     ($e | map(select(.name != "GLOG_v" and .name != "GLOG_vmodule"))) as $base |
-    .env = $base
-      + (if (strenv(GV_VAL) | length) > 0 then [{"name":"GLOG_v","value":strenv(GV_VAL)}] else [] end)
-      + (if (strenv(VM_VAL) | length) > 0 then [{"name":"GLOG_vmodule","value":strenv(VM_VAL)}] else [] end)
-  else .
-  end
+    ([{"name":"GLOG_v","value":strenv(GV_VAL)},{"name":"GLOG_vmodule","value":strenv(VM_VAL)}]
+      | map(select(.value != ""))) as $add |
+    .env = $base + $add
+  )
 ))' -i "$f"
   fi
 }
