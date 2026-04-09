@@ -73,7 +73,7 @@
           "priority": 0
         }
       ],
-      "cpu": 2
+      "cpu": 1
     },
     {
       "id": "backend6",
@@ -84,7 +84,7 @@
           "priority": 0
         }
       ],
-      "cpu": 2
+      "cpu": 1
     },
     {
       "id": "backend7",
@@ -112,13 +112,13 @@
       "source": "backend1:f2",
       "target": "backend2:f3",
       "api": "f1",
-      "weight": 0.6
+      "weight": 0.95
     },
     {
       "source": "backend1:f2",
       "target": "backend3:f4",
       "api": "f1",
-      "weight": 0.4
+      "weight": 0.05
     },
     {
       "source": "backend2:f3",

@@ -10,12 +10,12 @@ spec:
     image: dynamic-large-backend5:latest
     resources:
       requests:
-        cpu: "2"
+        cpu: "1"
       limits:
-        cpu: "2"
+        cpu: "1"
     env:
     - name: GOMAXPROCS
-      value: "2"
+      value: "1"
     envFrom:
     - configMapRef:
         name: dynamic-large-config

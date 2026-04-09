@@ -130,7 +130,7 @@ func (s *Server) F2(ctx context.Context, req *pb.Request) (*pb.Response, error) 
 	case "f1":
 		u := benchFloat()
 		var err error
-		if u < 0.6 {
+		if u < 0.95 {
 			_, err = s.Backend2Client.F3(ctx, req)
 		} else {
 			_, err = s.Backend3Client.F4(ctx, req)
