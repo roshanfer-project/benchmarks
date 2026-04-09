@@ -16,6 +16,17 @@ func GetConn(addr string) *grpc.ClientConn {
 	return conn
 }
 
+func GetRajomonClient(addr string, interceptor grpc.DialOption) *grpc.ClientConn {
+	conn, err := grpc.NewClient(addr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		interceptor,
+	)
+	if err != nil {
+		panic("did not connect: " + err.Error())
+	}
+	return conn
+}
+
 func GetServerOptions() []grpc.ServerOption {
 	return []grpc.ServerOption{
 		grpc.KeepaliveParams(keepalive.ServerParameters{Timeout: 120 * time.Second}),

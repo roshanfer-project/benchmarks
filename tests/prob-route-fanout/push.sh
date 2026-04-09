@@ -16,5 +16,7 @@ docker push "${REGISTRY}/${BENCH}-backend5:${TAG}"
 docker push "${REGISTRY}/${BENCH}-backend6:${TAG}"
 docker push "${REGISTRY}/${BENCH}-backend7:${TAG}"
 docker push "${REGISTRY}/${BENCH}-frontend:${TAG}"
+docker push "${REGISTRY}/${BENCH}-frontend-grpc:${TAG}"
+docker push "${REGISTRY}/${BENCH}-rajomon-client:${TAG}"
 
 echo "Push complete."

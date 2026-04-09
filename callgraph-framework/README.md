@@ -35,7 +35,7 @@ Requires [graphviz](https://graphviz.org/) (`dot` on PATH): `apt install graphvi
 
 - `build.sh [tag]` — build all images
 - `push.sh [tag]` — push all images (run after build)
-- `deploy.sh [plain|sidecar] [debug]` — deploy to K8s (uses `TAG`, `REGISTRY`). `./deploy.sh sidecar debug` enables workload debug (see below). `debug` is only valid with `sidecar`, not with plain mode.
+- `deploy.sh [plain|sidecar|rajomon]` — deploy to K8s (uses `TAG`, `REGISTRY`). `./deploy.sh sidecar debug` enables workload debug (see below). `debug` is only valid with `sidecar`, not with plain or rajomon.
 - `destroy.sh` — tear down
 - `collect_logs.sh` — collect pod logs. If the environment variable `COLLECT_SIDECAR_NANOLOG=1` is set (done by `exec` when `--nanolog-debug` is enabled) and mode is `sidecar`, the script also `kubectl cp`s `/compressedLog` from each sidecar container into `$OUTPUT_DIR` as `*-sidecar.clog` (plus ingress as `*-ingress-sidecar.clog`). Decompression uses `benchmarks/sidecar/external/NanoLog/runtime/decompressor` from the repo checkout that runs the executor.
 
@@ -69,6 +69,22 @@ export SIDECAR_GLOG_VMODULE=event_loop=3
 ```
 
 Optional `k8s/sidecar-debug-glog.env` under **this** benchmark’s `k8s/` (next to that benchmark’s `deploy.sh`). A file in another directory (e.g. `tests/one-service/k8s/...`) is not read when you deploy from `tests/fan-out-dynamic-0-9` — copy, symlink, or recreate it there. Same variable names as above, `#` comments allowed; script reads it only in the debug branch. **Precedence:** values already set in the environment win; the file fills `SIDECAR_GLOG_V` / `SIDECAR_GLOG_VMODULE` only when those variables are unset, so `SIDECAR_GLOG_V=3 ./deploy.sh sidecar debug` overrides a value from the file.
+
+### Rajomon mode
+
+Matches `benchmarks/hotel` rajomon layout: all workloads talk gRPC with [Rajomon](https://github.com/pennsail/rajomon) interceptors; the HTTP entry is a separate **`rajomon-client`** pod (NodePort **3000** → `ClientPort` 2007) that forwards to **`<entry>-grpc`** (e.g. `frontend-grpc`). Manifests live in `k8s/manifests/app-grpc.yaml`; env template in `k8s/rajomon.env`; graph for Rajomon in `rajomon_init/msgraph.yaml`.
+
+After `go run ./cmd/gen ...`, run `go mod tidy` in the generated benchmark root if you open it as a module.
+
+```bash
+./build.sh
+./push.sh
+# Optional tunables (shell env, same idea as benchmarks/hotel):
+# priceUpdateRate, latencyThreshold, tokenUpdateRate, priceStep, tokenUpdateStep
+./deploy.sh rajomon
+```
+
+Use **`destroy.sh rajomon`** when tearing down a rajomon deploy so `rajomon-client` and the `*-grpc` entry pod are removed. Load tests can use the same URLs as plain mode: `http://<node>:3000/<interface>` (see `entry_path.txt`).
 
 ## Call Graph Format
 

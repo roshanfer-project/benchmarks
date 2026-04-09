@@ -37,6 +37,12 @@ func GenerateK8s(pg *ParsedGraph, benchmarkName string, registry string, outDir 
 	if err := generateIngressYaml(pg, benchmarkName, outDir); err != nil {
 		return err
 	}
+	if err := generateRajomonEnv(pg, benchmarkName, svcNames, outDir); err != nil {
+		return err
+	}
+	if err := generateAppGrpcYaml(pg, benchmarkName, svcNames, outDir); err != nil {
+		return err
+	}
 	return generatePrometheusYaml(outDir)
 }
 
@@ -144,6 +150,175 @@ func generatePlainEnv(pg *ParsedGraph, benchmarkName string, svcNames []string, 
 	lines = append(lines, "", "PROM_ADDR=prometheus-pushgateway:9091")
 	k8sDir := filepath.Join(outDir, "k8s")
 	return os.WriteFile(filepath.Join(k8sDir, "plain.env"), []byte(strings.Join(lines, "\n")), 0644)
+}
+
+func generateRajomonEnv(pg *ParsedGraph, benchmarkName string, svcNames []string, outDir string) error {
+	prefix := benchmarkName + "-"
+	ek := EntryGrpcK8s(pg)
+	entryMS := pg.EntryMicroservice()
+	lines := []string{
+		"deployment=" + benchmarkName,
+		"rajomon=true",
+		"",
+		"EntryGRPCPort=" + fmt.Sprintf("%d", port),
+		"ClientPort=2007",
+		"EntryGRPCAddr=" + prefix + ek + ":" + fmt.Sprintf("%d", port),
+		"",
+	}
+	for _, name := range svcNames {
+		var podKn string
+		if name == entryMS {
+			podKn = ek
+		} else {
+			podKn = k8sName(name)
+		}
+		lines = append(lines, name+"_ADDR="+prefix+podKn+":"+fmt.Sprintf("%d", port))
+	}
+	lines = append(lines, "", "PROM_ADDR=prometheus-pushgateway:9091")
+	return os.WriteFile(filepath.Join(outDir, "k8s", "rajomon.env"), []byte(strings.Join(lines, "\n")), 0644)
+}
+
+func generateAppGrpcYaml(pg *ParsedGraph, benchmarkName string, svcNames []string, outDir string) error {
+	prefix := benchmarkName + "-"
+	entryMS := pg.EntryMicroservice()
+	ek := EntryGrpcK8s(pg)
+	manifestsDir := filepath.Join(outDir, "k8s", "manifests")
+	if err := os.MkdirAll(manifestsDir, 0755); err != nil {
+		return err
+	}
+	var docs []string
+	for _, name := range svcNames {
+		var kn string
+		if name == entryMS {
+			kn = ek
+		} else {
+			kn = k8sName(name)
+		}
+		imgName := prefix + kn
+		cpu := pg.CPUForService(name)
+		cpuStr := fmt.Sprintf("%d", cpu)
+		doc := fmt.Sprintf(`apiVersion: v1
+kind: Pod
+metadata:
+  name: %s
+  labels:
+    app: %s
+spec:
+  restartPolicy: Never
+  containers:
+  - name: app
+    image: %s:latest
+    resources:
+      requests:
+        cpu: "%s"
+      limits:
+        cpu: "%s"
+    env:
+    - name: GOMAXPROCS
+      value: "%s"
+    envFrom:
+    - configMapRef:
+        name: %s-config
+    ports:
+    - containerPort: %d
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: %s%s
+  labels:
+    app: %s
+spec:
+  selector:
+    app: %s
+  ports:
+  - name: grpc
+    port: %d
+    targetPort: %d
+    protocol: TCP
+`, kn, kn, imgName, cpuStr, cpuStr, cpuStr, benchmarkName, port,
+			prefix, kn, kn, kn, port, port)
+		docs = append(docs, doc)
+	}
+	rcCPU := pg.CPUForService(entryMS) + 1
+	rcStr := fmt.Sprintf("%d", rcCPU)
+	rcImg := prefix + "rajomon-client"
+	rcDoc := fmt.Sprintf(`apiVersion: v1
+kind: Pod
+metadata:
+  name: rajomon-client
+  labels:
+    app: rajomon-client
+spec:
+  restartPolicy: Never
+  containers:
+  - name: app
+    image: %s:latest
+    resources:
+      requests:
+        cpu: "%s"
+      limits:
+        cpu: "%s"
+    env:
+    - name: GOMAXPROCS
+      value: "%s"
+    envFrom:
+    - configMapRef:
+        name: %s-config
+    ports:
+    - containerPort: 2007
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: %sentry
+  labels:
+    app: rajomon-client
+spec:
+  type: NodePort
+  selector:
+    app: rajomon-client
+  ports:
+  - name: http
+    port: 2007
+    targetPort: 2007
+    nodePort: 3000
+    protocol: TCP
+`, rcImg, rcStr, rcStr, rcStr, benchmarkName, prefix)
+	docs = append(docs, rcDoc)
+	// --- between chunks: each chunk is Pod+Service; without this, the next Pod merges into the prior Service doc.
+	return os.WriteFile(filepath.Join(manifestsDir, "app-grpc.yaml"), []byte(strings.Join(docs, "\n---\n")), 0644)
+}
+
+func rajomonDeployK8sOrder(pg *ParsedGraph) []string {
+	dep := deploymentOrder(pg)
+	entryMS := pg.EntryMicroservice()
+	ek := EntryGrpcK8s(pg)
+	var order []string
+	for _, s := range dep {
+		if s == entryMS {
+			continue
+		}
+		order = append(order, k8sName(s))
+	}
+	order = append(order, ek)
+	order = append(order, "rajomon-client")
+	return order
+}
+
+func rajomonImageK8sNames(pg *ParsedGraph) []string {
+	svcNames := sortedServices(pg)
+	entryMS := pg.EntryMicroservice()
+	var names []string
+	for _, s := range svcNames {
+		if s == entryMS {
+			names = append(names, EntryGrpcK8s(pg))
+		} else {
+			names = append(names, k8sName(s))
+		}
+	}
+	names = append(names, "rajomon-client")
+	return names
 }
 
 const (
@@ -624,19 +799,19 @@ spec:
 
 func GenerateScripts(pg *ParsedGraph, benchmarkName string, outDir string) error {
 	svcNames := sortedServices(pg)
-	if err := generateBuildScript(benchmarkName, svcNames, outDir); err != nil {
+	if err := generateBuildScript(pg, benchmarkName, svcNames, outDir); err != nil {
 		return err
 	}
-	if err := generatePushScript(benchmarkName, svcNames, outDir); err != nil {
+	if err := generatePushScript(pg, benchmarkName, svcNames, outDir); err != nil {
 		return err
 	}
 	if err := generateDeployScript(pg, benchmarkName, outDir); err != nil {
 		return err
 	}
-	if err := generateDestroyScript(benchmarkName, svcNames, outDir); err != nil {
+	if err := generateDestroyScript(pg, benchmarkName, svcNames, outDir); err != nil {
 		return err
 	}
-	if err := generateCollectLogsScript(svcNames, outDir); err != nil {
+	if err := generateCollectLogsScript(pg, svcNames, outDir); err != nil {
 		return err
 	}
 	if err := generateWrapperScripts(pg, outDir); err != nil {
@@ -645,7 +820,7 @@ func GenerateScripts(pg *ParsedGraph, benchmarkName string, outDir string) error
 	return generateDockerfile(outDir)
 }
 
-func generateBuildScript(benchmarkName string, svcNames []string, outDir string) error {
+func generateBuildScript(pg *ParsedGraph, benchmarkName string, svcNames []string, outDir string) error {
 	type svcEntry struct {
 		Name    string
 		K8sName string
@@ -654,6 +829,9 @@ func generateBuildScript(benchmarkName string, svcNames []string, outDir string)
 	for _, s := range svcNames {
 		entries = append(entries, svcEntry{s, k8sName(s)})
 	}
+	ek := EntryGrpcK8s(pg)
+	entries = append(entries, svcEntry{ek, ek})
+	entries = append(entries, svcEntry{"rajomon-client", "rajomon-client"})
 	tmpl := `#!/bin/bash
 set -e
 TAG=${1:-${TAG:-latest}}
@@ -713,11 +891,12 @@ echo "Build complete."
 	return os.WriteFile(filepath.Join(outDir, "build.sh"), b.Bytes(), 0755)
 }
 
-func generatePushScript(benchmarkName string, svcNames []string, outDir string) error {
+func generatePushScript(pg *ParsedGraph, benchmarkName string, svcNames []string, outDir string) error {
 	var k8sNames []string
 	for _, s := range svcNames {
 		k8sNames = append(k8sNames, k8sName(s))
 	}
+	k8sNames = append(k8sNames, EntryGrpcK8s(pg), "rajomon-client")
 	tmpl := `#!/bin/bash
 set -e
 TAG=${1:-${TAG:-latest}}
@@ -762,6 +941,10 @@ if [ "$MODE" = "plain" ] && [ "$ARG2" = "debug" ]; then
 fi
 if [ "$MODE" = "sidecar" ] && [ -n "$ARG2" ] && [ "$ARG2" != "debug" ]; then
   echo "deploy.sh: unknown second argument: $ARG2 (expected: debug)" >&2
+  exit 1
+fi
+if [ "$MODE" = "rajomon" ] && [ -n "$ARG2" ]; then
+  echo "deploy.sh: rajomon mode does not take a second argument" >&2
   exit 1
 fi
 SIDECAR_DEBUG=0
@@ -866,6 +1049,39 @@ if [ "$MODE" = "sidecar" ]; then
   fi
   kubectl apply -f "$TMP_DIR/ingress.yaml"
   kubectl_wait_ready_or_fail ingress 30
+elif [ "$MODE" = "rajomon" ]; then
+  PRICE_UPDATE_RATE=${priceUpdateRate}
+  LATENCY_THRESHOLD=${latencyThreshold}
+  TOKEN_UPDATE_RATE=${tokenUpdateRate}
+  PRICE_STEP=${priceStep}
+  TOKEN_UPDATE_STEP=${tokenUpdateStep}
+  echo "Using Rajomon config:"
+  echo "  priceUpdateRate=$PRICE_UPDATE_RATE latencyThreshold=$LATENCY_THRESHOLD tokenUpdateRate=$TOKEN_UPDATE_RATE priceStep=$PRICE_STEP tokenUpdateStep=$TOKEN_UPDATE_STEP"
+  cat k8s/rajomon.env > "$TMP_DIR/rajomon_merged.env"
+  echo "" >> "$TMP_DIR/rajomon_merged.env"
+  echo "priceUpdateRate=$PRICE_UPDATE_RATE" >> "$TMP_DIR/rajomon_merged.env"
+  echo "latencyThreshold=$LATENCY_THRESHOLD" >> "$TMP_DIR/rajomon_merged.env"
+  echo "tokenUpdateRate=$TOKEN_UPDATE_RATE" >> "$TMP_DIR/rajomon_merged.env"
+  echo "priceStep=$PRICE_STEP" >> "$TMP_DIR/rajomon_merged.env"
+  echo "tokenUpdateStep=$TOKEN_UPDATE_STEP" >> "$TMP_DIR/rajomon_merged.env"
+  K8S_NS=${K8S_NS:-$(kubectl config view --minify -o jsonpath='{..namespace}' 2>/dev/null)}
+  K8S_NS=${K8S_NS:-default}
+  sed -i "s|=${BENCH}-\([^=]*\):2000|=${BENCH}-\1.${K8S_NS}.svc.cluster.local:2000|g" "$TMP_DIR/rajomon_merged.env"
+  kubectl create configmap {{.BenchmarkName}}-config --from-env-file="$TMP_DIR/rajomon_merged.env" --dry-run=client -o yaml > "$TMP_DIR/configmap.yaml"
+  kubectl apply -f "$TMP_DIR/configmap.yaml"
+
+  kubectl apply -f k8s/manifests/prometheus.yaml
+  kubectl_wait_ready_or_fail prometheus-pushgateway 60
+  kubectl_wait_ready_or_fail prometheus 60
+
+  cp k8s/manifests/app-grpc.yaml "$TMP_DIR/app-grpc.yaml"
+  for IMG in {{range $i, $e := .RajomonImgK8s}}{{if $i}} {{end}}{{$e}}{{end}}; do
+    sed -i "s|${BENCH}-${IMG}:latest|${REGISTRY}/${BENCH}-${IMG}:${TAG}|g" "$TMP_DIR/app-grpc.yaml"
+  done
+  for SVC in {{range $i, $e := .RajomonDeployOrder}}{{if $i}} {{end}}{{$e}}{{end}}; do
+    kubectl apply -f "$TMP_DIR/app-grpc.yaml" -l app="${SVC}"
+    kubectl_wait_ready_or_fail "${SVC}" "${WAIT_TIMEOUT}"
+  done
 else
   kubectl create configmap {{.BenchmarkName}}-config --from-env-file=k8s/plain.env --dry-run=client -o yaml > "$TMP_DIR/configmap.yaml"
   kubectl apply -f "$TMP_DIR/configmap.yaml"
@@ -889,19 +1105,22 @@ echo "Deploy complete."
 	t, _ := template.New("").Parse(tmpl)
 	var b bytes.Buffer
 	t.Execute(&b, map[string]interface{}{
-		"BenchmarkName": benchmarkName,
-		"K8sOrder":      k8sOrder,
+		"BenchmarkName":      benchmarkName,
+		"K8sOrder":           k8sOrder,
+		"RajomonImgK8s":      rajomonImageK8sNames(pg),
+		"RajomonDeployOrder": rajomonDeployK8sOrder(pg),
 	})
 	return os.WriteFile(filepath.Join(outDir, "deploy.sh"), b.Bytes(), 0755)
 }
 
-func generateDestroyScript(benchmarkName string, svcNames []string, outDir string) error {
+func generateDestroyScript(pg *ParsedGraph, benchmarkName string, svcNames []string, outDir string) error {
 	var parts []string
 	for _, s := range svcNames {
 		kn := k8sName(s)
 		parts = append(parts, fmt.Sprintf("kubectl delete pod -l app=%s --ignore-not-found --wait=true", kn))
 		parts = append(parts, fmt.Sprintf("kubectl delete service -l app=%s --ignore-not-found", kn))
 	}
+	ek := EntryGrpcK8s(pg)
 	script := `#!/bin/bash
 MODE=${1:-${SYSTEM:-plain}}
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -916,16 +1135,24 @@ if [ "$MODE" = "sidecar" ]; then
   kubectl delete service -l app=ingress --ignore-not-found
   kubectl delete configmap sidecar-configs --ignore-not-found
 fi
+if [ "$MODE" = "rajomon" ]; then
+  kubectl delete pod -l app=rajomon-client --ignore-not-found --wait=true
+  kubectl delete service -l app=rajomon-client --ignore-not-found
+  kubectl delete service ` + benchmarkName + `-entry --ignore-not-found
+  kubectl delete pod -l app=` + ek + ` --ignore-not-found --wait=true
+  kubectl delete service -l app=` + ek + ` --ignore-not-found
+fi
 echo "Destroy complete."
 `
 	return os.WriteFile(filepath.Join(outDir, "destroy.sh"), []byte(script), 0755)
 }
 
-func generateCollectLogsScript(svcNames []string, outDir string) error {
+func generateCollectLogsScript(pg *ParsedGraph, svcNames []string, outDir string) error {
 	var svcList string
 	for _, s := range svcNames {
 		svcList += k8sName(s) + " "
 	}
+	svcList += EntryGrpcK8s(pg) + " rajomon-client "
 	script := `#!/bin/bash
 MODE=${1:-${SYSTEM:-plain}}
 OUTPUT_DIR=${OUTPUT_DIR:-./logs}
@@ -1074,6 +1301,7 @@ RUN go build -o /app/main ./${SERVICE}
 FROM alpine:latest
 WORKDIR /root/
 COPY --from=builder /app/main .
+COPY --from=builder /app/rajomon_init /rajomon_init
 EXPOSE 2000
 CMD ["./main"]
 `

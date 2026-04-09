@@ -30,7 +30,10 @@ func GenerateServices(pg *ParsedGraph, module string, outDir string) error {
 			}
 		}
 	}
-	return nil
+	if err := generateEntryGrpcService(pg, module, outDir); err != nil {
+		return err
+	}
+	return generateRajomonClientService(pg, module, outDir)
 }
 
 func protoServiceName(s string) string {
@@ -132,6 +135,14 @@ func StrToInt(s string) int {
 		log.Fatalf("Failed to convert string to int: %s", err)
 	}
 	return int(i)
+}
+
+func ParseFloatString(value string) float64 {
+	f, err := strconv.ParseFloat(value, 64)
+	if err != nil {
+		panic(err)
+	}
+	return f
 }
 `
 
@@ -428,6 +439,17 @@ import (
 
 func GetConn(addr string) *grpc.ClientConn {
 	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		panic("did not connect: " + err.Error())
+	}
+	return conn
+}
+
+func GetRajomonClient(addr string, interceptor grpc.DialOption) *grpc.ClientConn {
+	conn, err := grpc.NewClient(addr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		interceptor,
+	)
 	if err != nil {
 		panic("did not connect: " + err.Error())
 	}
@@ -798,7 +820,7 @@ type grpcHandler struct {
 	APICases   []grpcAPICase
 }
 
-func generateGRPCService(pg *ParsedGraph, module string, svcName string, outDir string) error {
+func buildGRPCServiceData(pg *ParsedGraph, module string, svcName string) grpcServiceData {
 	nodes := pg.Services[svcName]
 	allClients := make(map[string]bool)
 	var handlers []grpcHandler
@@ -831,7 +853,7 @@ func generateGRPCService(pg *ParsedGraph, module string, svcName string, outDir 
 		clients = append(clients, clientRef{ms, protoServiceName(ms), ms + "_ADDR"})
 	}
 	sort.Slice(clients, func(i, j int) bool { return clients[i].Microservice < clients[j].Microservice })
-	data := grpcServiceData{
+	return grpcServiceData{
 		Module:           module,
 		ServiceName:      svcName,
 		ProtoServiceName: protoServiceName(svcName),
@@ -843,7 +865,49 @@ func generateGRPCService(pg *ParsedGraph, module string, svcName string, outDir 
 		NeedBenchRng:     needBenchRng,
 		NeedParallel:     needPar,
 	}
+}
+
+func generateGRPCService(pg *ParsedGraph, module string, svcName string, outDir string) error {
+	data := buildGRPCServiceData(pg, module, svcName)
 	return renderTemplate(grpcServiceTmpl, data, filepath.Join(outDir, "services", svcName, "main.go"))
+}
+
+type entryGrpcBundle struct {
+	grpcServiceData
+	EntryGrpcK8s string
+}
+
+func generateEntryGrpcService(pg *ParsedGraph, module string, outDir string) error {
+	entry := pg.EntryMicroservice()
+	data := buildGRPCServiceData(pg, module, entry)
+	bundle := entryGrpcBundle{grpcServiceData: data, EntryGrpcK8s: EntryGrpcK8s(pg)}
+	return renderTemplate(entryGrpcServiceTmpl, bundle, filepath.Join(outDir, "services", bundle.EntryGrpcK8s, "main.go"))
+}
+
+type rajomonClientHandler struct {
+	Interface  string
+	MethodName string
+}
+
+type rajomonClientData struct {
+	Module           string
+	ProtoServiceName string
+	Handlers         []rajomonClientHandler
+}
+
+func generateRajomonClientService(pg *ParsedGraph, module string, outDir string) error {
+	entry := pg.EntryMicroservice()
+	var handlers []rajomonClientHandler
+	for _, n := range pg.EntryInterfaces() {
+		handlers = append(handlers, rajomonClientHandler{Interface: n.Interface, MethodName: n.GoMethodName()})
+	}
+	sort.Slice(handlers, func(i, j int) bool { return handlers[i].Interface < handlers[j].Interface })
+	data := rajomonClientData{
+		Module:           module,
+		ProtoServiceName: protoServiceName(entry),
+		Handlers:         handlers,
+	}
+	return renderTemplate(rajomonClientTmpl, data, filepath.Join(outDir, "services", "rajomon-client", "main.go"))
 }
 
 var grpcServiceTmpl = `package main
@@ -854,8 +918,10 @@ import (
 	"net"
 	"{{.Module}}/pkg"
 	pb "{{.Module}}/protobuf"
+	rajomoninit "{{.Module}}/rajomon_init"
 	"{{.Module}}/utils"
 
+	"github.com/pennsail/rajomon"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/reflection"{{if .NeedBenchRng}}
@@ -903,7 +969,12 @@ func (s *Server) Run() error {
 	log.Info("Initializing gRPC server...")
 	opts := pkg.GetServerOptions()
 	sidecar := utils.GetEnvVar("sidecar", false) == "true"
+	useRajomon := utils.GetEnvVar("rajomon", false) == "true"
 	queuingExport := utils.GetEnvVar("queuing_export", false) == "true"
+	var priceTable *rajomon.PriceTable
+	if useRajomon && !sidecar {
+		priceTable = rajomoninit.GetPriceTable(serviceName, false)
+	}
 	if sidecar {
 		if queuingExport {
 			opts = append(opts, grpc.ChainUnaryInterceptor(
@@ -912,6 +983,11 @@ func (s *Server) Run() error {
 		} else {
 			opts = append(opts, grpc.UnaryInterceptor(utils.ContextPropagationInterceptor()))
 		}
+	} else if useRajomon {
+		opts = append(opts, grpc.ChainUnaryInterceptor(
+			utils.ContextPropagationInterceptor(),
+			utils.NewCounterState(serviceName).GetInterceptor(),
+			priceTable.UnaryInterceptor))
 	} else {
 		opts = append(opts, grpc.ChainUnaryInterceptor(
 			utils.ContextPropagationInterceptor(),
@@ -924,7 +1000,12 @@ func (s *Server) Run() error {
 		conn = pkg.GetConn(utils.GetEnvVar("{{.EgressEnv}}", true))
 	}
 {{range .Clients}}	if !sidecar {
-		conn = pkg.GetConn(utils.GetEnvVar("{{.AddrEnv}}", true))
+		addr := utils.GetEnvVar("{{.AddrEnv}}", true)
+		if useRajomon {
+			conn = pkg.GetRajomonClient(addr, grpc.WithUnaryInterceptor(priceTable.UnaryInterceptorClient))
+		} else {
+			conn = pkg.GetConn(addr)
+		}
 	}
 	s.{{.ProtoMicroservice}}Client = pb.New{{.ProtoMicroservice}}Client(conn)
 {{end}}
@@ -1008,6 +1089,251 @@ func main() {
 	log.Info("Starting server...")
 	if err := s.Run(); err != nil {
 		log.Error("Server failed", "error", err)
+	}
+}
+`
+
+var entryGrpcServiceTmpl = `package main
+
+import (
+	"context"
+	"fmt"
+	"net"
+	"{{.Module}}/pkg"
+	pb "{{.Module}}/protobuf"
+	rajomoninit "{{.Module}}/rajomon_init"
+	"{{.Module}}/utils"
+
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/reflection"{{if .NeedBenchRng}}
+	"math/rand"
+	"os"
+	"strconv"
+	"sync"
+	"time"{{else if .NeedParallel}}
+	"sync"{{end}}
+)
+
+{{if .NeedBenchRng}}var benchRng struct {
+	mu sync.Mutex
+	r  *rand.Rand
+}
+
+func init() {
+	seed := time.Now().UnixNano()
+	if s := os.Getenv("ROUTING_SEED"); s != "" {
+		if v, err := strconv.ParseInt(s, 10, 64); err == nil {
+			seed = v
+		}
+	}
+	benchRng.r = rand.New(rand.NewSource(seed))
+}
+
+func benchFloat() float64 {
+	benchRng.mu.Lock()
+	defer benchRng.mu.Unlock()
+	return benchRng.r.Float64()
+}
+
+{{end}}
+type Server struct {
+	pb.Unimplemented{{.ProtoServiceName}}Server
+{{- range .Clients}}
+	{{.ProtoMicroservice}}Client pb.{{.ProtoMicroservice}}Client
+{{- end}}
+}
+
+const serviceName = "{{.EntryGrpcK8s}}"
+var log = utils.GetLogger(serviceName)
+
+func (s *Server) Run() error {
+	log.Info("Initializing gRPC server...")
+	if utils.GetEnvVar("rajomon", false) != "true" {
+		panic("entry-grpc requires rajomon=true")
+	}
+	opts := pkg.GetServerOptions()
+	pt := rajomoninit.GetPriceTable(serviceName, false)
+	opts = append(opts, grpc.ChainUnaryInterceptor(
+		utils.ContextPropagationInterceptor(),
+		utils.NewCounterState(serviceName).GetInterceptor(),
+		pt.UnaryInterceptor))
+	srv := grpc.NewServer(opts...)
+	pb.Register{{.ProtoServiceName}}Server(srv, s)
+{{if .Clients}}{{range .Clients}}	{
+		addr := utils.GetEnvVar("{{.AddrEnv}}", true)
+		conn := pkg.GetRajomonClient(addr, grpc.WithUnaryInterceptor(pt.UnaryInterceptorClient))
+		s.{{.ProtoMicroservice}}Client = pb.New{{.ProtoMicroservice}}Client(conn)
+	}
+{{end}}{{end}}
+	reflection.Register(srv)
+	listenPort := utils.StrToInt(utils.GetEnvVar("EntryGRPCPort", true))
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", listenPort))
+	if err != nil {
+		return fmt.Errorf("failed to listen: %v", err)
+	}
+	return srv.Serve(lis)
+}
+
+{{range .Handlers}}
+func (s *Server) {{.MethodName}}(ctx context.Context, req *pb.Request) (*pb.Response, error) {
+{{if .Node.Bimodal}}	u := benchFloat()
+	if u < {{printf "%.9g" .Node.BimodalP0}} {
+		utils.BusyLoop({{.Node.BimodalR0}})
+	} else {
+		utils.BusyLoop({{.Node.BimodalR1}})
+	}
+{{else}}	utils.BusyLoop({{.Node.BusyLoopRepeats}})
+{{end}}
+	md, _ := metadata.FromIncomingContext(ctx)
+	api := ""
+	if v := md.Get("api"); len(v) == 1 {
+		api = v[0]
+	}
+	switch api {
+{{range .APICases}}	case "{{.APIName}}":
+{{if .HasWeighted}}		u := benchFloat()
+		var err error
+{{range .WeightedArms}}{{if .IsFirst}}		if u < {{printf "%.9g" .Until}} {
+{{else if .IsLast}}		} else {
+{{else}}		} else if u < {{printf "%.9g" .Until}} {
+{{end}}			_, err = s.{{.ProtoMicroservice}}Client.{{.MethodName}}(ctx, req)
+{{end}}		}
+		if err != nil {
+			log.Error("downstream call failed", "error", err)
+			return nil, err
+		}
+{{else if .ParallelFanout}}		var wg sync.WaitGroup
+		var errMu sync.Mutex
+		var firstErr error
+{{range .Downstreams}}		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, e := s.{{.ProtoMicroservice}}Client.{{.MethodName}}(ctx, req)
+			if e != nil {
+				errMu.Lock()
+				if firstErr == nil {
+					firstErr = e
+				}
+				errMu.Unlock()
+			}
+		}()
+{{end}}		wg.Wait()
+		if firstErr != nil {
+			log.Error("downstream call failed", "error", firstErr)
+			return nil, firstErr
+		}
+{{else if .Downstreams}}		var err error
+{{range .Downstreams}}		_, err = s.{{.ProtoMicroservice}}Client.{{.MethodName}}(ctx, req)
+		if err != nil {
+			log.Error("downstream call failed", "error", err)
+			return nil, err
+		}
+{{end}}
+{{end}}
+{{end}}	default:
+	}
+	return &pb.Response{}, nil
+}
+{{end}}
+
+func main() {
+	s := &Server{}
+	log.Info("Starting server...")
+	if err := s.Run(); err != nil {
+		log.Error("Server failed", "error", err)
+	}
+}
+`
+
+var rajomonClientTmpl = `package main
+
+import (
+	"fmt"
+	"net/http"
+	"os"
+	"{{.Module}}/pkg"
+	pb "{{.Module}}/protobuf"
+	rajomoninit "{{.Module}}/rajomon_init"
+	"{{.Module}}/utils"
+
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
+)
+
+var log = utils.GetLogger("rajomon-client")
+
+type Server struct {
+	client     pb.{{.ProtoServiceName}}Client
+	grpcTarget string
+}
+
+func (s *Server) Run() error {
+	log.Info("Initializing rajomon-client...")
+	if utils.GetEnvVar("rajomon", false) != "true" {
+		panic("rajomon-client requires rajomon=true")
+	}
+	addr := utils.GetEnvVar("EntryGRPCAddr", true)
+	clientPort := utils.GetEnvVar("ClientPort", true)
+	deployment := utils.GetEnvVar("deployment", false)
+	if hn, err := os.Hostname(); err == nil {
+		log.Info("pod identity", "hostname", hn)
+	}
+	log.Info("rajomon-client config",
+		"EntryGRPCAddr", addr,
+		"ClientPort", clientPort,
+		"deployment", deployment,
+		"protoService", "{{.ProtoServiceName}}",
+	)
+	pt := rajomoninit.GetPriceTable("client", true)
+	log.Info("creating gRPC client (connection is lazy until first RPC)", "target", addr)
+	conn := pkg.GetRajomonClient(addr, grpc.WithUnaryInterceptor(pt.UnaryInterceptorEnduser))
+	s.grpcTarget = addr
+	s.client = pb.New{{.ProtoServiceName}}Client(conn)
+	log.Info("gRPC stub ready", "target", addr)
+	mux := http.NewServeMux()
+{{range .Handlers}}	mux.HandleFunc("/{{.Interface}}", s.handle_{{.MethodName}})
+{{end}}
+	httpPort := utils.StrToInt(clientPort)
+	log.Info("Serving HTTP", "listenAddr", fmt.Sprintf(":%d", httpPort), "grpcTarget", addr)
+	srv := &http.Server{
+		Addr:    fmt.Sprintf(":%d", httpPort),
+		Handler: mux,
+	}
+	return srv.ListenAndServe()
+}
+
+{{range .Handlers}}
+func (s *Server) handle_{{.MethodName}}(w http.ResponseWriter, r *http.Request) {
+	ctx := metadata.AppendToOutgoingContext(r.Context(), "method", "{{.Interface}}", "api", "{{.Interface}}")
+	_, err := s.client.{{.MethodName}}(ctx, &pb.Request{})
+	if err != nil {
+		st := status.Code(err)
+		log.Error("RPC failed",
+			"error", err,
+			"grpcCode", st.String(),
+			"grpcTarget", s.grpcTarget,
+			"grpcMethod", "{{.MethodName}}",
+			"api", "{{.Interface}}",
+		)
+		if st == codes.ResourceExhausted {
+			w.WriteHeader(503)
+			return
+		}
+		w.WriteHeader(500)
+		return
+	}
+	w.WriteHeader(200)
+	w.Write([]byte("ok"))
+}
+{{end}}
+
+func main() {
+	s := &Server{}
+	if err := s.Run(); err != nil {
+		log.Error("Failed to start", "error", err)
 	}
 }
 `

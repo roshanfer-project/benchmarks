@@ -6,8 +6,10 @@ import (
 	"net"
 	"fanoutfaninheavy/pkg"
 	pb "fanoutfaninheavy/protobuf"
+	rajomoninit "fanoutfaninheavy/rajomon_init"
 	"fanoutfaninheavy/utils"
 
+	"github.com/pennsail/rajomon"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/reflection"
@@ -26,7 +28,12 @@ func (s *Server) Run() error {
 	log.Info("Initializing gRPC server...")
 	opts := pkg.GetServerOptions()
 	sidecar := utils.GetEnvVar("sidecar", false) == "true"
+	useRajomon := utils.GetEnvVar("rajomon", false) == "true"
 	queuingExport := utils.GetEnvVar("queuing_export", false) == "true"
+	var priceTable *rajomon.PriceTable
+	if useRajomon && !sidecar {
+		priceTable = rajomoninit.GetPriceTable(serviceName, false)
+	}
 	if sidecar {
 		if queuingExport {
 			opts = append(opts, grpc.ChainUnaryInterceptor(
@@ -35,6 +42,11 @@ func (s *Server) Run() error {
 		} else {
 			opts = append(opts, grpc.UnaryInterceptor(utils.ContextPropagationInterceptor()))
 		}
+	} else if useRajomon {
+		opts = append(opts, grpc.ChainUnaryInterceptor(
+			utils.ContextPropagationInterceptor(),
+			utils.NewCounterState(serviceName).GetInterceptor(),
+			priceTable.UnaryInterceptor))
 	} else {
 		opts = append(opts, grpc.ChainUnaryInterceptor(
 			utils.ContextPropagationInterceptor(),
@@ -47,7 +59,12 @@ func (s *Server) Run() error {
 		conn = pkg.GetConn(utils.GetEnvVar("backend2_EGRESS", true))
 	}
 	if !sidecar {
-		conn = pkg.GetConn(utils.GetEnvVar("shared_ADDR", true))
+		addr := utils.GetEnvVar("shared_ADDR", true)
+		if useRajomon {
+			conn = pkg.GetRajomonClient(addr, grpc.WithUnaryInterceptor(priceTable.UnaryInterceptorClient))
+		} else {
+			conn = pkg.GetConn(addr)
+		}
 	}
 	s.SharedClient = pb.NewSharedClient(conn)
 

@@ -1,0 +1,123 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: backend
+  labels:
+    app: backend
+spec:
+  restartPolicy: Never
+  containers:
+  - name: app
+    image: chain-2-backend:latest
+    resources:
+      requests:
+        cpu: "3"
+      limits:
+        cpu: "3"
+    env:
+    - name: GOMAXPROCS
+      value: "3"
+    envFrom:
+    - configMapRef:
+        name: chain-2-config
+    ports:
+    - containerPort: 2000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: chain-2-backend
+  labels:
+    app: backend
+spec:
+  selector:
+    app: backend
+  ports:
+  - name: grpc
+    port: 2000
+    targetPort: 2000
+    protocol: TCP
+
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: frontend-grpc
+  labels:
+    app: frontend-grpc
+spec:
+  restartPolicy: Never
+  containers:
+  - name: app
+    image: chain-2-frontend-grpc:latest
+    resources:
+      requests:
+        cpu: "2"
+      limits:
+        cpu: "2"
+    env:
+    - name: GOMAXPROCS
+      value: "2"
+    envFrom:
+    - configMapRef:
+        name: chain-2-config
+    ports:
+    - containerPort: 2000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: chain-2-frontend-grpc
+  labels:
+    app: frontend-grpc
+spec:
+  selector:
+    app: frontend-grpc
+  ports:
+  - name: grpc
+    port: 2000
+    targetPort: 2000
+    protocol: TCP
+
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: rajomon-client
+  labels:
+    app: rajomon-client
+spec:
+  restartPolicy: Never
+  containers:
+  - name: app
+    image: chain-2-rajomon-client:latest
+    resources:
+      requests:
+        cpu: "3"
+      limits:
+        cpu: "3"
+    env:
+    - name: GOMAXPROCS
+      value: "3"
+    envFrom:
+    - configMapRef:
+        name: chain-2-config
+    ports:
+    - containerPort: 2007
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: chain-2-entry
+  labels:
+    app: rajomon-client
+spec:
+  type: NodePort
+  selector:
+    app: rajomon-client
+  ports:
+  - name: http
+    port: 2007
+    targetPort: 2007
+    nodePort: 3000
+    protocol: TCP
