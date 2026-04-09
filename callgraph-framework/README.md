@@ -35,7 +35,7 @@ Requires [graphviz](https://graphviz.org/) (`dot` on PATH): `apt install graphvi
 
 - `build.sh [tag]` — build all images
 - `push.sh [tag]` — push all images (run after build)
-- `deploy.sh [plain|sidecar|rajomon]` — deploy to K8s (uses `TAG`, `REGISTRY`). `./deploy.sh sidecar debug` enables workload debug (see below). `debug` is only valid with `sidecar`, not with plain or rajomon.
+- `deploy.sh [plain|sidecar|rajomon|dagor]` — deploy to K8s (uses `TAG`, `REGISTRY`). `./deploy.sh sidecar debug` enables workload debug (see below). `debug` is only valid with `sidecar`, not with plain, rajomon, or dagor.
 - `destroy.sh` — tear down
 - `collect_logs.sh` — collect pod logs. If the environment variable `COLLECT_SIDECAR_NANOLOG=1` is set (done by `exec` when `--nanolog-debug` is enabled) and mode is `sidecar`, the script also `kubectl cp`s `/compressedLog` from each sidecar container into `$OUTPUT_DIR` as `*-sidecar.clog` (plus ingress as `*-ingress-sidecar.clog`). Decompression uses `benchmarks/sidecar/external/NanoLog/runtime/decompressor` from the repo checkout that runs the executor.
 
@@ -84,7 +84,25 @@ After `go run ./cmd/gen ...`, run `go mod tidy` in the generated benchmark root 
 ./deploy.sh rajomon
 ```
 
-Use **`destroy.sh rajomon`** when tearing down a rajomon deploy so `rajomon-client` and the `*-grpc` entry pod are removed. Load tests can use the same URLs as plain mode: `http://<node>:3000/<interface>` (see `entry_path.txt`).
+Use **`destroy.sh rajomon`** or **`destroy.sh dagor`** when tearing down that mode so `rajomon-client` and the `*-grpc` entry pod are removed. Load tests can use the same URLs as plain mode: `http://<node>:3000/<interface>` (see `entry_path.txt`).
+
+### Dagor mode
+
+Same gRPC topology as Rajomon: `k8s/manifests/app-grpc.yaml`, HTTP entry **`rajomon-client`** (NodePort **3000**), gRPC entry **`<entry>-grpc`**. Env template: **`k8s/dagor.env`** (`dagor=true`). Codegen adds **`dagor/`** and **`dagor_init/`**; `dagor_init` builds a **`BusinessMap`** from entry HTTP paths (interface names) to business class ids `1..N`.
+
+**Tuning (short):**
+
+- **`Alpha` / `Beta`** — global admission-control knobs (see `benchmarks/hotel/dagor`). Defaults are compiled into `dagor_init`; override with env vars **`Alpha`** and **`Beta`**, or add them to `k8s/dagor.env`, or export `Alpha` / `Beta` in the shell before deploy (they are appended to the merged env like `benchmarks/hotel/deploy.sh` dagor branch).
+- **`B` / `U`** — per-request integers: **B** from gRPC metadata **`method`** (the entry interface string, same as the HTTP path) via `BusinessMap`; **U** from **`user-id`** (injected by the end-user Dagor client interceptor). Not set via Alpha/Beta.
+
+```bash
+./build.sh
+./push.sh
+# Optional: export Alpha=0.5 Beta=0.02
+./deploy.sh dagor
+```
+
+Use **`destroy.sh dagor`** to remove `rajomon-client`, the `*-grpc` entry pod, and related services.
 
 ## Call Graph Format
 

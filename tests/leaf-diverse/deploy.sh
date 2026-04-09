@@ -15,8 +15,8 @@ if [ "$MODE" = "sidecar" ] && [ -n "$ARG2" ] && [ "$ARG2" != "debug" ]; then
   echo "deploy.sh: unknown second argument: $ARG2 (expected: debug)" >&2
   exit 1
 fi
-if [ "$MODE" = "rajomon" ] && [ -n "$ARG2" ]; then
-  echo "deploy.sh: rajomon mode does not take a second argument" >&2
+if { [ "$MODE" = "rajomon" ] || [ "$MODE" = "dagor" ]; } && [ -n "$ARG2" ]; then
+  echo "deploy.sh: rajomon and dagor modes do not take a second argument" >&2
   exit 1
 fi
 SIDECAR_DEBUG=0
@@ -140,6 +140,33 @@ elif [ "$MODE" = "rajomon" ]; then
   K8S_NS=${K8S_NS:-default}
   sed -i "s|=${BENCH}-\([^=]*\):2000|=${BENCH}-\1.${K8S_NS}.svc.cluster.local:2000|g" "$TMP_DIR/rajomon_merged.env"
   kubectl create configmap leaf-diverse-config --from-env-file="$TMP_DIR/rajomon_merged.env" --dry-run=client -o yaml > "$TMP_DIR/configmap.yaml"
+  kubectl apply -f "$TMP_DIR/configmap.yaml"
+
+  kubectl apply -f k8s/manifests/prometheus.yaml
+  kubectl_wait_ready_or_fail prometheus-pushgateway 60
+  kubectl_wait_ready_or_fail prometheus 60
+
+  cp k8s/manifests/app-grpc.yaml "$TMP_DIR/app-grpc.yaml"
+  for IMG in frontend-grpc rajomon-client; do
+    sed -i "s|${BENCH}-${IMG}:latest|${REGISTRY}/${BENCH}-${IMG}:${TAG}|g" "$TMP_DIR/app-grpc.yaml"
+  done
+  for SVC in frontend-grpc rajomon-client; do
+    kubectl apply -f "$TMP_DIR/app-grpc.yaml" -l app="${SVC}"
+    kubectl_wait_ready_or_fail "${SVC}" "${WAIT_TIMEOUT}"
+  done
+elif [ "$MODE" = "dagor" ]; then
+  cat k8s/dagor.env > "$TMP_DIR/dagor_merged.env"
+  echo "" >> "$TMP_DIR/dagor_merged.env"
+  if [ -n "$Alpha" ]; then
+    echo "Alpha=$Alpha" >> "$TMP_DIR/dagor_merged.env"
+  fi
+  if [ -n "$Beta" ]; then
+    echo "Beta=$Beta" >> "$TMP_DIR/dagor_merged.env"
+  fi
+  K8S_NS=${K8S_NS:-$(kubectl config view --minify -o jsonpath='{..namespace}' 2>/dev/null)}
+  K8S_NS=${K8S_NS:-default}
+  sed -i "s|=${BENCH}-\([^=]*\):2000|=${BENCH}-\1.${K8S_NS}.svc.cluster.local:2000|g" "$TMP_DIR/dagor_merged.env"
+  kubectl create configmap leaf-diverse-config --from-env-file="$TMP_DIR/dagor_merged.env" --dry-run=client -o yaml > "$TMP_DIR/configmap.yaml"
   kubectl apply -f "$TMP_DIR/configmap.yaml"
 
   kubectl apply -f k8s/manifests/prometheus.yaml

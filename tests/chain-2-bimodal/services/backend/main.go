@@ -6,6 +6,8 @@ import (
 	"net"
 	"chain2bimodal/pkg"
 	pb "chain2bimodal/protobuf"
+	dagor "chain2bimodal/dagor"
+	dagorinit "chain2bimodal/dagor_init"
 	rajomoninit "chain2bimodal/rajomon_init"
 	"chain2bimodal/utils"
 
@@ -54,10 +56,18 @@ func (s *Server) Run() error {
 	opts := pkg.GetServerOptions()
 	sidecar := utils.GetEnvVar("sidecar", false) == "true"
 	useRajomon := utils.GetEnvVar("rajomon", false) == "true"
+	useDagor := utils.GetEnvVar("dagor", false) == "true"
 	queuingExport := utils.GetEnvVar("queuing_export", false) == "true"
+	if !sidecar && useRajomon && useDagor {
+		panic("rajomon and dagor cannot both be enabled")
+	}
 	var priceTable *rajomon.PriceTable
+	var dagorNode *dagor.Dagor
 	if useRajomon && !sidecar {
 		priceTable = rajomoninit.GetPriceTable(serviceName, false)
+	}
+	if useDagor && !sidecar {
+		dagorNode = dagorinit.GetDagorNode(serviceName, false, false)
 	}
 	if sidecar {
 		if queuingExport {
@@ -72,6 +82,11 @@ func (s *Server) Run() error {
 			utils.ContextPropagationInterceptor(),
 			utils.NewCounterState(serviceName).GetInterceptor(),
 			priceTable.UnaryInterceptor))
+	} else if useDagor {
+		opts = append(opts, grpc.ChainUnaryInterceptor(
+			utils.ContextPropagationInterceptor(),
+			utils.NewCounterState(serviceName).GetInterceptor(),
+			dagorNode.UnaryInterceptorServer))
 	} else {
 		opts = append(opts, grpc.ChainUnaryInterceptor(
 			utils.ContextPropagationInterceptor(),

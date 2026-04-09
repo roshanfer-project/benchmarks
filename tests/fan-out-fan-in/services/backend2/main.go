@@ -6,6 +6,8 @@ import (
 	"net"
 	"fanoutfanin/pkg"
 	pb "fanoutfanin/protobuf"
+	dagor "fanoutfanin/dagor"
+	dagorinit "fanoutfanin/dagor_init"
 	rajomoninit "fanoutfanin/rajomon_init"
 	"fanoutfanin/utils"
 
@@ -29,10 +31,18 @@ func (s *Server) Run() error {
 	opts := pkg.GetServerOptions()
 	sidecar := utils.GetEnvVar("sidecar", false) == "true"
 	useRajomon := utils.GetEnvVar("rajomon", false) == "true"
+	useDagor := utils.GetEnvVar("dagor", false) == "true"
 	queuingExport := utils.GetEnvVar("queuing_export", false) == "true"
+	if !sidecar && useRajomon && useDagor {
+		panic("rajomon and dagor cannot both be enabled")
+	}
 	var priceTable *rajomon.PriceTable
+	var dagorNode *dagor.Dagor
 	if useRajomon && !sidecar {
 		priceTable = rajomoninit.GetPriceTable(serviceName, false)
+	}
+	if useDagor && !sidecar {
+		dagorNode = dagorinit.GetDagorNode(serviceName, false, false)
 	}
 	if sidecar {
 		if queuingExport {
@@ -47,6 +57,11 @@ func (s *Server) Run() error {
 			utils.ContextPropagationInterceptor(),
 			utils.NewCounterState(serviceName).GetInterceptor(),
 			priceTable.UnaryInterceptor))
+	} else if useDagor {
+		opts = append(opts, grpc.ChainUnaryInterceptor(
+			utils.ContextPropagationInterceptor(),
+			utils.NewCounterState(serviceName).GetInterceptor(),
+			dagorNode.UnaryInterceptorServer))
 	} else {
 		opts = append(opts, grpc.ChainUnaryInterceptor(
 			utils.ContextPropagationInterceptor(),
@@ -62,6 +77,8 @@ func (s *Server) Run() error {
 		addr := utils.GetEnvVar("shared_ADDR", true)
 		if useRajomon {
 			conn = pkg.GetRajomonClient(addr, grpc.WithUnaryInterceptor(priceTable.UnaryInterceptorClient))
+		} else if useDagor {
+			conn = pkg.GetConn(addr, grpc.WithUnaryInterceptor(dagorNode.UnaryInterceptorClient))
 		} else {
 			conn = pkg.GetConn(addr)
 		}

@@ -40,6 +40,9 @@ func GenerateK8s(pg *ParsedGraph, benchmarkName string, registry string, outDir 
 	if err := generateRajomonEnv(pg, benchmarkName, svcNames, outDir); err != nil {
 		return err
 	}
+	if err := generateDagorEnv(pg, benchmarkName, svcNames, outDir); err != nil {
+		return err
+	}
 	if err := generateAppGrpcYaml(pg, benchmarkName, svcNames, outDir); err != nil {
 		return err
 	}
@@ -176,6 +179,32 @@ func generateRajomonEnv(pg *ParsedGraph, benchmarkName string, svcNames []string
 	}
 	lines = append(lines, "", "PROM_ADDR=prometheus-pushgateway:9091")
 	return os.WriteFile(filepath.Join(outDir, "k8s", "rajomon.env"), []byte(strings.Join(lines, "\n")), 0644)
+}
+
+func generateDagorEnv(pg *ParsedGraph, benchmarkName string, svcNames []string, outDir string) error {
+	prefix := benchmarkName + "-"
+	ek := EntryGrpcK8s(pg)
+	entryMS := pg.EntryMicroservice()
+	lines := []string{
+		"deployment=" + benchmarkName,
+		"dagor=true",
+		"",
+		"EntryGRPCPort=" + fmt.Sprintf("%d", port),
+		"ClientPort=2007",
+		"EntryGRPCAddr=" + prefix + ek + ":" + fmt.Sprintf("%d", port),
+		"",
+	}
+	for _, name := range svcNames {
+		var podKn string
+		if name == entryMS {
+			podKn = ek
+		} else {
+			podKn = k8sName(name)
+		}
+		lines = append(lines, name+"_ADDR="+prefix+podKn+":"+fmt.Sprintf("%d", port))
+	}
+	lines = append(lines, "", "PROM_ADDR=prometheus-pushgateway:9091")
+	return os.WriteFile(filepath.Join(outDir, "k8s", "dagor.env"), []byte(strings.Join(lines, "\n")), 0644)
 }
 
 func generateAppGrpcYaml(pg *ParsedGraph, benchmarkName string, svcNames []string, outDir string) error {
@@ -943,8 +972,8 @@ if [ "$MODE" = "sidecar" ] && [ -n "$ARG2" ] && [ "$ARG2" != "debug" ]; then
   echo "deploy.sh: unknown second argument: $ARG2 (expected: debug)" >&2
   exit 1
 fi
-if [ "$MODE" = "rajomon" ] && [ -n "$ARG2" ]; then
-  echo "deploy.sh: rajomon mode does not take a second argument" >&2
+if { [ "$MODE" = "rajomon" ] || [ "$MODE" = "dagor" ]; } && [ -n "$ARG2" ]; then
+  echo "deploy.sh: rajomon and dagor modes do not take a second argument" >&2
   exit 1
 fi
 SIDECAR_DEBUG=0
@@ -1082,6 +1111,33 @@ elif [ "$MODE" = "rajomon" ]; then
     kubectl apply -f "$TMP_DIR/app-grpc.yaml" -l app="${SVC}"
     kubectl_wait_ready_or_fail "${SVC}" "${WAIT_TIMEOUT}"
   done
+elif [ "$MODE" = "dagor" ]; then
+  cat k8s/dagor.env > "$TMP_DIR/dagor_merged.env"
+  echo "" >> "$TMP_DIR/dagor_merged.env"
+  if [ -n "$Alpha" ]; then
+    echo "Alpha=$Alpha" >> "$TMP_DIR/dagor_merged.env"
+  fi
+  if [ -n "$Beta" ]; then
+    echo "Beta=$Beta" >> "$TMP_DIR/dagor_merged.env"
+  fi
+  K8S_NS=${K8S_NS:-$(kubectl config view --minify -o jsonpath='{..namespace}' 2>/dev/null)}
+  K8S_NS=${K8S_NS:-default}
+  sed -i "s|=${BENCH}-\([^=]*\):2000|=${BENCH}-\1.${K8S_NS}.svc.cluster.local:2000|g" "$TMP_DIR/dagor_merged.env"
+  kubectl create configmap {{.BenchmarkName}}-config --from-env-file="$TMP_DIR/dagor_merged.env" --dry-run=client -o yaml > "$TMP_DIR/configmap.yaml"
+  kubectl apply -f "$TMP_DIR/configmap.yaml"
+
+  kubectl apply -f k8s/manifests/prometheus.yaml
+  kubectl_wait_ready_or_fail prometheus-pushgateway 60
+  kubectl_wait_ready_or_fail prometheus 60
+
+  cp k8s/manifests/app-grpc.yaml "$TMP_DIR/app-grpc.yaml"
+  for IMG in {{range $i, $e := .RajomonImgK8s}}{{if $i}} {{end}}{{$e}}{{end}}; do
+    sed -i "s|${BENCH}-${IMG}:latest|${REGISTRY}/${BENCH}-${IMG}:${TAG}|g" "$TMP_DIR/app-grpc.yaml"
+  done
+  for SVC in {{range $i, $e := .RajomonDeployOrder}}{{if $i}} {{end}}{{$e}}{{end}}; do
+    kubectl apply -f "$TMP_DIR/app-grpc.yaml" -l app="${SVC}"
+    kubectl_wait_ready_or_fail "${SVC}" "${WAIT_TIMEOUT}"
+  done
 else
   kubectl create configmap {{.BenchmarkName}}-config --from-env-file=k8s/plain.env --dry-run=client -o yaml > "$TMP_DIR/configmap.yaml"
   kubectl apply -f "$TMP_DIR/configmap.yaml"
@@ -1135,7 +1191,7 @@ if [ "$MODE" = "sidecar" ]; then
   kubectl delete service -l app=ingress --ignore-not-found
   kubectl delete configmap sidecar-configs --ignore-not-found
 fi
-if [ "$MODE" = "rajomon" ]; then
+if [ "$MODE" = "rajomon" ] || [ "$MODE" = "dagor" ]; then
   kubectl delete pod -l app=rajomon-client --ignore-not-found --wait=true
   kubectl delete service -l app=rajomon-client --ignore-not-found
   kubectl delete service ` + benchmarkName + `-entry --ignore-not-found
@@ -1302,6 +1358,7 @@ FROM alpine:latest
 WORKDIR /root/
 COPY --from=builder /app/main .
 COPY --from=builder /app/rajomon_init /rajomon_init
+COPY --from=builder /app/dagor_init /dagor_init
 EXPOSE 2000
 CMD ["./main"]
 `

@@ -8,8 +8,10 @@ import (
 	"google.golang.org/grpc/keepalive"
 )
 
-func GetConn(addr string) *grpc.ClientConn {
-	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+func GetConn(addr string, extra ...grpc.DialOption) *grpc.ClientConn {
+	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
+	opts = append(opts, extra...)
+	conn, err := grpc.NewClient(addr, opts...)
 	if err != nil {
 		panic("did not connect: " + err.Error())
 	}

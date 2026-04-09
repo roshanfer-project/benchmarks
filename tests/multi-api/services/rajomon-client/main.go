@@ -6,6 +6,7 @@ import (
 	"os"
 	"multiapi/pkg"
 	pb "multiapi/protobuf"
+	dagorinit "multiapi/dagor_init"
 	rajomoninit "multiapi/rajomon_init"
 	"multiapi/utils"
 
@@ -24,8 +25,10 @@ type Server struct {
 
 func (s *Server) Run() error {
 	log.Info("Initializing rajomon-client...")
-	if utils.GetEnvVar("rajomon", false) != "true" {
-		panic("rajomon-client requires rajomon=true")
+	useRajomon := utils.GetEnvVar("rajomon", false) == "true"
+	useDagor := utils.GetEnvVar("dagor", false) == "true"
+	if useRajomon == useDagor {
+		panic("rajomon-client requires exactly one of rajomon=true or dagor=true")
 	}
 	addr := utils.GetEnvVar("EntryGRPCAddr", true)
 	clientPort := utils.GetEnvVar("ClientPort", true)
@@ -39,9 +42,16 @@ func (s *Server) Run() error {
 		"deployment", deployment,
 		"protoService", "Frontend",
 	)
-	pt := rajomoninit.GetPriceTable("client", true)
-	log.Info("creating gRPC client (connection is lazy until first RPC)", "target", addr)
-	conn := pkg.GetRajomonClient(addr, grpc.WithUnaryInterceptor(pt.UnaryInterceptorEnduser))
+	var conn *grpc.ClientConn
+	if useRajomon {
+		pt := rajomoninit.GetPriceTable("client", true)
+		log.Info("creating gRPC client (connection is lazy until first RPC)", "target", addr)
+		conn = pkg.GetRajomonClient(addr, grpc.WithUnaryInterceptor(pt.UnaryInterceptorEnduser))
+	} else {
+		dn := dagorinit.GetDagorNode("client", false, true)
+		log.Info("creating gRPC client (connection is lazy until first RPC)", "target", addr)
+		conn = pkg.GetConn(addr, grpc.WithUnaryInterceptor(dn.UnaryInterceptorClient))
+	}
 	s.grpcTarget = addr
 	s.client = pb.NewFrontendClient(conn)
 	log.Info("gRPC stub ready", "target", addr)

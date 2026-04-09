@@ -40,6 +40,12 @@ func Generate(callgraphPath string, outDir string, benchmarkName string) error {
 	if err := GenerateRajomon(pg, module, outDir); err != nil {
 		return fmt.Errorf("generate rajomon: %w", err)
 	}
+	if err := GenerateDagor(outDir); err != nil {
+		return fmt.Errorf("generate dagor: %w", err)
+	}
+	if err := GenerateDagorInit(pg, module, outDir); err != nil {
+		return fmt.Errorf("generate dagor_init: %w", err)
+	}
 	if err := GenerateK8s(pg, benchmarkName, "farzad1132", outDir); err != nil {
 		return fmt.Errorf("generate k8s: %w", err)
 	}
@@ -58,6 +64,7 @@ func writeGoMod(module string, outDir string) error {
 go 1.25
 
 require (
+	github.com/google/uuid v1.6.0
 	github.com/pennsail/rajomon v0.0.0-20250420044209-f7c755354805
 	github.com/prometheus/client_golang v1.23.2
 	google.golang.org/grpc v1.74.2

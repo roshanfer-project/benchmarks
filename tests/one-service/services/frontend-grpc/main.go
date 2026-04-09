@@ -6,9 +6,12 @@ import (
 	"net"
 	"oneservice/pkg"
 	pb "oneservice/protobuf"
+	dagor "oneservice/dagor"
+	dagorinit "oneservice/dagor_init"
 	rajomoninit "oneservice/rajomon_init"
 	"oneservice/utils"
 
+	"github.com/pennsail/rajomon"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/reflection"
@@ -24,15 +27,27 @@ var log = utils.GetLogger(serviceName)
 
 func (s *Server) Run() error {
 	log.Info("Initializing gRPC server...")
-	if utils.GetEnvVar("rajomon", false) != "true" {
-		panic("entry-grpc requires rajomon=true")
+	useRajomon := utils.GetEnvVar("rajomon", false) == "true"
+	useDagor := utils.GetEnvVar("dagor", false) == "true"
+	if useRajomon == useDagor {
+		panic("entry-grpc requires exactly one of rajomon=true or dagor=true")
 	}
 	opts := pkg.GetServerOptions()
-	pt := rajomoninit.GetPriceTable(serviceName, false)
-	opts = append(opts, grpc.ChainUnaryInterceptor(
-		utils.ContextPropagationInterceptor(),
-		utils.NewCounterState(serviceName).GetInterceptor(),
-		pt.UnaryInterceptor))
+	var pt *rajomon.PriceTable
+	var dn *dagor.Dagor
+	if useRajomon {
+		pt = rajomoninit.GetPriceTable(serviceName, false)
+		opts = append(opts, grpc.ChainUnaryInterceptor(
+			utils.ContextPropagationInterceptor(),
+			utils.NewCounterState(serviceName).GetInterceptor(),
+			pt.UnaryInterceptor))
+	} else {
+		dn = dagorinit.GetDagorNode(serviceName, true, false)
+		opts = append(opts, grpc.ChainUnaryInterceptor(
+			utils.ContextPropagationInterceptor(),
+			utils.NewCounterState(serviceName).GetInterceptor(),
+			dn.UnaryInterceptorServer))
+	}
 	srv := grpc.NewServer(opts...)
 	pb.RegisterFrontendServer(srv, s)
 

@@ -15,7 +15,7 @@ if [ "$MODE" = "sidecar" ]; then
   kubectl delete service -l app=ingress --ignore-not-found
   kubectl delete configmap sidecar-configs --ignore-not-found
 fi
-if [ "$MODE" = "rajomon" ]; then
+if [ "$MODE" = "rajomon" ] || [ "$MODE" = "dagor" ]; then
   kubectl delete pod -l app=rajomon-client --ignore-not-found --wait=true
   kubectl delete service -l app=rajomon-client --ignore-not-found
   kubectl delete service chain-2-entry --ignore-not-found
