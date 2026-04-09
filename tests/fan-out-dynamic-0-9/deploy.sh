@@ -15,6 +15,10 @@ if [ "$MODE" = "sidecar" ] && [ -n "$ARG2" ] && [ "$ARG2" != "debug" ]; then
   echo "deploy.sh: unknown second argument: $ARG2 (expected: debug)" >&2
   exit 1
 fi
+if [ "$MODE" = "rajomon" ] && [ -n "$ARG2" ]; then
+  echo "deploy.sh: rajomon mode does not take a second argument" >&2
+  exit 1
+fi
 SIDECAR_DEBUG=0
 if [ "$MODE" = "sidecar" ] && [ "$ARG2" = "debug" ]; then
   SIDECAR_DEBUG=1
@@ -117,6 +121,39 @@ if [ "$MODE" = "sidecar" ]; then
   fi
   kubectl apply -f "$TMP_DIR/ingress.yaml"
   kubectl_wait_ready_or_fail ingress 30
+elif [ "$MODE" = "rajomon" ]; then
+  PRICE_UPDATE_RATE=${priceUpdateRate}
+  LATENCY_THRESHOLD=${latencyThreshold}
+  TOKEN_UPDATE_RATE=${tokenUpdateRate}
+  PRICE_STEP=${priceStep}
+  TOKEN_UPDATE_STEP=${tokenUpdateStep}
+  echo "Using Rajomon config:"
+  echo "  priceUpdateRate=$PRICE_UPDATE_RATE latencyThreshold=$LATENCY_THRESHOLD tokenUpdateRate=$TOKEN_UPDATE_RATE priceStep=$PRICE_STEP tokenUpdateStep=$TOKEN_UPDATE_STEP"
+  cat k8s/rajomon.env > "$TMP_DIR/rajomon_merged.env"
+  echo "" >> "$TMP_DIR/rajomon_merged.env"
+  echo "priceUpdateRate=$PRICE_UPDATE_RATE" >> "$TMP_DIR/rajomon_merged.env"
+  echo "latencyThreshold=$LATENCY_THRESHOLD" >> "$TMP_DIR/rajomon_merged.env"
+  echo "tokenUpdateRate=$TOKEN_UPDATE_RATE" >> "$TMP_DIR/rajomon_merged.env"
+  echo "priceStep=$PRICE_STEP" >> "$TMP_DIR/rajomon_merged.env"
+  echo "tokenUpdateStep=$TOKEN_UPDATE_STEP" >> "$TMP_DIR/rajomon_merged.env"
+  K8S_NS=${K8S_NS:-$(kubectl config view --minify -o jsonpath='{..namespace}' 2>/dev/null)}
+  K8S_NS=${K8S_NS:-default}
+  sed -i "s|=${BENCH}-\([^=]*\):2000|=${BENCH}-\1.${K8S_NS}.svc.cluster.local:2000|g" "$TMP_DIR/rajomon_merged.env"
+  kubectl create configmap fan-out-dynamic-0-9-config --from-env-file="$TMP_DIR/rajomon_merged.env" --dry-run=client -o yaml > "$TMP_DIR/configmap.yaml"
+  kubectl apply -f "$TMP_DIR/configmap.yaml"
+
+  kubectl apply -f k8s/manifests/prometheus.yaml
+  kubectl_wait_ready_or_fail prometheus-pushgateway 60
+  kubectl_wait_ready_or_fail prometheus 60
+
+  cp k8s/manifests/app-grpc.yaml "$TMP_DIR/app-grpc.yaml"
+  for IMG in backend1 backend2 frontend-grpc rajomon-client; do
+    sed -i "s|${BENCH}-${IMG}:latest|${REGISTRY}/${BENCH}-${IMG}:${TAG}|g" "$TMP_DIR/app-grpc.yaml"
+  done
+  for SVC in backend1 backend2 frontend-grpc rajomon-client; do
+    kubectl apply -f "$TMP_DIR/app-grpc.yaml" -l app="${SVC}"
+    kubectl_wait_ready_or_fail "${SVC}" "${WAIT_TIMEOUT}"
+  done
 else
   kubectl create configmap fan-out-dynamic-0-9-config --from-env-file=k8s/plain.env --dry-run=client -o yaml > "$TMP_DIR/configmap.yaml"
   kubectl apply -f "$TMP_DIR/configmap.yaml"

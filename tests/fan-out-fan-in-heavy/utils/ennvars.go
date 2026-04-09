@@ -21,3 +21,11 @@ func StrToInt(s string) int {
 	}
 	return int(i)
 }
+
+func ParseFloatString(value string) float64 {
+	f, err := strconv.ParseFloat(value, 64)
+	if err != nil {
+		panic(err)
+	}
+	return f
+}

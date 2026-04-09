@@ -37,6 +37,9 @@ func Generate(callgraphPath string, outDir string, benchmarkName string) error {
 	if err := GenerateServices(pg, module, outDir); err != nil {
 		return fmt.Errorf("generate services: %w", err)
 	}
+	if err := GenerateRajomon(pg, module, outDir); err != nil {
+		return fmt.Errorf("generate rajomon: %w", err)
+	}
 	if err := GenerateK8s(pg, benchmarkName, "farzad1132", outDir); err != nil {
 		return fmt.Errorf("generate k8s: %w", err)
 	}
@@ -50,7 +53,18 @@ func Generate(callgraphPath string, outDir string, benchmarkName string) error {
 }
 
 func writeGoMod(module string, outDir string) error {
-	content := fmt.Sprintf("module %s\n\ngo 1.25\n\nrequire (\n\tgithub.com/prometheus/client_golang v1.23.2\n\tgoogle.golang.org/grpc v1.74.2\n\tgoogle.golang.org/protobuf v1.36.8\n)\n", module)
+	content := fmt.Sprintf(`module %s
+
+go 1.25
+
+require (
+	github.com/pennsail/rajomon v0.0.0-20250420044209-f7c755354805
+	github.com/prometheus/client_golang v1.23.2
+	google.golang.org/grpc v1.74.2
+	google.golang.org/protobuf v1.36.8
+	gopkg.in/yaml.v2 v2.4.0
+)
+`, module)
 	return os.WriteFile(filepath.Join(outDir, "go.mod"), []byte(content), 0644)
 }
 

@@ -1,0 +1,9 @@
+applications:
+- callgraph:
+    frontend-grpc: []
+  entrypoint: frontend-grpc
+  interface: f1
+- callgraph:
+    frontend-grpc: []
+  entrypoint: frontend-grpc
+  interface: f2
