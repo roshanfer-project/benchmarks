@@ -1,0 +1,147 @@
+{
+  "nodes": [
+    {
+      "id": "USER",
+      "interfaces": [
+        {
+          "name": "USER"
+        }
+      ]
+    },
+    {
+      "id": "frontend",
+      "interfaces": [
+        {
+          "name": "f1",
+          "avg_rt": 0.25,
+          "slo": 35,
+          "priority": 0
+        }
+      ],
+      "cpu": 3
+    },
+    {
+      "id": "backend1",
+      "interfaces": [
+        {
+          "name": "f2",
+          "avg_rt": 0.6,
+          "priority": 0
+        }
+      ],
+      "cpu": 4
+    },
+    {
+      "id": "backend2",
+      "interfaces": [
+        {
+          "name": "f3",
+          "avg_rt": 0.4,
+          "priority": 0
+        }
+      ],
+      "cpu": 2
+    },
+    {
+      "id": "backend3",
+      "interfaces": [
+        {
+          "name": "f4",
+          "avg_rt": 2,
+          "priority": 0
+        }
+      ],
+      "cpu": 2
+    },
+    {
+      "id": "backend4",
+      "interfaces": [
+        {
+          "name": "f5",
+          "avg_rt": 0.4,
+          "priority": 0
+        }
+      ],
+      "cpu": 3
+    },
+    {
+      "id": "backend5",
+      "interfaces": [
+        {
+          "name": "f6",
+          "avg_rt": 3,
+          "priority": 0
+        }
+      ],
+      "cpu": 2
+    },
+    {
+      "id": "backend6",
+      "interfaces": [
+        {
+          "name": "f7",
+          "avg_rt": 2,
+          "priority": 0
+        }
+      ],
+      "cpu": 2
+    },
+    {
+      "id": "backend7",
+      "interfaces": [
+        {
+          "name": "f8",
+          "avg_rt": 0.5,
+          "priority": 0
+        }
+      ],
+      "cpu": 1
+    }
+  ],
+  "edges": [
+    {
+      "source": "USER",
+      "target": "frontend:f1"
+    },
+    {
+      "source": "frontend:f1",
+      "target": "backend1:f2",
+      "api": "f1"
+    },
+    {
+      "source": "backend1:f2",
+      "target": "backend2:f3",
+      "api": "f1",
+      "weight": 0.6
+    },
+    {
+      "source": "backend1:f2",
+      "target": "backend3:f4",
+      "api": "f1",
+      "weight": 0.4
+    },
+    {
+      "source": "backend2:f3",
+      "target": "backend4:f5",
+      "api": "f1"
+    },
+    {
+      "source": "backend4:f5",
+      "target": "backend5:f6",
+      "api": "f1",
+      "weight": 0.1
+    },
+    {
+      "source": "backend4:f5",
+      "target": "backend6:f7",
+      "api": "f1",
+      "weight": 0.2
+    },
+    {
+      "source": "backend4:f5",
+      "target": "backend7:f8",
+      "api": "f1",
+      "weight": 0.7
+    }
+  ]
+}
