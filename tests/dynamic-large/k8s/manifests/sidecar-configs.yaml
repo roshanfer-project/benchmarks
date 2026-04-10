@@ -184,7 +184,7 @@ data:
         upstream:
           host: dynamic-large-frontend
           port: 3000
-        slo: 28
+        slo: 44
         priority: 0
     mapping:
       f1:
