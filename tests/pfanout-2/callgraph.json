@@ -14,7 +14,7 @@
         {
           "name": "api",
           "avg_rt": 0.3,
-          "slo": 30,
+          "slo": 10,
           "priority": 0
         }
       ],
