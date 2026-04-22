@@ -22,6 +22,7 @@ import (
 	"math/rand"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -36,10 +37,63 @@ const (
 	EnvRetryMode    = "BENCH_RPC_RETRY_MODE"
 	DeadlineNone    = "none"
 	DeadlineRemain  = "remaining_slo"
+	DeadlineFixed   = "fixed" // BENCH_RPC_DEADLINE_MODE: per-outbound-call 2s timeout (see fixedRPCDeadline)
 	RetryNone       = "none"
-	RetryFixed      = "fixed"
+	RetryFixed      = "fixed" // BENCH_RPC_RETRY_MODE
 	RetryTokenBucket = "token_bucket"
 )
+
+const fixedRPCDeadline = 1 * time.Second
+
+func init() {
+	logPolicyConfigAtStartup()
+}
+
+// logPolicyConfigAtStartup logs deadline/retry env once per process (any binary that imports this package).
+func logPolicyConfigAtStartup() {
+	dm := strings.TrimSpace(os.Getenv(EnvDeadlineMode))
+	rm := strings.TrimSpace(os.Getenv(EnvRetryMode))
+	if dm == "" {
+		log.Printf("rpcpolicy: %s unset — effective %q", EnvDeadlineMode, DeadlineNone)
+	} else {
+		log.Printf("rpcpolicy: %s=%q", EnvDeadlineMode, dm)
+	}
+	if rm == "" {
+		log.Printf("rpcpolicy: %s unset — effective %q", EnvRetryMode, RetryNone)
+	} else {
+		log.Printf("rpcpolicy: %s=%q", EnvRetryMode, rm)
+	}
+
+	switch dm {
+	case DeadlineRemain:
+		log.Printf("rpcpolicy: deadline policy remaining_slo — HTTP entry deadline = 0.6×BENCH_RPC_SLO_MS_<api> (propagates on gRPC); startup validation via MustValidatePolicyEnv")
+	case DeadlineFixed:
+		log.Printf("rpcpolicy: deadline policy fixed — per outbound unary RPC timeout=%v (DialClient interceptor; not sidecar); no entry SLO deadline", fixedRPCDeadline)
+	}
+	if dm != "" && dm != DeadlineNone && dm != DeadlineRemain && dm != DeadlineFixed {
+		log.Printf("rpcpolicy: warning: %s=%q is not none|remaining_slo|fixed — deadline interceptors/MaybeDeadline unchanged", EnvDeadlineMode, dm)
+	}
+
+	switch rm {
+	case RetryFixed:
+		log.Printf("rpcpolicy: retry policy fixed — up to 4 unary attempts; backoff = slo_ms + uniform[0,slo_ms] from BENCH_RPC_SLO_MS_<api> (requires metadata api|method)")
+	case RetryTokenBucket:
+		capStr := strings.TrimSpace(os.Getenv("BENCH_RPC_RETRY_BUCKET_CAPACITY"))
+		if capStr == "" {
+			capStr = "10 (default)"
+		}
+		log.Printf("rpcpolicy: retry policy token_bucket — up to 4 attempts; BENCH_RPC_RETRY_BUCKET_CAPACITY=%s; success refund %.2f token/call; same backoff as fixed", capStr, tokenBucketSuccessCredit)
+	}
+	if rm != "" && rm != RetryNone && rm != RetryFixed && rm != RetryTokenBucket {
+		log.Printf("rpcpolicy: warning: %s=%q is not none|fixed|token_bucket — no retry interceptor", EnvRetryMode, rm)
+	}
+
+	for _, e := range os.Environ() {
+		if strings.HasPrefix(e, "BENCH_RPC_SLO_MS_") {
+			log.Printf("rpcpolicy: %s", e)
+		}
+	}
+}
 
 func sloEnvKey(api string) string {
 	return "BENCH_RPC_SLO_MS_" + api
@@ -63,7 +117,23 @@ func MustValidatePolicyEnv(entryAPIs []string) {
 	}
 }
 
-// MaybeDeadlineForAPI returns ctx with deadline at now + 60% of SLO ms when mode is remaining_slo.
+// FixedDeadlineUnaryInterceptorOpt applies a fresh 1s timeout per unary RPC when BENCH_RPC_DEADLINE_MODE=fixed.
+// Placed inside the retry interceptor so each retry attempt gets its own 2s budget. No SLO / entry deadline; not end-to-end.
+func FixedDeadlineUnaryInterceptorOpt(sidecar bool) grpc.UnaryClientInterceptor {
+	if sidecar {
+		return nil
+	}
+	if os.Getenv(EnvDeadlineMode) != DeadlineFixed {
+		return nil
+	}
+	return func(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
+		ctx, cancel := context.WithTimeout(ctx, fixedRPCDeadline)
+		defer cancel()
+		return invoker(ctx, method, req, reply, cc, opts...)
+	}
+}
+
+// MaybeDeadlineForAPI returns ctx with deadline at now + 500% of SLO ms when mode is remaining_slo.
 func MaybeDeadlineForAPI(parent context.Context, api string) (context.Context, context.CancelFunc) {
 	if os.Getenv(EnvDeadlineMode) != DeadlineRemain {
 		return parent, func() {}
@@ -73,7 +143,7 @@ func MaybeDeadlineForAPI(parent context.Context, api string) (context.Context, c
 	if err != nil || ms <= 0 {
 		log.Fatalf("rpcpolicy: missing or invalid %s for api %q", sloEnvKey(api), api)
 	}
-	d := time.Duration(ms*60/100) * time.Millisecond
+	d := time.Duration(ms*5) * time.Millisecond
 	return context.WithDeadline(parent, time.Now().Add(d))
 }
 
@@ -86,7 +156,7 @@ func firstOutgoingMeta(ctx context.Context, key string) string {
 	return ""
 }
 
-// retryBackoffDuration returns sleep duration: 5% of SLO ms plus uniform jitter in [0, 1%] of SLO (same ms basis).
+// retryBackoffDuration returns slo_ms as base plus uniform jitter in [0, slo_ms] ms.
 // Requires outgoing metadata "api" or "method" and a valid BENCH_RPC_SLO_MS_<api> env var.
 func retryBackoffDuration(ctx context.Context) (time.Duration, error) {
 	api := firstOutgoingMeta(ctx, "api")
@@ -108,11 +178,8 @@ func retryBackoffDuration(ctx context.Context) (time.Duration, error) {
 		return 0, fmt.Errorf("rpcpolicy: %s must be positive, got %q", sloEnvKey(api), v)
 	}
 	slo := float64(ms)
-	baseMs := slo * 0.05
-	if baseMs < 1.0 {
-		baseMs = 1.0
-	}
-	jitterMs := rand.Float64() * (slo * 0.01)
+	baseMs := slo
+	jitterMs := rand.Float64() * slo
 	totalMs := baseMs + jitterMs
 	return time.Duration(totalMs * float64(time.Millisecond)), nil
 }
@@ -124,6 +191,13 @@ func sleepRetryBackoff(ctx context.Context) error {
 	}
 	time.Sleep(d)
 	return nil
+}
+
+func logBeforeUnaryRetry(method string, retryNum, maxExtraAttempts int, last error) {
+	if maxExtraAttempts < 1 {
+		maxExtraAttempts = 1
+	}
+	log.Printf("rpcpolicy: before unary retry %d/%d method=%s err=%v", retryNum, maxExtraAttempts, method, last)
 }
 
 func RetryUnaryInterceptorOpt(sidecar bool) grpc.UnaryClientInterceptor {
@@ -157,6 +231,7 @@ func fixedRetryUnary(maxAttempts int) grpc.UnaryClientInterceptor {
 			if err := ctx.Err(); err != nil {
 				return err
 			}
+			logBeforeUnaryRetry(method, attempt+1, maxAttempts-1, last)
 			if err := sleepRetryBackoff(ctx); err != nil {
 				return err
 			}
@@ -165,7 +240,7 @@ func fixedRetryUnary(maxAttempts int) grpc.UnaryClientInterceptor {
 	}
 }
 
-const tokenBucketSuccessCredit = 0.02 // tokens returned per successful RPC
+const tokenBucketSuccessCredit = 0.1 // tokens returned per successful RPC
 
 type tokenBucket struct {
 	mu       sync.Mutex
@@ -174,7 +249,7 @@ type tokenBucket struct {
 }
 
 func newTokenBucketFromEnv() *tokenBucket {
-	cap := 10.0
+	cap := 100.0
 	if s := os.Getenv("BENCH_RPC_RETRY_BUCKET_CAPACITY"); s != "" {
 		if v, err := strconv.ParseFloat(s, 64); err == nil && v > 0 {
 			cap = v
@@ -220,6 +295,7 @@ func tokenBucketRetryUnary() grpc.UnaryClientInterceptor {
 					}
 					return status.Errorf(codes.ResourceExhausted, "retry token bucket empty")
 				}
+				logBeforeUnaryRetry(method, attempt, maxAttempts-1, last)
 				if err := sleepRetryBackoff(ctx); err != nil {
 					return err
 				}

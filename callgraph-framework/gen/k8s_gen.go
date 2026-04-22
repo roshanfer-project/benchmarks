@@ -1046,6 +1046,20 @@ select(.kind == "Pod") |= (.spec.containers |= map(
   fi
 }
 
+# Forward BENCH_RPC_* from the deploy environment (set by exec executor: slos, fault-tolerance,
+# deploy_env) into the workload configmap. Without this, deadline/retry policy never reaches pods.
+append_bench_rpc_env_from_shell() {
+  local target=$1
+  local var
+  while IFS= read -r var; do
+    case "$var" in
+      BENCH_RPC_*)
+        printf '%s=%s\n' "$var" "${!var}" >> "$target"
+        ;;
+    esac
+  done < <(compgen -e | LC_ALL=C sort -u)
+}
+
 if [ "$MODE" = "sidecar" ]; then
   if [ "$SIDECAR_DEBUG" = "1" ]; then
     sidecar_debug_require_yq
@@ -1054,6 +1068,7 @@ if [ "$MODE" = "sidecar" ]; then
   cat k8s/sidecar.env > "$TMP_DIR/sidecar_merged.env"
   echo "" >> "$TMP_DIR/sidecar_merged.env"
   echo "queuing_export=${queuing_export}" >> "$TMP_DIR/sidecar_merged.env"
+  append_bench_rpc_env_from_shell "$TMP_DIR/sidecar_merged.env"
   kubectl create configmap {{.BenchmarkName}}-config --from-env-file="$TMP_DIR/sidecar_merged.env" --dry-run=client -o yaml > "$TMP_DIR/configmap.yaml"
   kubectl apply -f "$TMP_DIR/configmap.yaml"
   kubectl apply -f k8s/manifests/sidecar-configs.yaml
@@ -1096,6 +1111,7 @@ elif [ "$MODE" = "rajomon" ]; then
   K8S_NS=${K8S_NS:-$(kubectl config view --minify -o jsonpath='{..namespace}' 2>/dev/null)}
   K8S_NS=${K8S_NS:-default}
   sed -i "s|=${BENCH}-\([^=]*\):2000|=${BENCH}-\1.${K8S_NS}.svc.cluster.local:2000|g" "$TMP_DIR/rajomon_merged.env"
+  append_bench_rpc_env_from_shell "$TMP_DIR/rajomon_merged.env"
   kubectl create configmap {{.BenchmarkName}}-config --from-env-file="$TMP_DIR/rajomon_merged.env" --dry-run=client -o yaml > "$TMP_DIR/configmap.yaml"
   kubectl apply -f "$TMP_DIR/configmap.yaml"
 
@@ -1123,6 +1139,7 @@ elif [ "$MODE" = "dagor" ]; then
   K8S_NS=${K8S_NS:-$(kubectl config view --minify -o jsonpath='{..namespace}' 2>/dev/null)}
   K8S_NS=${K8S_NS:-default}
   sed -i "s|=${BENCH}-\([^=]*\):2000|=${BENCH}-\1.${K8S_NS}.svc.cluster.local:2000|g" "$TMP_DIR/dagor_merged.env"
+  append_bench_rpc_env_from_shell "$TMP_DIR/dagor_merged.env"
   kubectl create configmap {{.BenchmarkName}}-config --from-env-file="$TMP_DIR/dagor_merged.env" --dry-run=client -o yaml > "$TMP_DIR/configmap.yaml"
   kubectl apply -f "$TMP_DIR/configmap.yaml"
 
@@ -1139,7 +1156,10 @@ elif [ "$MODE" = "dagor" ]; then
     kubectl_wait_ready_or_fail "${SVC}" "${WAIT_TIMEOUT}"
   done
 else
-  kubectl create configmap {{.BenchmarkName}}-config --from-env-file=k8s/plain.env --dry-run=client -o yaml > "$TMP_DIR/configmap.yaml"
+  cat k8s/plain.env > "$TMP_DIR/plain_merged.env"
+  echo "" >> "$TMP_DIR/plain_merged.env"
+  append_bench_rpc_env_from_shell "$TMP_DIR/plain_merged.env"
+  kubectl create configmap {{.BenchmarkName}}-config --from-env-file="$TMP_DIR/plain_merged.env" --dry-run=client -o yaml > "$TMP_DIR/configmap.yaml"
   kubectl apply -f "$TMP_DIR/configmap.yaml"
 
   kubectl apply -f k8s/manifests/prometheus.yaml
@@ -1276,19 +1296,19 @@ func generateWrapperScripts(pg *ParsedGraph, outDir string) error {
 	apiCasesPlain += "    else\n        echo \"Unknown API: $API\"\n        exit 1\n    fi"
 
 	runSh := `#!/bin/bash
-# Usage: $0 PROTOCOL BASE RATE DURATION API OUTPUT_DIR
-if [ -z "$2" ] || [ -z "$3" ] || [ -z "$4" ] || [ -z "$5" ] || [ -z "$6" ]; then
+# Usage: $0 PROTOCOL API OUTPUT_DIR
+# Requires RWG_RATES and RWG_DURATIONS (comma-separated), set by the executor.
+if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ]; then
   echo "Error: Missing required arguments"
-  echo "Usage: $0 PROTOCOL BASE RATE DURATION API OUTPUT_DIR"
+  echo "Usage: $0 PROTOCOL API OUTPUT_DIR"
   exit 1
 fi
+: "${RWG_RATES:?RWG_RATES must be set}"
+: "${RWG_DURATIONS:?RWG_DURATIONS must be set}"
 
 protocol=$1
-BASE=$2
-RATE=$3
-DURATION=$4
-API=$5
-output_dir="$6/out-$API.csv"
+API=$2
+output_dir="$3/out-$API.csv"
 address="${TARGET_ADDR:-192.168.1.100}"
 
 if [ "$protocol" == "grpc" ]; then
@@ -1297,7 +1317,7 @@ if [ "$protocol" == "grpc" ]; then
 else
 ` + apiCasesSidecar + `
     echo "url: $url"
-    "$RWG_BINARY" run --url $url -d exp -D 2,$DURATION -r $BASE,$RATE -w 5000 -o $output_dir -t 15
+    "$RWG_BINARY" run --url $url -d exp -D "$RWG_DURATIONS" -r "$RWG_RATES" -w 5000 -o $output_dir -t 15
     exit "$?"
 fi
 `
@@ -1306,25 +1326,25 @@ fi
 	}
 
 	runPlainSh := `#!/bin/bash
-# Usage: $0 PROTOCOL BASE RATE DURATION API OUTPUT_DIR [--ignore-errors]
-if [ -z "$2" ] || [ -z "$3" ] || [ -z "$4" ] || [ -z "$5" ] || [ -z "$6" ]; then
+# Usage: $0 PROTOCOL API OUTPUT_DIR [--ignore-errors]
+# Requires RWG_RATES and RWG_DURATIONS (comma-separated), set by the executor.
+if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ]; then
   echo "Error: Missing required arguments"
-  echo "Usage: $0 PROTOCOL BASE RATE DURATION API OUTPUT_DIR [--ignore-errors]"
+  echo "Usage: $0 PROTOCOL API OUTPUT_DIR [--ignore-errors]"
   exit 1
 fi
+: "${RWG_RATES:?RWG_RATES must be set}"
+: "${RWG_DURATIONS:?RWG_DURATIONS must be set}"
 
-if [ "$7" == "--ignore-errors" ]; then
+if [ "$4" == "--ignore-errors" ]; then
     ignore_errors=true
 else
     ignore_errors=false
 fi
 
 protocol=$1
-BASE=$2
-RATE=$3
-DURATION=$4
-API=$5
-output_dir="$6/out-$API.csv"
+API=$2
+output_dir="$3/out-$API.csv"
 address="${TARGET_ADDR:-192.168.1.100}"
 
 if [ "$protocol" == "grpc" ]; then
@@ -1334,10 +1354,10 @@ else
 ` + apiCasesPlain + `
     echo "url: $url"
     if [ "$ignore_errors" = true ]; then
-        "$RWG_BINARY" run --url $url -d exp -D 2,$DURATION -r $BASE,$RATE -w 10000 -o $output_dir -t 30 --ignore-errors
+        "$RWG_BINARY" run --url $url -d exp -D "$RWG_DURATIONS" -r "$RWG_RATES" -w 10000 -o $output_dir -t 30 --ignore-errors
         exit 0
     else
-        "$RWG_BINARY" run --url $url -d exp -D 2,$DURATION -r $BASE,$RATE -w 10000 -o $output_dir -t 30
+        "$RWG_BINARY" run --url $url -d exp -D "$RWG_DURATIONS" -r "$RWG_RATES" -w 10000 -o $output_dir -t 30
         exit "$?"
     fi
 fi

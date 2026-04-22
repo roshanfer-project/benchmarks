@@ -108,26 +108,46 @@ Use **`destroy.sh dagor`** to remove `rajomon-client`, the `*-grpc` entry pod, a
 
 Applies only to **plain**, **rajomon**, and **dagor** deployments. **Sidecar** workloads do not attach deadline/retry policy on generated egress or internal client paths (`sidecar=true`); behavior there stays as before.
 
+Codegen writes **`pkg/rpcpolicy/rpcpolicy.go`** (policy helpers) and **`pkg/grpc.go`** with **`DialClient`** (chains interceptors). Regenerate with **`go run ./cmd/gen ...`** from this directory; then **`go mod tidy`** in the benchmark root if needed.
+
+**Interceptor chain** on **`DialClient`** (non-sidecar only), outer → inner:
+
+1. **Retry** — if **`BENCH_RPC_RETRY_MODE`** is `fixed` or `token_bucket`.
+2. **Deadline `fixed`** — if **`BENCH_RPC_DEADLINE_MODE`** is `fixed` (**2 s** per unary attempt, including each retry).
+3. **Rajomon / Dagor / plain** unary interceptors passed into **`DialClient`**, then the real invoker.
+
+**Note on the value `fixed`:** **`BENCH_RPC_DEADLINE_MODE=fixed`** (per-RPC **2 s** timeout) and **`BENCH_RPC_RETRY_MODE=fixed`** (retry + backoff) both use the string **`fixed`** but are **separate** settings on **different** env vars. In **`experiments.json`**, **`deadline_mode`** and **`retry_mode`** map to those two vars independently.
+
 **Deadline (`BENCH_RPC_DEADLINE_MODE`):**
 
-- `none` (default when unset) — no extra client deadline at the HTTP entry; downstream timing unchanged.
-- `remaining_slo` — the HTTP entry (plain service or `rajomon-client`) sets a context deadline of **60%** of the per-API SLO in milliseconds. The value is read from **`BENCH_RPC_SLO_MS_<interface>`** (same name as the HTTP path / experiment `apis` entry). That deadline propagates on outbound gRPC so child RPCs see the remaining budget. If `remaining_slo` is set and a required **`BENCH_RPC_SLO_MS_*`** is missing or invalid, the process **exits with an error at startup** (executor also validates before deploy when this mode is selected).
+- `none` (default when unset) — no policy deadline on the HTTP entry for plain/`rajomon-client`; no **`DialClient`** deadline interceptor. Downstream timing unchanged unless something else sets **`context`** deadlines.
+- `remaining_slo` — the HTTP entry (plain service or `rajomon-client`) sets a context deadline of **60%** of the per-API SLO in milliseconds. The value is read from **`BENCH_RPC_SLO_MS_<interface>`** (same name as the HTTP path / experiment `apis` entry). That deadline propagates on outbound gRPC so child RPCs see the **remaining** budget. If `remaining_slo` is set and a required **`BENCH_RPC_SLO_MS_*`** is missing or invalid, the process **exits with an error at startup** (`rpcpolicy.MustValidatePolicyEnv`; the executor also validates before deploy when this mode is selected).
+- `fixed` — each outbound unary gRPC call uses **`context.WithTimeout(..., 2s)`** on the client (see interceptor chain above). **Not** an end-to-end SLO budget: the plain / `rajomon-client` HTTP handler does **not** call **`MaybeDeadlineForAPI`** for this mode; each hop independently caps that hop at **2 s** (still bounded by any stricter parent deadline, e.g. HTTP **`Request.Context`**). Does **not** require **`BENCH_RPC_SLO_MS_*`** for the deadline itself.
 
 **Retry (`BENCH_RPC_RETRY_MODE`):**
 
 - `none` (default) — no retry interceptor.
-- `fixed` — up to **4** total attempts (1 initial + 3 retries). Backoff between attempts is **5%** of **`BENCH_RPC_SLO_MS_<api>`** (minimum **1 ms** for that base portion) plus **uniform jitter** from **0** to **1%** of the same SLO (sub-ms jitter allowed). Outgoing metadata **`api`** or **`method`** must identify the interface, and the matching **`BENCH_RPC_SLO_MS_*`** env must be set; otherwise the client returns an error instead of retrying.
-- `token_bucket` — retries consume **one** token per retry attempt (bucket starts full at **`BENCH_RPC_RETRY_BUCKET_CAPACITY`**, default **10**). Each **successful** RPC adds **0.02** token back (capped at capacity); there is no time-based refill. Between retries uses the same **5% + [0,1%] jitter** backoff and metadata/SLO requirements as `fixed`. Optional env: **`BENCH_RPC_RETRY_BUCKET_CAPACITY`**. If there are not enough tokens for the next retry, the call fails without that retry.
+- `fixed` — up to **4** total attempts (1 initial + 3 retries). Backoff between attempts: **`BENCH_RPC_SLO_MS_<api>`** ms **+** **uniform jitter** in **`[0, BENCH_RPC_SLO_MS_<api>]`** ms (same **`<api>`** as metadata). Outgoing metadata **`api`** or **`method`** must be set, and the matching **`BENCH_RPC_SLO_MS_*`** env must be present and positive; otherwise the client returns an **error** (no silent fallback).
+- `token_bucket` — retries consume **one** token per retry attempt (bucket starts full at **`BENCH_RPC_RETRY_BUCKET_CAPACITY`**, default **10**). Each **successful** RPC adds **0.02** token back (capped at capacity); there is no time-based refill. Between retries uses the same **`SLO + [0,SLO]`** ms backoff and metadata/SLO requirements as retry mode **`fixed`**. Optional env: **`BENCH_RPC_RETRY_BUCKET_CAPACITY`**. If there are not enough tokens for the next retry, the call fails without that retry.
 
 Retries apply to **all** unary RPC errors returned by the invoker, including **`ResourceExhausted`** (overload). No further attempts are scheduled if the request context is already done (e.g. deadline expired).
+
+**Environment quick reference**
+
+| Variable | Role |
+|----------|------|
+| **`BENCH_RPC_DEADLINE_MODE`** | `none` \| `remaining_slo` \| `fixed` |
+| **`BENCH_RPC_RETRY_MODE`** | `none` \| `fixed` \| `token_bucket` |
+| **`BENCH_RPC_SLO_MS_<api>`** | SLO in ms; **required** for `remaining_slo` (startup + executor); **required** for retry backoff when retry mode is `fixed` or `token_bucket` |
+| **`BENCH_RPC_RETRY_BUCKET_CAPACITY`** | Optional; token bucket size (default **10**) |
 
 **Where SLO numbers live:** only in the executor suite **`config.json`** field **`slos`** (existing schema), which the executor maps to **`BENCH_RPC_SLO_MS_<api>`** in the workload env. Do **not** put SLO fields under **`fault-tolerance`** in **`experiments.json`**. You can still override a single API for one run via **`deploy_env`**.
 
 **Optional `experiments.json` `fault-tolerance`** (hyphenated key; **`fault_tolerance`** also accepted when merging): JSON object with **`deadline_mode`**, **`retry_mode`**, and optionally **`retry_bucket_capacity`** (maps to **`BENCH_RPC_RETRY_BUCKET_CAPACITY`**). If the whole object is omitted, policy defaults are **`none`** / **`none`**. Omitted sub-keys inside the object also default to **`none`**.
 
-**Env merge order** for a run: **`config.slos` → `fault-tolerance` → tuner `deploy_params` → experiment `deploy_env`** (later keys win). Regenerating benchmarks (`go run ./cmd/gen ...`) picks up template/`pkg/rpcpolicy` changes; editing **`slos`** in **`config.json`** does not require rebuilding images.
+**Env merge order** for a run (executor): **`config.slos` → `fault-tolerance` → tuner `deploy_params` → experiment `deploy_env`** (later keys win). The executor passes the merged map into **`deploy.sh`** as real environment variables. **`deploy.sh`** appends every defined **`BENCH_RPC_*`** variable from that process environment into the workload **`ConfigMap`** (alongside **`k8s/plain.env`**, **`dagor.env`**, etc.) so pods such as **`frontend-grpc`** receive **`BENCH_RPC_DEADLINE_MODE`** / **`BENCH_RPC_RETRY_MODE`** / SLO keys. Regenerating benchmarks picks up **`deploy.sh`** / **`pkg/rpcpolicy`** changes; editing **`slos`** in **`config.json`** does not require rebuilding images.
 
-**RWG / `run-plain.sh` HTTP timeouts** are separate from this gRPC deadline; aligning them is optional follow-up work.
+**RWG / workload wrappers:** Generated **`run.sh`** and **`run-plain.sh`** invoke RWG with **`RWG_RATES`** and **`RWG_DURATIONS`** (comma-separated; set by **`exec.runner`**). Invocation shape: **`./run.sh <protocol> <api> <output_dir>`** (and optional **`--ignore-errors`** on **`run-plain.sh`**). Do not pass legacy `BASE RATE DURATION` positionals. HTTP client timeouts in RWG (`-t`) are separate from gRPC deadline policy above.
 
 See also **Rajomon mode** and **Dagor mode** above for deploy layout; tunables for this section apply to those HTTP→gRPC entry paths as well.
 

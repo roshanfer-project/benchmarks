@@ -466,6 +466,9 @@ func DialClient(addr string, sidecar bool, unary ...grpc.UnaryClientInterceptor)
 	if r := rpcpolicy.RetryUnaryInterceptorOpt(sidecar); r != nil {
 		chain = append(chain, r)
 	}
+	if d := rpcpolicy.FixedDeadlineUnaryInterceptorOpt(sidecar); d != nil {
+		chain = append(chain, d)
+	}
 	chain = append(chain, unary...)
 	if len(chain) > 0 {
 		opts = append(opts, grpc.WithChainUnaryInterceptor(chain...))
