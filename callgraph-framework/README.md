@@ -151,6 +151,23 @@ Retries apply to **all** unary RPC errors returned by the invoker, including **`
 
 See also **Rajomon mode** and **Dagor mode** above for deploy layout; tunables for this section apply to those HTTP→gRPC entry paths as well.
 
+### Fail-slow injection (gRPC only; `exec`)
+
+Supported only for **`rajomon`** and **`dagor`** workloads (pods in `k8s/manifests/app-grpc.yaml`: inner gRPC services and **`entry-grpc`**). **Plain**, **sidecar**, and **`rajomon-client`** do not run this path.
+
+Each gRPC server starts a loopback admin HTTP server (default **`127.0.0.1:19090`**, override with **`BENCH_FAILSLOW_ADMIN_ADDR`**). **POST `/failslow`** with JSON `{"duration_ms": <int>, "extra_ms": <int>}` arms a window: until `now + duration_ms`, successful unary RPCs sleep an extra **`extra_ms`** after handler work and before the response is sent (unary interceptor; errors are not delayed).
+
+The executor can arm a pod mid-run: in **`experiments.json`**, optional **`failslow`** object:
+
+- **`pod`** — Kubernetes pod name (e.g. `checkout`, `frontend-grpc` for the gRPC entry).
+- **`after_sec`** — seconds after **RWG start** before arming.
+- **`duration_sec`** — length of the window (converted to `duration_ms` for the admin API).
+- **`extra_ms`** — per-request extra delay while the window is active.
+- **`container`** — optional, default **`app`**.
+- **`kubernetes_namespace`** — optional; if set, passed to **`kubectl exec -n ...`**.
+
+Requires **`kubectl`** on the machine running **`exec`**. The executor arms fail-slow with **`kubectl exec … wget --post-data=…`** (BusyBox **`wget`** ships with the default **`alpine`** runtime image; no extra packages needed). **`app-grpc`** manifests declare **`containerPort` 19090** (`failslow-admin`) on gRPC pods (not on **`rajomon-client`**).
+
 ## Call Graph Format
 
 - `nodes`: one per microservice; `id`, `interfaces` (see **service time** below), `cpu` (optional, default 1, used for cpu_count in sidecar config and app resources), `sidecar_cpu` (optional, default 1, used for num_threads in sidecar config; k8s sidecar gets 2× this), `over_commitment` (optional, default 0, must be in [0,1]; written to sidecar config)

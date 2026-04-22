@@ -250,6 +250,8 @@ spec:
         name: %s-config
     ports:
     - containerPort: %d
+    - containerPort: 19090
+      name: failslow-admin
 ---
 apiVersion: v1
 kind: Service
