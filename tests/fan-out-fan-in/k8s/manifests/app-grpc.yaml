@@ -22,6 +22,8 @@ spec:
         name: fan-out-fan-in-config
     ports:
     - containerPort: 2000
+    - containerPort: 19090
+      name: failslow-admin
 ---
 apiVersion: v1
 kind: Service
@@ -63,6 +65,8 @@ spec:
         name: fan-out-fan-in-config
     ports:
     - containerPort: 2000
+    - containerPort: 19090
+      name: failslow-admin
 ---
 apiVersion: v1
 kind: Service
@@ -104,6 +108,8 @@ spec:
         name: fan-out-fan-in-config
     ports:
     - containerPort: 2000
+    - containerPort: 19090
+      name: failslow-admin
 ---
 apiVersion: v1
 kind: Service
@@ -145,6 +151,8 @@ spec:
         name: fan-out-fan-in-config
     ports:
     - containerPort: 2000
+    - containerPort: 19090
+      name: failslow-admin
 ---
 apiVersion: v1
 kind: Service

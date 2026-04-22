@@ -102,7 +102,7 @@ func MustValidatePolicyEnv(entryAPIs []string) {
 	}
 }
 
-// FixedDeadlineUnaryInterceptorOpt applies a fresh 2s timeout per unary RPC when BENCH_RPC_DEADLINE_MODE=fixed.
+// FixedDeadlineUnaryInterceptorOpt applies a fresh 1s timeout per unary RPC when BENCH_RPC_DEADLINE_MODE=fixed.
 // Placed inside the retry interceptor so each retry attempt gets its own 2s budget. No SLO / entry deadline; not end-to-end.
 func FixedDeadlineUnaryInterceptorOpt(sidecar bool) grpc.UnaryClientInterceptor {
 	if sidecar {
@@ -118,7 +118,7 @@ func FixedDeadlineUnaryInterceptorOpt(sidecar bool) grpc.UnaryClientInterceptor 
 	}
 }
 
-// MaybeDeadlineForAPI returns ctx with deadline at now + 60% of SLO ms when mode is remaining_slo.
+// MaybeDeadlineForAPI returns ctx with deadline at now + 500% of SLO ms when mode is remaining_slo.
 func MaybeDeadlineForAPI(parent context.Context, api string) (context.Context, context.CancelFunc) {
 	if os.Getenv(EnvDeadlineMode) != DeadlineRemain {
 		return parent, func() {}
@@ -128,7 +128,7 @@ func MaybeDeadlineForAPI(parent context.Context, api string) (context.Context, c
 	if err != nil || ms <= 0 {
 		log.Fatalf("rpcpolicy: missing or invalid %s for api %q", sloEnvKey(api), api)
 	}
-	d := time.Duration(ms*10) * time.Millisecond
+	d := time.Duration(ms*5) * time.Millisecond
 	return context.WithDeadline(parent, time.Now().Add(d))
 }
 

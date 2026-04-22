@@ -37,6 +37,7 @@ var log = utils.GetLogger(serviceName)
 
 func (s *Server) Run() error {
 	log.Info("Initializing gRPC server...")
+	utils.StartFailslowAdmin()
 	useRajomon := utils.GetEnvVar("rajomon", false) == "true"
 	useDagor := utils.GetEnvVar("dagor", false) == "true"
 	if useRajomon == useDagor {
@@ -50,13 +51,15 @@ func (s *Server) Run() error {
 		opts = append(opts, grpc.ChainUnaryInterceptor(
 			utils.ContextPropagationInterceptor(),
 			utils.NewCounterState(serviceName).GetInterceptor(),
-			pt.UnaryInterceptor))
+			pt.UnaryInterceptor,
+			utils.FailslowUnaryServerInterceptor()))
 	} else {
 		dn = dagorinit.GetDagorNode(serviceName, true, false)
 		opts = append(opts, grpc.ChainUnaryInterceptor(
 			utils.ContextPropagationInterceptor(),
 			utils.NewCounterState(serviceName).GetInterceptor(),
-			dn.UnaryInterceptorServer))
+			dn.UnaryInterceptorServer,
+			utils.FailslowUnaryServerInterceptor()))
 	}
 	srv := grpc.NewServer(opts...)
 	pb.RegisterFrontendServer(srv, s)

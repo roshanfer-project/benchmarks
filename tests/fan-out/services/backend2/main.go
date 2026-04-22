@@ -34,6 +34,7 @@ var log = utils.GetLogger(serviceName)
 
 func (s *Server) Run() error {
 	log.Info("Initializing gRPC server...")
+	utils.StartFailslowAdmin()
 	opts := pkg.GetServerOptions()
 	sidecar := utils.GetEnvVar("sidecar", false) == "true"
 	useRajomon := utils.GetEnvVar("rajomon", false) == "true"
@@ -54,24 +55,30 @@ func (s *Server) Run() error {
 		if queuingExport {
 			opts = append(opts, grpc.ChainUnaryInterceptor(
 				utils.ContextPropagationInterceptor(),
-				utils.NewCounterState(serviceName).GetInterceptor()))
+				utils.NewCounterState(serviceName).GetInterceptor(),
+				utils.FailslowUnaryServerInterceptor()))
 		} else {
-			opts = append(opts, grpc.UnaryInterceptor(utils.ContextPropagationInterceptor()))
+			opts = append(opts, grpc.ChainUnaryInterceptor(
+				utils.ContextPropagationInterceptor(),
+				utils.FailslowUnaryServerInterceptor()))
 		}
 	} else if useRajomon {
 		opts = append(opts, grpc.ChainUnaryInterceptor(
 			utils.ContextPropagationInterceptor(),
 			utils.NewCounterState(serviceName).GetInterceptor(),
-			priceTable.UnaryInterceptor))
+			priceTable.UnaryInterceptor,
+			utils.FailslowUnaryServerInterceptor()))
 	} else if useDagor {
 		opts = append(opts, grpc.ChainUnaryInterceptor(
 			utils.ContextPropagationInterceptor(),
 			utils.NewCounterState(serviceName).GetInterceptor(),
-			dagorNode.UnaryInterceptorServer))
+			dagorNode.UnaryInterceptorServer,
+			utils.FailslowUnaryServerInterceptor()))
 	} else {
 		opts = append(opts, grpc.ChainUnaryInterceptor(
 			utils.ContextPropagationInterceptor(),
-			utils.NewCounterState(serviceName).GetInterceptor()))
+			utils.NewCounterState(serviceName).GetInterceptor(),
+			utils.FailslowUnaryServerInterceptor()))
 	}
 	srv := grpc.NewServer(opts...)
 	pb.RegisterBackend2Server(srv, s)
