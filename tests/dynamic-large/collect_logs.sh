@@ -2,7 +2,7 @@
 MODE=${1:-${SYSTEM:-plain}}
 OUTPUT_DIR=${OUTPUT_DIR:-./logs}
 mkdir -p "$OUTPUT_DIR"
-for svc in backend1 backend2 backend3 backend4 backend5 backend6 backend7 frontend frontend-grpc rajomon-client; do
+for svc in backend1 backend2 backend3 backend4 backend5 backend6 frontend frontend-grpc rajomon-client; do
   for pod in $(kubectl get pods -l app=$svc -o jsonpath='{.items[*].metadata.name}'); do
     kubectl logs "$pod" > "$OUTPUT_DIR/${pod}.log" 2>&1
     if [ "$MODE" = "sidecar" ]; then
@@ -16,7 +16,7 @@ if [ "$MODE" = "sidecar" ]; then
   done
 fi
 if [ "$MODE" = "sidecar" ] && [ "${COLLECT_SIDECAR_NANOLOG:-}" = "1" ]; then
-  for svc in backend1 backend2 backend3 backend4 backend5 backend6 backend7 frontend frontend-grpc rajomon-client; do
+  for svc in backend1 backend2 backend3 backend4 backend5 backend6 frontend frontend-grpc rajomon-client; do
     for pod in $(kubectl get pods -l app=$svc -o jsonpath='{.items[*].metadata.name}' 2>/dev/null); do
       kubectl cp "$pod:/compressedLog" "$OUTPUT_DIR/${pod}-sidecar.clog" -c sidecar 2>/dev/null || true
     done

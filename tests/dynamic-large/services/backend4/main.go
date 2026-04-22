@@ -48,7 +48,6 @@ type Server struct {
 	pb.UnimplementedBackend4Server
 	Backend5Client pb.Backend5Client
 	Backend6Client pb.Backend6Client
-	Backend7Client pb.Backend7Client
 }
 
 const serviceName = "backend4"
@@ -123,17 +122,6 @@ func (s *Server) Run() error {
 		}
 	}
 	s.Backend6Client = pb.NewBackend6Client(conn)
-	if !sidecar {
-		addr := utils.GetEnvVar("backend7_ADDR", true)
-		if useRajomon {
-			conn = pkg.GetRajomonClient(addr, grpc.WithUnaryInterceptor(priceTable.UnaryInterceptorClient))
-		} else if useDagor {
-			conn = pkg.GetConn(addr, grpc.WithUnaryInterceptor(dagorNode.UnaryInterceptorClient))
-		} else {
-			conn = pkg.GetConn(addr)
-		}
-	}
-	s.Backend7Client = pb.NewBackend7Client(conn)
 
 
 	reflection.Register(srv)
@@ -163,10 +151,8 @@ func (s *Server) F5(ctx context.Context, req *pb.Request) (*pb.Response, error) 
 		var err error
 		if u < 0.1 {
 			_, err = s.Backend5Client.F6(ctx, req)
-		} else if u < 0.3 {
-			_, err = s.Backend6Client.F7(ctx, req)
 		} else {
-			_, err = s.Backend7Client.F8(ctx, req)
+			_, err = s.Backend6Client.F7(ctx, req)
 		}
 		if err != nil {
 			log.Error("downstream call failed", "error", err)

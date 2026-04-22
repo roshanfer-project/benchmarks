@@ -47,7 +47,7 @@
       "interfaces": [
         {
           "name": "f4",
-          "avg_rt": 1.5,
+          "avg_rt": 0.5,
           "priority": 0
         }
       ],
@@ -69,7 +69,7 @@
       "interfaces": [
         {
           "name": "f6",
-          "avg_rt": 4,
+          "avg_rt": 6,
           "priority": 0
         }
       ],
@@ -80,17 +80,6 @@
       "interfaces": [
         {
           "name": "f7",
-          "avg_rt": 2,
-          "priority": 0
-        }
-      ],
-      "cpu": 1
-    },
-    {
-      "id": "backend7",
-      "interfaces": [
-        {
-          "name": "f8",
           "avg_rt": 0.5,
           "priority": 0
         }
@@ -112,13 +101,13 @@
       "source": "backend1:f2",
       "target": "backend2:f3",
       "api": "f1",
-      "weight": 0.95
+      "weight": 0.8
     },
     {
       "source": "backend1:f2",
       "target": "backend3:f4",
       "api": "f1",
-      "weight": 0.05
+      "weight": 0.2
     },
     {
       "source": "backend2:f3",
@@ -135,13 +124,7 @@
       "source": "backend4:f5",
       "target": "backend6:f7",
       "api": "f1",
-      "weight": 0.2
-    },
-    {
-      "source": "backend4:f5",
-      "target": "backend7:f8",
-      "api": "f1",
-      "weight": 0.7
+      "weight": 0.9
     }
   ]
 }

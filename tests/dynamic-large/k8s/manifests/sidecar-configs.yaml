@@ -81,16 +81,11 @@ data:
         upstream:
           host: dynamic-large-backend6
           port: 3000
-      benchmark.backend7/f8:
-        upstream:
-          host: dynamic-large-backend7
-          port: 3000
     mapping:
       benchmark.backend4/f5:
         downstreams:
           - benchmark.backend5/f6
           - benchmark.backend6/f7
-          - benchmark.backend7/f8
         dfanout: true
     ring_size: 1000
     buffer_count: 1024
@@ -134,22 +129,6 @@ data:
     ingress_upstream_port: 2000
     report_latency: True
     name: backend6
-    cpu_count: 1
-    over_commitment: 0.0
-    
-  backend7.yaml: |
-    mapping:
-      benchmark.backend7/f8:
-    ring_size: 1000
-    buffer_count: 1024
-    buffer_size: 80000
-    num_threads: 1
-    egress_listener_port: 4000
-    ingress_listener_port: 3000
-    ingress_upstream_host: localhost
-    ingress_upstream_port: 2000
-    report_latency: True
-    name: backend7
     cpu_count: 1
     over_commitment: 0.0
     

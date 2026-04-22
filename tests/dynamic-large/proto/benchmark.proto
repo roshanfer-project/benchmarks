@@ -31,10 +31,6 @@ service backend6 {
   rpc f7(Request) returns (Response);
 }
 
-service backend7 {
-  rpc f8(Request) returns (Response);
-}
-
 service frontend {
   rpc f1(Request) returns (Response);
 }
