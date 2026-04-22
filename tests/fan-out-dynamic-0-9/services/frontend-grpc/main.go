@@ -9,6 +9,7 @@ import (
 	dagor "fanoutdynamic09/dagor"
 	dagorinit "fanoutdynamic09/dagor_init"
 	rajomoninit "fanoutdynamic09/rajomon_init"
+	"fanoutdynamic09/pkg/rpcpolicy"
 	"fanoutdynamic09/utils"
 
 	"github.com/pennsail/rajomon"
@@ -43,6 +44,12 @@ func benchFloat() float64 {
 	return benchRng.r.Float64()
 }
 
+
+
+func init() {
+	rpcpolicy.MustValidatePolicyEnv([]string{		"f1",
+	})
+}
 
 type Server struct {
 	pb.UnimplementedFrontendServer
@@ -82,9 +89,9 @@ func (s *Server) Run() error {
 		addr := utils.GetEnvVar("backend1_ADDR", true)
 		var conn *grpc.ClientConn
 		if useRajomon {
-			conn = pkg.GetRajomonClient(addr, grpc.WithUnaryInterceptor(pt.UnaryInterceptorClient))
+			conn = pkg.DialClient(addr, false, pt.UnaryInterceptorClient)
 		} else {
-			conn = pkg.GetConn(addr, grpc.WithUnaryInterceptor(dn.UnaryInterceptorClient))
+			conn = pkg.DialClient(addr, false, dn.UnaryInterceptorClient)
 		}
 		s.Backend1Client = pb.NewBackend1Client(conn)
 	}
@@ -92,9 +99,9 @@ func (s *Server) Run() error {
 		addr := utils.GetEnvVar("backend2_ADDR", true)
 		var conn *grpc.ClientConn
 		if useRajomon {
-			conn = pkg.GetRajomonClient(addr, grpc.WithUnaryInterceptor(pt.UnaryInterceptorClient))
+			conn = pkg.DialClient(addr, false, pt.UnaryInterceptorClient)
 		} else {
-			conn = pkg.GetConn(addr, grpc.WithUnaryInterceptor(dn.UnaryInterceptorClient))
+			conn = pkg.DialClient(addr, false, dn.UnaryInterceptorClient)
 		}
 		s.Backend2Client = pb.NewBackend2Client(conn)
 	}

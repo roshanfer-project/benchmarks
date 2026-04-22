@@ -1,9 +1,11 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strings"
+	"alibabalarge/pkg/rpcpolicy"
 	"alibabalarge/utils"
 
 	"google.golang.org/grpc/metadata"
@@ -12,6 +14,12 @@ import (
 	"google.golang.org/grpc"
 )
 
+
+
+func init() {
+	rpcpolicy.MustValidatePolicyEnv([]string{		"Z8trRkp4mp",
+	})
+}
 
 type Server struct {
 	MS_14758Client pb.MS_14758Client
@@ -42,78 +50,78 @@ func (s *Server) Run() error {
 	sidecar := utils.GetEnvVar("sidecar", false) == "true"
 	var conn *grpc.ClientConn
 	if sidecar {
-		conn = pkg.GetConn(utils.GetEnvVar("MS_64512_EGRESS", true))
+		conn = pkg.DialClient(utils.GetEnvVar("MS_64512_EGRESS", true), sidecar)
 	}
 	if !sidecar {
-		conn = pkg.GetConn(utils.GetEnvVar("MS_14758_ADDR", true))
+		conn = pkg.DialClient(utils.GetEnvVar("MS_14758_ADDR", true), sidecar)
 	}
 	s.MS_14758Client = pb.NewMS_14758Client(conn)
 	if !sidecar {
-		conn = pkg.GetConn(utils.GetEnvVar("MS_19439_ADDR", true))
+		conn = pkg.DialClient(utils.GetEnvVar("MS_19439_ADDR", true), sidecar)
 	}
 	s.MS_19439Client = pb.NewMS_19439Client(conn)
 	if !sidecar {
-		conn = pkg.GetConn(utils.GetEnvVar("MS_21298_ADDR", true))
+		conn = pkg.DialClient(utils.GetEnvVar("MS_21298_ADDR", true), sidecar)
 	}
 	s.MS_21298Client = pb.NewMS_21298Client(conn)
 	if !sidecar {
-		conn = pkg.GetConn(utils.GetEnvVar("MS_25781_ADDR", true))
+		conn = pkg.DialClient(utils.GetEnvVar("MS_25781_ADDR", true), sidecar)
 	}
 	s.MS_25781Client = pb.NewMS_25781Client(conn)
 	if !sidecar {
-		conn = pkg.GetConn(utils.GetEnvVar("MS_25806_ADDR", true))
+		conn = pkg.DialClient(utils.GetEnvVar("MS_25806_ADDR", true), sidecar)
 	}
 	s.MS_25806Client = pb.NewMS_25806Client(conn)
 	if !sidecar {
-		conn = pkg.GetConn(utils.GetEnvVar("MS_2687_ADDR", true))
+		conn = pkg.DialClient(utils.GetEnvVar("MS_2687_ADDR", true), sidecar)
 	}
 	s.MS_2687Client = pb.NewMS_2687Client(conn)
 	if !sidecar {
-		conn = pkg.GetConn(utils.GetEnvVar("MS_40087_ADDR", true))
+		conn = pkg.DialClient(utils.GetEnvVar("MS_40087_ADDR", true), sidecar)
 	}
 	s.MS_40087Client = pb.NewMS_40087Client(conn)
 	if !sidecar {
-		conn = pkg.GetConn(utils.GetEnvVar("MS_43032_ADDR", true))
+		conn = pkg.DialClient(utils.GetEnvVar("MS_43032_ADDR", true), sidecar)
 	}
 	s.MS_43032Client = pb.NewMS_43032Client(conn)
 	if !sidecar {
-		conn = pkg.GetConn(utils.GetEnvVar("MS_51783_ADDR", true))
+		conn = pkg.DialClient(utils.GetEnvVar("MS_51783_ADDR", true), sidecar)
 	}
 	s.MS_51783Client = pb.NewMS_51783Client(conn)
 	if !sidecar {
-		conn = pkg.GetConn(utils.GetEnvVar("MS_51787_ADDR", true))
+		conn = pkg.DialClient(utils.GetEnvVar("MS_51787_ADDR", true), sidecar)
 	}
 	s.MS_51787Client = pb.NewMS_51787Client(conn)
 	if !sidecar {
-		conn = pkg.GetConn(utils.GetEnvVar("MS_53792_ADDR", true))
+		conn = pkg.DialClient(utils.GetEnvVar("MS_53792_ADDR", true), sidecar)
 	}
 	s.MS_53792Client = pb.NewMS_53792Client(conn)
 	if !sidecar {
-		conn = pkg.GetConn(utils.GetEnvVar("MS_58796_ADDR", true))
+		conn = pkg.DialClient(utils.GetEnvVar("MS_58796_ADDR", true), sidecar)
 	}
 	s.MS_58796Client = pb.NewMS_58796Client(conn)
 	if !sidecar {
-		conn = pkg.GetConn(utils.GetEnvVar("MS_62039_ADDR", true))
+		conn = pkg.DialClient(utils.GetEnvVar("MS_62039_ADDR", true), sidecar)
 	}
 	s.MS_62039Client = pb.NewMS_62039Client(conn)
 	if !sidecar {
-		conn = pkg.GetConn(utils.GetEnvVar("MS_66921_ADDR", true))
+		conn = pkg.DialClient(utils.GetEnvVar("MS_66921_ADDR", true), sidecar)
 	}
 	s.MS_66921Client = pb.NewMS_66921Client(conn)
 	if !sidecar {
-		conn = pkg.GetConn(utils.GetEnvVar("MS_67465_ADDR", true))
+		conn = pkg.DialClient(utils.GetEnvVar("MS_67465_ADDR", true), sidecar)
 	}
 	s.MS_67465Client = pb.NewMS_67465Client(conn)
 	if !sidecar {
-		conn = pkg.GetConn(utils.GetEnvVar("MS_70124_ADDR", true))
+		conn = pkg.DialClient(utils.GetEnvVar("MS_70124_ADDR", true), sidecar)
 	}
 	s.MS_70124Client = pb.NewMS_70124Client(conn)
 	if !sidecar {
-		conn = pkg.GetConn(utils.GetEnvVar("MS_7103_ADDR", true))
+		conn = pkg.DialClient(utils.GetEnvVar("MS_7103_ADDR", true), sidecar)
 	}
 	s.MS_7103Client = pb.NewMS_7103Client(conn)
 	if !sidecar {
-		conn = pkg.GetConn(utils.GetEnvVar("MS_9105_ADDR", true))
+		conn = pkg.DialClient(utils.GetEnvVar("MS_9105_ADDR", true), sidecar)
 	}
 	s.MS_9105Client = pb.NewMS_9105Client(conn)
 
@@ -155,6 +163,11 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 	switch path {
 	case "Z8trRkp4mp":
 		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "Z8trRkp4mp", "rpc-id", rpcID))
+		if !sidecar {
+			var cancel context.CancelFunc
+			ctx, cancel = rpcpolicy.MaybeDeadlineForAPI(ctx, "Z8trRkp4mp")
+			defer cancel()
+		}
 		utils.BusyLoop(288)
 
 		req := &pb.Request{}

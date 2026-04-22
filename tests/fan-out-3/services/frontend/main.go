@@ -1,9 +1,11 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strings"
+	"fanout3/pkg/rpcpolicy"
 	"fanout3/utils"
 
 	"google.golang.org/grpc/metadata"
@@ -12,6 +14,12 @@ import (
 	"google.golang.org/grpc"
 )
 
+
+
+func init() {
+	rpcpolicy.MustValidatePolicyEnv([]string{		"f1",
+	})
+}
 
 type Server struct {
 	Backend1Client pb.Backend1Client
@@ -27,18 +35,18 @@ func (s *Server) Run() error {
 	sidecar := utils.GetEnvVar("sidecar", false) == "true"
 	var conn *grpc.ClientConn
 	if sidecar {
-		conn = pkg.GetConn(utils.GetEnvVar("frontend_EGRESS", true))
+		conn = pkg.DialClient(utils.GetEnvVar("frontend_EGRESS", true), sidecar)
 	}
 	if !sidecar {
-		conn = pkg.GetConn(utils.GetEnvVar("backend1_ADDR", true))
+		conn = pkg.DialClient(utils.GetEnvVar("backend1_ADDR", true), sidecar)
 	}
 	s.Backend1Client = pb.NewBackend1Client(conn)
 	if !sidecar {
-		conn = pkg.GetConn(utils.GetEnvVar("backend2_ADDR", true))
+		conn = pkg.DialClient(utils.GetEnvVar("backend2_ADDR", true), sidecar)
 	}
 	s.Backend2Client = pb.NewBackend2Client(conn)
 	if !sidecar {
-		conn = pkg.GetConn(utils.GetEnvVar("backend3_ADDR", true))
+		conn = pkg.DialClient(utils.GetEnvVar("backend3_ADDR", true), sidecar)
 	}
 	s.Backend3Client = pb.NewBackend3Client(conn)
 
@@ -80,6 +88,11 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 	switch path {
 	case "f1":
 		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "f1", "rpc-id", rpcID))
+		if !sidecar {
+			var cancel context.CancelFunc
+			ctx, cancel = rpcpolicy.MaybeDeadlineForAPI(ctx, "f1")
+			defer cancel()
+		}
 		utils.BusyLoop(64)
 
 		req := &pb.Request{}

@@ -9,6 +9,7 @@ import (
 	dagor "fanout3/dagor"
 	dagorinit "fanout3/dagor_init"
 	rajomoninit "fanout3/rajomon_init"
+	"fanout3/pkg/rpcpolicy"
 	"fanout3/utils"
 
 	"github.com/pennsail/rajomon"
@@ -17,6 +18,12 @@ import (
 	"google.golang.org/grpc/reflection"
 )
 
+
+
+func init() {
+	rpcpolicy.MustValidatePolicyEnv([]string{		"f1",
+	})
+}
 
 type Server struct {
 	pb.UnimplementedBackend3Server

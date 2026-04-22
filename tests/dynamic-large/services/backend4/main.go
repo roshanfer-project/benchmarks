@@ -9,6 +9,7 @@ import (
 	dagor "dynamiclarge/dagor"
 	dagorinit "dynamiclarge/dagor_init"
 	rajomoninit "dynamiclarge/rajomon_init"
+	"dynamiclarge/pkg/rpcpolicy"
 	"dynamiclarge/utils"
 
 	"github.com/pennsail/rajomon"
@@ -43,6 +44,12 @@ func benchFloat() float64 {
 	return benchRng.r.Float64()
 }
 
+
+
+func init() {
+	rpcpolicy.MustValidatePolicyEnv([]string{		"f1",
+	})
+}
 
 type Server struct {
 	pb.UnimplementedBackend4Server
@@ -98,27 +105,27 @@ func (s *Server) Run() error {
 	pb.RegisterBackend4Server(srv, s)
 	var conn *grpc.ClientConn
 	if sidecar {
-		conn = pkg.GetConn(utils.GetEnvVar("backend4_EGRESS", true))
+		conn = pkg.DialClient(utils.GetEnvVar("backend4_EGRESS", true), sidecar)
 	}
 	if !sidecar {
 		addr := utils.GetEnvVar("backend5_ADDR", true)
 		if useRajomon {
-			conn = pkg.GetRajomonClient(addr, grpc.WithUnaryInterceptor(priceTable.UnaryInterceptorClient))
+			conn = pkg.DialClient(addr, sidecar, priceTable.UnaryInterceptorClient)
 		} else if useDagor {
-			conn = pkg.GetConn(addr, grpc.WithUnaryInterceptor(dagorNode.UnaryInterceptorClient))
+			conn = pkg.DialClient(addr, sidecar, dagorNode.UnaryInterceptorClient)
 		} else {
-			conn = pkg.GetConn(addr)
+			conn = pkg.DialClient(addr, sidecar)
 		}
 	}
 	s.Backend5Client = pb.NewBackend5Client(conn)
 	if !sidecar {
 		addr := utils.GetEnvVar("backend6_ADDR", true)
 		if useRajomon {
-			conn = pkg.GetRajomonClient(addr, grpc.WithUnaryInterceptor(priceTable.UnaryInterceptorClient))
+			conn = pkg.DialClient(addr, sidecar, priceTable.UnaryInterceptorClient)
 		} else if useDagor {
-			conn = pkg.GetConn(addr, grpc.WithUnaryInterceptor(dagorNode.UnaryInterceptorClient))
+			conn = pkg.DialClient(addr, sidecar, dagorNode.UnaryInterceptorClient)
 		} else {
-			conn = pkg.GetConn(addr)
+			conn = pkg.DialClient(addr, sidecar)
 		}
 	}
 	s.Backend6Client = pb.NewBackend6Client(conn)

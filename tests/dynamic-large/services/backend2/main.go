@@ -9,6 +9,7 @@ import (
 	dagor "dynamiclarge/dagor"
 	dagorinit "dynamiclarge/dagor_init"
 	rajomoninit "dynamiclarge/rajomon_init"
+	"dynamiclarge/pkg/rpcpolicy"
 	"dynamiclarge/utils"
 
 	"github.com/pennsail/rajomon"
@@ -17,6 +18,12 @@ import (
 	"google.golang.org/grpc/reflection"
 )
 
+
+
+func init() {
+	rpcpolicy.MustValidatePolicyEnv([]string{		"f1",
+	})
+}
 
 type Server struct {
 	pb.UnimplementedBackend2Server
@@ -71,16 +78,16 @@ func (s *Server) Run() error {
 	pb.RegisterBackend2Server(srv, s)
 	var conn *grpc.ClientConn
 	if sidecar {
-		conn = pkg.GetConn(utils.GetEnvVar("backend2_EGRESS", true))
+		conn = pkg.DialClient(utils.GetEnvVar("backend2_EGRESS", true), sidecar)
 	}
 	if !sidecar {
 		addr := utils.GetEnvVar("backend4_ADDR", true)
 		if useRajomon {
-			conn = pkg.GetRajomonClient(addr, grpc.WithUnaryInterceptor(priceTable.UnaryInterceptorClient))
+			conn = pkg.DialClient(addr, sidecar, priceTable.UnaryInterceptorClient)
 		} else if useDagor {
-			conn = pkg.GetConn(addr, grpc.WithUnaryInterceptor(dagorNode.UnaryInterceptorClient))
+			conn = pkg.DialClient(addr, sidecar, dagorNode.UnaryInterceptorClient)
 		} else {
-			conn = pkg.GetConn(addr)
+			conn = pkg.DialClient(addr, sidecar)
 		}
 	}
 	s.Backend4Client = pb.NewBackend4Client(conn)

@@ -8,6 +8,7 @@ import (
 	pb "pfanout2/protobuf"
 	dagorinit "pfanout2/dagor_init"
 	rajomoninit "pfanout2/rajomon_init"
+	"pfanout2/pkg/rpcpolicy"
 	"pfanout2/utils"
 
 	"google.golang.org/grpc"
@@ -15,6 +16,11 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 )
+
+func init() {
+	rpcpolicy.MustValidatePolicyEnv([]string{		"api",
+	})
+}
 
 var log = utils.GetLogger("rajomon-client")
 
@@ -46,11 +52,11 @@ func (s *Server) Run() error {
 	if useRajomon {
 		pt := rajomoninit.GetPriceTable("client", true)
 		log.Info("creating gRPC client (connection is lazy until first RPC)", "target", addr)
-		conn = pkg.GetRajomonClient(addr, grpc.WithUnaryInterceptor(pt.UnaryInterceptorEnduser))
+		conn = pkg.DialClient(addr, false, pt.UnaryInterceptorEnduser)
 	} else {
 		dn := dagorinit.GetDagorNode("client", false, true)
 		log.Info("creating gRPC client (connection is lazy until first RPC)", "target", addr)
-		conn = pkg.GetConn(addr, grpc.WithUnaryInterceptor(dn.UnaryInterceptorClient))
+		conn = pkg.DialClient(addr, false, dn.UnaryInterceptorClient)
 	}
 	s.grpcTarget = addr
 	s.client = pb.NewFrontendClient(conn)
@@ -70,6 +76,8 @@ func (s *Server) Run() error {
 
 func (s *Server) handle_Api(w http.ResponseWriter, r *http.Request) {
 	ctx := metadata.AppendToOutgoingContext(r.Context(), "method", "api", "api", "api")
+	ctx, cancel := rpcpolicy.MaybeDeadlineForAPI(ctx, "api")
+	defer cancel()
 	_, err := s.client.Api(ctx, &pb.Request{})
 	if err != nil {
 		st := status.Code(err)

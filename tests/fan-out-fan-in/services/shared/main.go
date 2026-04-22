@@ -9,6 +9,7 @@ import (
 	dagor "fanoutfanin/dagor"
 	dagorinit "fanoutfanin/dagor_init"
 	rajomoninit "fanoutfanin/rajomon_init"
+	"fanoutfanin/pkg/rpcpolicy"
 	"fanoutfanin/utils"
 
 	"github.com/pennsail/rajomon"
@@ -17,6 +18,12 @@ import (
 	"google.golang.org/grpc/reflection"
 )
 
+
+
+func init() {
+	rpcpolicy.MustValidatePolicyEnv([]string{		"f1",		"g1",
+	})
+}
 
 type Server struct {
 	pb.UnimplementedSharedServer

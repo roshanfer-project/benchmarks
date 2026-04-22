@@ -1,14 +1,22 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strings"
+	"oneservice/pkg/rpcpolicy"
 	"oneservice/utils"
 
 	"google.golang.org/grpc/metadata"
 )
 
+
+
+func init() {
+	rpcpolicy.MustValidatePolicyEnv([]string{		"f1",
+	})
+}
 
 type Server struct {
 }
@@ -57,6 +65,11 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 	switch path {
 	case "f1":
 		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "f1", "rpc-id", rpcID))
+		if !sidecar {
+			var cancel context.CancelFunc
+			ctx, cancel = rpcpolicy.MaybeDeadlineForAPI(ctx, "f1")
+			defer cancel()
+		}
 		utils.BusyLoop(160)
 
 

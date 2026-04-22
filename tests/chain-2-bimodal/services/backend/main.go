@@ -9,6 +9,7 @@ import (
 	dagor "chain2bimodal/dagor"
 	dagorinit "chain2bimodal/dagor_init"
 	rajomoninit "chain2bimodal/rajomon_init"
+	"chain2bimodal/pkg/rpcpolicy"
 	"chain2bimodal/utils"
 
 	"github.com/pennsail/rajomon"
@@ -43,6 +44,12 @@ func benchFloat() float64 {
 	return benchRng.r.Float64()
 }
 
+
+
+func init() {
+	rpcpolicy.MustValidatePolicyEnv([]string{		"f1",
+	})
+}
 
 type Server struct {
 	pb.UnimplementedBackendServer

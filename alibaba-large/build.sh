@@ -91,6 +91,10 @@ echo "Building MS_7103..."
 docker build --build-arg SERVICE=services/MS_7103 -f Dockerfile -t "${REGISTRY}/${BENCH}-ms-7103:${TAG}" .
 echo "Building MS_9105..."
 docker build --build-arg SERVICE=services/MS_9105 -f Dockerfile -t "${REGISTRY}/${BENCH}-ms-9105:${TAG}" .
+echo "Building ms-64512-grpc..."
+docker build --build-arg SERVICE=services/ms-64512-grpc -f Dockerfile -t "${REGISTRY}/${BENCH}-ms-64512-grpc:${TAG}" .
+echo "Building rajomon-client..."
+docker build --build-arg SERVICE=services/rajomon-client -f Dockerfile -t "${REGISTRY}/${BENCH}-rajomon-client:${TAG}" .
 
 echo "Pushing images..."
 if [ -n "$SIDECAR_DIR" ]; then
@@ -125,6 +129,8 @@ docker push "${REGISTRY}/${BENCH}-ms-67465:${TAG}"
 docker push "${REGISTRY}/${BENCH}-ms-70124:${TAG}"
 docker push "${REGISTRY}/${BENCH}-ms-7103:${TAG}"
 docker push "${REGISTRY}/${BENCH}-ms-9105:${TAG}"
+docker push "${REGISTRY}/${BENCH}-ms-64512-grpc:${TAG}"
+docker push "${REGISTRY}/${BENCH}-rajomon-client:${TAG}"
 
 if [ -n "$STATUS_FILE" ]; then
   mkdir -p "$(dirname "$STATUS_FILE")"

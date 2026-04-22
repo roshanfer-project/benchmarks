@@ -3,13 +3,24 @@ package pkg
 import (
 	"time"
 
+	"alibabalarge/pkg/rpcpolicy"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/keepalive"
 )
 
-func GetConn(addr string) *grpc.ClientConn {
-	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+// DialClient dials addr with optional retry policy (when sidecar is false) and unary client interceptors (inner chain).
+func DialClient(addr string, sidecar bool, unary ...grpc.UnaryClientInterceptor) *grpc.ClientConn {
+	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
+	var chain []grpc.UnaryClientInterceptor
+	if r := rpcpolicy.RetryUnaryInterceptorOpt(sidecar); r != nil {
+		chain = append(chain, r)
+	}
+	chain = append(chain, unary...)
+	if len(chain) > 0 {
+		opts = append(opts, grpc.WithChainUnaryInterceptor(chain...))
+	}
+	conn, err := grpc.NewClient(addr, opts...)
 	if err != nil {
 		panic("did not connect: " + err.Error())
 	}

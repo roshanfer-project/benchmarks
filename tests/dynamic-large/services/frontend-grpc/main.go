@@ -9,6 +9,7 @@ import (
 	dagor "dynamiclarge/dagor"
 	dagorinit "dynamiclarge/dagor_init"
 	rajomoninit "dynamiclarge/rajomon_init"
+	"dynamiclarge/pkg/rpcpolicy"
 	"dynamiclarge/utils"
 
 	"github.com/pennsail/rajomon"
@@ -17,6 +18,12 @@ import (
 	"google.golang.org/grpc/reflection"
 )
 
+
+
+func init() {
+	rpcpolicy.MustValidatePolicyEnv([]string{		"f1",
+	})
+}
 
 type Server struct {
 	pb.UnimplementedFrontendServer
@@ -55,9 +62,9 @@ func (s *Server) Run() error {
 		addr := utils.GetEnvVar("backend1_ADDR", true)
 		var conn *grpc.ClientConn
 		if useRajomon {
-			conn = pkg.GetRajomonClient(addr, grpc.WithUnaryInterceptor(pt.UnaryInterceptorClient))
+			conn = pkg.DialClient(addr, false, pt.UnaryInterceptorClient)
 		} else {
-			conn = pkg.GetConn(addr, grpc.WithUnaryInterceptor(dn.UnaryInterceptorClient))
+			conn = pkg.DialClient(addr, false, dn.UnaryInterceptorClient)
 		}
 		s.Backend1Client = pb.NewBackend1Client(conn)
 	}

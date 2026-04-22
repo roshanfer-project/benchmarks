@@ -7,3 +7,5 @@ cd ../callgraph-framework && go run ./cmd/gen ../alibaba-large/callgraph.json -o
 ```
 
 Deploy: ./build.sh [tag] && ./deploy.sh
+
+Load tests: **`run.sh`** / **`run-plain.sh`** take **`PROTOCOL API OUTPUT_DIR`**; rates/durations come from **`RWG_RATES`** and **`RWG_DURATIONS`** (set by **`exec.runner`**). See **`callgraph-framework/README.md`**.

@@ -9,6 +9,7 @@ import (
 	dagor "leafdiverse/dagor"
 	dagorinit "leafdiverse/dagor_init"
 	rajomoninit "leafdiverse/rajomon_init"
+	"leafdiverse/pkg/rpcpolicy"
 	"leafdiverse/utils"
 
 	"github.com/pennsail/rajomon"
@@ -17,6 +18,12 @@ import (
 	"google.golang.org/grpc/reflection"
 )
 
+
+
+func init() {
+	rpcpolicy.MustValidatePolicyEnv([]string{		"f1",		"f2",
+	})
+}
 
 type Server struct {
 	pb.UnimplementedFrontendServer

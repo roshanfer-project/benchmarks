@@ -9,6 +9,7 @@ import (
 	dagor "fanout4/dagor"
 	dagorinit "fanout4/dagor_init"
 	rajomoninit "fanout4/rajomon_init"
+	"fanout4/pkg/rpcpolicy"
 	"fanout4/utils"
 
 	"github.com/pennsail/rajomon"
@@ -17,6 +18,12 @@ import (
 	"google.golang.org/grpc/reflection"
 )
 
+
+
+func init() {
+	rpcpolicy.MustValidatePolicyEnv([]string{		"f1",
+	})
+}
 
 type Server struct {
 	pb.UnimplementedFrontendServer
@@ -58,9 +65,9 @@ func (s *Server) Run() error {
 		addr := utils.GetEnvVar("backend1_ADDR", true)
 		var conn *grpc.ClientConn
 		if useRajomon {
-			conn = pkg.GetRajomonClient(addr, grpc.WithUnaryInterceptor(pt.UnaryInterceptorClient))
+			conn = pkg.DialClient(addr, false, pt.UnaryInterceptorClient)
 		} else {
-			conn = pkg.GetConn(addr, grpc.WithUnaryInterceptor(dn.UnaryInterceptorClient))
+			conn = pkg.DialClient(addr, false, dn.UnaryInterceptorClient)
 		}
 		s.Backend1Client = pb.NewBackend1Client(conn)
 	}
@@ -68,9 +75,9 @@ func (s *Server) Run() error {
 		addr := utils.GetEnvVar("backend2_ADDR", true)
 		var conn *grpc.ClientConn
 		if useRajomon {
-			conn = pkg.GetRajomonClient(addr, grpc.WithUnaryInterceptor(pt.UnaryInterceptorClient))
+			conn = pkg.DialClient(addr, false, pt.UnaryInterceptorClient)
 		} else {
-			conn = pkg.GetConn(addr, grpc.WithUnaryInterceptor(dn.UnaryInterceptorClient))
+			conn = pkg.DialClient(addr, false, dn.UnaryInterceptorClient)
 		}
 		s.Backend2Client = pb.NewBackend2Client(conn)
 	}
@@ -78,9 +85,9 @@ func (s *Server) Run() error {
 		addr := utils.GetEnvVar("backend3_ADDR", true)
 		var conn *grpc.ClientConn
 		if useRajomon {
-			conn = pkg.GetRajomonClient(addr, grpc.WithUnaryInterceptor(pt.UnaryInterceptorClient))
+			conn = pkg.DialClient(addr, false, pt.UnaryInterceptorClient)
 		} else {
-			conn = pkg.GetConn(addr, grpc.WithUnaryInterceptor(dn.UnaryInterceptorClient))
+			conn = pkg.DialClient(addr, false, dn.UnaryInterceptorClient)
 		}
 		s.Backend3Client = pb.NewBackend3Client(conn)
 	}
@@ -88,9 +95,9 @@ func (s *Server) Run() error {
 		addr := utils.GetEnvVar("backend4_ADDR", true)
 		var conn *grpc.ClientConn
 		if useRajomon {
-			conn = pkg.GetRajomonClient(addr, grpc.WithUnaryInterceptor(pt.UnaryInterceptorClient))
+			conn = pkg.DialClient(addr, false, pt.UnaryInterceptorClient)
 		} else {
-			conn = pkg.GetConn(addr, grpc.WithUnaryInterceptor(dn.UnaryInterceptorClient))
+			conn = pkg.DialClient(addr, false, dn.UnaryInterceptorClient)
 		}
 		s.Backend4Client = pb.NewBackend4Client(conn)
 	}

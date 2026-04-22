@@ -1,17 +1,17 @@
 #!/bin/bash
-# Usage: $0 PROTOCOL BASE RATE DURATION API OUTPUT_DIR
-if [ -z "$2" ] || [ -z "$3" ] || [ -z "$4" ] || [ -z "$5" ] || [ -z "$6" ]; then
+# Usage: $0 PROTOCOL API OUTPUT_DIR
+# Requires RWG_RATES and RWG_DURATIONS (comma-separated), set by the executor.
+if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ]; then
   echo "Error: Missing required arguments"
-  echo "Usage: $0 PROTOCOL BASE RATE DURATION API OUTPUT_DIR"
+  echo "Usage: $0 PROTOCOL API OUTPUT_DIR"
   exit 1
 fi
+: "${RWG_RATES:?RWG_RATES must be set}"
+: "${RWG_DURATIONS:?RWG_DURATIONS must be set}"
 
 protocol=$1
-BASE=$2
-RATE=$3
-DURATION=$4
-API=$5
-output_dir="$6/out-$API.csv"
+API=$2
+output_dir="$3/out-$API.csv"
 address="${TARGET_ADDR:-192.168.1.100}"
 
 if [ "$protocol" == "grpc" ]; then
@@ -25,6 +25,6 @@ else
         exit 1
     fi
     echo "url: $url"
-    "$RWG_BINARY" run --url $url -d exp -D 2,$DURATION -r $BASE,$RATE -w 5000 -o $output_dir -t 15
+    "$RWG_BINARY" run --url $url -d exp -D "$RWG_DURATIONS" -r "$RWG_RATES" -w 5000 -o $output_dir -t 15
     exit "$?"
 fi

@@ -9,6 +9,7 @@ import (
 	dagor "pfanout2/dagor"
 	dagorinit "pfanout2/dagor_init"
 	rajomoninit "pfanout2/rajomon_init"
+	"pfanout2/pkg/rpcpolicy"
 	"pfanout2/utils"
 
 	"github.com/pennsail/rajomon"
@@ -18,6 +19,12 @@ import (
 	"sync"
 )
 
+
+
+func init() {
+	rpcpolicy.MustValidatePolicyEnv([]string{		"api",
+	})
+}
 
 type Server struct {
 	pb.UnimplementedFrontendServer
@@ -57,9 +64,9 @@ func (s *Server) Run() error {
 		addr := utils.GetEnvVar("backend1_ADDR", true)
 		var conn *grpc.ClientConn
 		if useRajomon {
-			conn = pkg.GetRajomonClient(addr, grpc.WithUnaryInterceptor(pt.UnaryInterceptorClient))
+			conn = pkg.DialClient(addr, false, pt.UnaryInterceptorClient)
 		} else {
-			conn = pkg.GetConn(addr, grpc.WithUnaryInterceptor(dn.UnaryInterceptorClient))
+			conn = pkg.DialClient(addr, false, dn.UnaryInterceptorClient)
 		}
 		s.Backend1Client = pb.NewBackend1Client(conn)
 	}
@@ -67,9 +74,9 @@ func (s *Server) Run() error {
 		addr := utils.GetEnvVar("backend2_ADDR", true)
 		var conn *grpc.ClientConn
 		if useRajomon {
-			conn = pkg.GetRajomonClient(addr, grpc.WithUnaryInterceptor(pt.UnaryInterceptorClient))
+			conn = pkg.DialClient(addr, false, pt.UnaryInterceptorClient)
 		} else {
-			conn = pkg.GetConn(addr, grpc.WithUnaryInterceptor(dn.UnaryInterceptorClient))
+			conn = pkg.DialClient(addr, false, dn.UnaryInterceptorClient)
 		}
 		s.Backend2Client = pb.NewBackend2Client(conn)
 	}

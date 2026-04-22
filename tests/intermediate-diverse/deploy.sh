@@ -89,6 +89,20 @@ select(.kind == "Pod") |= (.spec.containers |= map(
   fi
 }
 
+# Forward BENCH_RPC_* from the deploy environment (set by exec executor: slos, fault-tolerance,
+# deploy_env) into the workload configmap. Without this, deadline/retry policy never reaches pods.
+append_bench_rpc_env_from_shell() {
+  local target=$1
+  local var
+  while IFS= read -r var; do
+    case "$var" in
+      BENCH_RPC_*)
+        printf '%s=%s\n' "$var" "${!var}" >> "$target"
+        ;;
+    esac
+  done < <(compgen -e | LC_ALL=C sort -u)
+}
+
 if [ "$MODE" = "sidecar" ]; then
   if [ "$SIDECAR_DEBUG" = "1" ]; then
     sidecar_debug_require_yq
@@ -97,6 +111,7 @@ if [ "$MODE" = "sidecar" ]; then
   cat k8s/sidecar.env > "$TMP_DIR/sidecar_merged.env"
   echo "" >> "$TMP_DIR/sidecar_merged.env"
   echo "queuing_export=${queuing_export}" >> "$TMP_DIR/sidecar_merged.env"
+  append_bench_rpc_env_from_shell "$TMP_DIR/sidecar_merged.env"
   kubectl create configmap intermediate-diverse-config --from-env-file="$TMP_DIR/sidecar_merged.env" --dry-run=client -o yaml > "$TMP_DIR/configmap.yaml"
   kubectl apply -f "$TMP_DIR/configmap.yaml"
   kubectl apply -f k8s/manifests/sidecar-configs.yaml
@@ -139,6 +154,7 @@ elif [ "$MODE" = "rajomon" ]; then
   K8S_NS=${K8S_NS:-$(kubectl config view --minify -o jsonpath='{..namespace}' 2>/dev/null)}
   K8S_NS=${K8S_NS:-default}
   sed -i "s|=${BENCH}-\([^=]*\):2000|=${BENCH}-\1.${K8S_NS}.svc.cluster.local:2000|g" "$TMP_DIR/rajomon_merged.env"
+  append_bench_rpc_env_from_shell "$TMP_DIR/rajomon_merged.env"
   kubectl create configmap intermediate-diverse-config --from-env-file="$TMP_DIR/rajomon_merged.env" --dry-run=client -o yaml > "$TMP_DIR/configmap.yaml"
   kubectl apply -f "$TMP_DIR/configmap.yaml"
 
@@ -166,6 +182,7 @@ elif [ "$MODE" = "dagor" ]; then
   K8S_NS=${K8S_NS:-$(kubectl config view --minify -o jsonpath='{..namespace}' 2>/dev/null)}
   K8S_NS=${K8S_NS:-default}
   sed -i "s|=${BENCH}-\([^=]*\):2000|=${BENCH}-\1.${K8S_NS}.svc.cluster.local:2000|g" "$TMP_DIR/dagor_merged.env"
+  append_bench_rpc_env_from_shell "$TMP_DIR/dagor_merged.env"
   kubectl create configmap intermediate-diverse-config --from-env-file="$TMP_DIR/dagor_merged.env" --dry-run=client -o yaml > "$TMP_DIR/configmap.yaml"
   kubectl apply -f "$TMP_DIR/configmap.yaml"
 
@@ -182,7 +199,10 @@ elif [ "$MODE" = "dagor" ]; then
     kubectl_wait_ready_or_fail "${SVC}" "${WAIT_TIMEOUT}"
   done
 else
-  kubectl create configmap intermediate-diverse-config --from-env-file=k8s/plain.env --dry-run=client -o yaml > "$TMP_DIR/configmap.yaml"
+  cat k8s/plain.env > "$TMP_DIR/plain_merged.env"
+  echo "" >> "$TMP_DIR/plain_merged.env"
+  append_bench_rpc_env_from_shell "$TMP_DIR/plain_merged.env"
+  kubectl create configmap intermediate-diverse-config --from-env-file="$TMP_DIR/plain_merged.env" --dry-run=client -o yaml > "$TMP_DIR/configmap.yaml"
   kubectl apply -f "$TMP_DIR/configmap.yaml"
 
   kubectl apply -f k8s/manifests/prometheus.yaml

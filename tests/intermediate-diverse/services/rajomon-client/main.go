@@ -8,6 +8,7 @@ import (
 	pb "intermediatediverse/protobuf"
 	dagorinit "intermediatediverse/dagor_init"
 	rajomoninit "intermediatediverse/rajomon_init"
+	"intermediatediverse/pkg/rpcpolicy"
 	"intermediatediverse/utils"
 
 	"google.golang.org/grpc"
@@ -15,6 +16,11 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 )
+
+func init() {
+	rpcpolicy.MustValidatePolicyEnv([]string{		"f1",		"f2",		"f3",
+	})
+}
 
 var log = utils.GetLogger("rajomon-client")
 
@@ -46,11 +52,11 @@ func (s *Server) Run() error {
 	if useRajomon {
 		pt := rajomoninit.GetPriceTable("client", true)
 		log.Info("creating gRPC client (connection is lazy until first RPC)", "target", addr)
-		conn = pkg.GetRajomonClient(addr, grpc.WithUnaryInterceptor(pt.UnaryInterceptorEnduser))
+		conn = pkg.DialClient(addr, false, pt.UnaryInterceptorEnduser)
 	} else {
 		dn := dagorinit.GetDagorNode("client", false, true)
 		log.Info("creating gRPC client (connection is lazy until first RPC)", "target", addr)
-		conn = pkg.GetConn(addr, grpc.WithUnaryInterceptor(dn.UnaryInterceptorClient))
+		conn = pkg.DialClient(addr, false, dn.UnaryInterceptorClient)
 	}
 	s.grpcTarget = addr
 	s.client = pb.NewFrontendClient(conn)
@@ -72,6 +78,8 @@ func (s *Server) Run() error {
 
 func (s *Server) handle_F1(w http.ResponseWriter, r *http.Request) {
 	ctx := metadata.AppendToOutgoingContext(r.Context(), "method", "f1", "api", "f1")
+	ctx, cancel := rpcpolicy.MaybeDeadlineForAPI(ctx, "f1")
+	defer cancel()
 	_, err := s.client.F1(ctx, &pb.Request{})
 	if err != nil {
 		st := status.Code(err)
@@ -95,6 +103,8 @@ func (s *Server) handle_F1(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handle_F2(w http.ResponseWriter, r *http.Request) {
 	ctx := metadata.AppendToOutgoingContext(r.Context(), "method", "f2", "api", "f2")
+	ctx, cancel := rpcpolicy.MaybeDeadlineForAPI(ctx, "f2")
+	defer cancel()
 	_, err := s.client.F2(ctx, &pb.Request{})
 	if err != nil {
 		st := status.Code(err)
@@ -118,6 +128,8 @@ func (s *Server) handle_F2(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handle_F3(w http.ResponseWriter, r *http.Request) {
 	ctx := metadata.AppendToOutgoingContext(r.Context(), "method", "f3", "api", "f3")
+	ctx, cancel := rpcpolicy.MaybeDeadlineForAPI(ctx, "f3")
+	defer cancel()
 	_, err := s.client.F3(ctx, &pb.Request{})
 	if err != nil {
 		st := status.Code(err)

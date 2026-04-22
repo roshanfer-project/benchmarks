@@ -15,6 +15,10 @@ if [ "$MODE" = "sidecar" ] && [ -n "$ARG2" ] && [ "$ARG2" != "debug" ]; then
   echo "deploy.sh: unknown second argument: $ARG2 (expected: debug)" >&2
   exit 1
 fi
+if { [ "$MODE" = "rajomon" ] || [ "$MODE" = "dagor" ]; } && [ -n "$ARG2" ]; then
+  echo "deploy.sh: rajomon and dagor modes do not take a second argument" >&2
+  exit 1
+fi
 SIDECAR_DEBUG=0
 if [ "$MODE" = "sidecar" ] && [ "$ARG2" = "debug" ]; then
   SIDECAR_DEBUG=1
@@ -74,14 +78,13 @@ sidecar_debug_patch_workload_yaml() {
   if [ -n "$GV_VAL" ] || [ -n "$VM_VAL" ]; then
     yq eval-all '
 select(.kind == "Pod") |= (.spec.containers |= map(
-  if .name == "sidecar" then
+  select(.name == "sidecar") |= (
     (.env // []) as $e |
     ($e | map(select(.name != "GLOG_v" and .name != "GLOG_vmodule"))) as $base |
-    .env = $base
-      + (if (strenv(GV_VAL) | length) > 0 then [{"name":"GLOG_v","value":strenv(GV_VAL)}] else [] end)
-      + (if (strenv(VM_VAL) | length) > 0 then [{"name":"GLOG_vmodule","value":strenv(VM_VAL)}] else [] end)
-  else .
-  end
+    ([{"name":"GLOG_v","value":strenv(GV_VAL)},{"name":"GLOG_vmodule","value":strenv(VM_VAL)}]
+      | map(select(.value != ""))) as $add |
+    .env = $base + $add
+  )
 ))' -i "$f"
   fi
 }
@@ -118,6 +121,66 @@ if [ "$MODE" = "sidecar" ]; then
   fi
   kubectl apply -f "$TMP_DIR/ingress.yaml"
   kubectl_wait_ready_or_fail ingress 30
+elif [ "$MODE" = "rajomon" ]; then
+  PRICE_UPDATE_RATE=${priceUpdateRate}
+  LATENCY_THRESHOLD=${latencyThreshold}
+  TOKEN_UPDATE_RATE=${tokenUpdateRate}
+  PRICE_STEP=${priceStep}
+  TOKEN_UPDATE_STEP=${tokenUpdateStep}
+  echo "Using Rajomon config:"
+  echo "  priceUpdateRate=$PRICE_UPDATE_RATE latencyThreshold=$LATENCY_THRESHOLD tokenUpdateRate=$TOKEN_UPDATE_RATE priceStep=$PRICE_STEP tokenUpdateStep=$TOKEN_UPDATE_STEP"
+  cat k8s/rajomon.env > "$TMP_DIR/rajomon_merged.env"
+  echo "" >> "$TMP_DIR/rajomon_merged.env"
+  echo "priceUpdateRate=$PRICE_UPDATE_RATE" >> "$TMP_DIR/rajomon_merged.env"
+  echo "latencyThreshold=$LATENCY_THRESHOLD" >> "$TMP_DIR/rajomon_merged.env"
+  echo "tokenUpdateRate=$TOKEN_UPDATE_RATE" >> "$TMP_DIR/rajomon_merged.env"
+  echo "priceStep=$PRICE_STEP" >> "$TMP_DIR/rajomon_merged.env"
+  echo "tokenUpdateStep=$TOKEN_UPDATE_STEP" >> "$TMP_DIR/rajomon_merged.env"
+  K8S_NS=${K8S_NS:-$(kubectl config view --minify -o jsonpath='{..namespace}' 2>/dev/null)}
+  K8S_NS=${K8S_NS:-default}
+  sed -i "s|=${BENCH}-\([^=]*\):2000|=${BENCH}-\1.${K8S_NS}.svc.cluster.local:2000|g" "$TMP_DIR/rajomon_merged.env"
+  kubectl create configmap alibaba-large-config --from-env-file="$TMP_DIR/rajomon_merged.env" --dry-run=client -o yaml > "$TMP_DIR/configmap.yaml"
+  kubectl apply -f "$TMP_DIR/configmap.yaml"
+
+  kubectl apply -f k8s/manifests/prometheus.yaml
+  kubectl_wait_ready_or_fail prometheus-pushgateway 60
+  kubectl_wait_ready_or_fail prometheus 60
+
+  cp k8s/manifests/app-grpc.yaml "$TMP_DIR/app-grpc.yaml"
+  for IMG in ms-12657 ms-14758 ms-18750 ms-19439 ms-21298 ms-25781 ms-25806 ms-2687 ms-33572 ms-38190 ms-40087 ms-41667 ms-43032 ms-43754 ms-44246 ms-45067 ms-51783 ms-51787 ms-53792 ms-56113 ms-5720 ms-58796 ms-62039 ms-64512-grpc ms-66921 ms-67465 ms-70124 ms-7103 ms-9105 rajomon-client; do
+    sed -i "s|${BENCH}-${IMG}:latest|${REGISTRY}/${BENCH}-${IMG}:${TAG}|g" "$TMP_DIR/app-grpc.yaml"
+  done
+  for SVC in ms-14758 ms-12657 ms-45067 ms-7103 ms-19439 ms-56113 ms-25806 ms-21298 ms-25781 ms-2687 ms-40087 ms-43032 ms-51783 ms-44246 ms-51787 ms-41667 ms-33572 ms-5720 ms-53792 ms-38190 ms-58796 ms-18750 ms-62039 ms-43754 ms-66921 ms-67465 ms-70124 ms-9105 ms-64512-grpc rajomon-client; do
+    kubectl apply -f "$TMP_DIR/app-grpc.yaml" -l app="${SVC}"
+    kubectl_wait_ready_or_fail "${SVC}" "${WAIT_TIMEOUT}"
+  done
+elif [ "$MODE" = "dagor" ]; then
+  cat k8s/dagor.env > "$TMP_DIR/dagor_merged.env"
+  echo "" >> "$TMP_DIR/dagor_merged.env"
+  if [ -n "$Alpha" ]; then
+    echo "Alpha=$Alpha" >> "$TMP_DIR/dagor_merged.env"
+  fi
+  if [ -n "$Beta" ]; then
+    echo "Beta=$Beta" >> "$TMP_DIR/dagor_merged.env"
+  fi
+  K8S_NS=${K8S_NS:-$(kubectl config view --minify -o jsonpath='{..namespace}' 2>/dev/null)}
+  K8S_NS=${K8S_NS:-default}
+  sed -i "s|=${BENCH}-\([^=]*\):2000|=${BENCH}-\1.${K8S_NS}.svc.cluster.local:2000|g" "$TMP_DIR/dagor_merged.env"
+  kubectl create configmap alibaba-large-config --from-env-file="$TMP_DIR/dagor_merged.env" --dry-run=client -o yaml > "$TMP_DIR/configmap.yaml"
+  kubectl apply -f "$TMP_DIR/configmap.yaml"
+
+  kubectl apply -f k8s/manifests/prometheus.yaml
+  kubectl_wait_ready_or_fail prometheus-pushgateway 60
+  kubectl_wait_ready_or_fail prometheus 60
+
+  cp k8s/manifests/app-grpc.yaml "$TMP_DIR/app-grpc.yaml"
+  for IMG in ms-12657 ms-14758 ms-18750 ms-19439 ms-21298 ms-25781 ms-25806 ms-2687 ms-33572 ms-38190 ms-40087 ms-41667 ms-43032 ms-43754 ms-44246 ms-45067 ms-51783 ms-51787 ms-53792 ms-56113 ms-5720 ms-58796 ms-62039 ms-64512-grpc ms-66921 ms-67465 ms-70124 ms-7103 ms-9105 rajomon-client; do
+    sed -i "s|${BENCH}-${IMG}:latest|${REGISTRY}/${BENCH}-${IMG}:${TAG}|g" "$TMP_DIR/app-grpc.yaml"
+  done
+  for SVC in ms-14758 ms-12657 ms-45067 ms-7103 ms-19439 ms-56113 ms-25806 ms-21298 ms-25781 ms-2687 ms-40087 ms-43032 ms-51783 ms-44246 ms-51787 ms-41667 ms-33572 ms-5720 ms-53792 ms-38190 ms-58796 ms-18750 ms-62039 ms-43754 ms-66921 ms-67465 ms-70124 ms-9105 ms-64512-grpc rajomon-client; do
+    kubectl apply -f "$TMP_DIR/app-grpc.yaml" -l app="${SVC}"
+    kubectl_wait_ready_or_fail "${SVC}" "${WAIT_TIMEOUT}"
+  done
 else
   kubectl create configmap alibaba-large-config --from-env-file=k8s/plain.env --dry-run=client -o yaml > "$TMP_DIR/configmap.yaml"
   kubectl apply -f "$TMP_DIR/configmap.yaml"

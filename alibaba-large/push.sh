@@ -37,5 +37,7 @@ docker push "${REGISTRY}/${BENCH}-ms-67465:${TAG}"
 docker push "${REGISTRY}/${BENCH}-ms-70124:${TAG}"
 docker push "${REGISTRY}/${BENCH}-ms-7103:${TAG}"
 docker push "${REGISTRY}/${BENCH}-ms-9105:${TAG}"
+docker push "${REGISTRY}/${BENCH}-ms-64512-grpc:${TAG}"
+docker push "${REGISTRY}/${BENCH}-rajomon-client:${TAG}"
 
 echo "Push complete."
