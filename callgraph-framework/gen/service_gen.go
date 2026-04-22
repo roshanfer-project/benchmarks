@@ -15,6 +15,9 @@ func GenerateServices(pg *ParsedGraph, module string, outDir string) error {
 	if err := writeUtils(outDir); err != nil {
 		return err
 	}
+	if err := writeRPCPolicy(outDir); err != nil {
+		return err
+	}
 	if err := writeGRPCClient(module, outDir); err != nil {
 		return err
 	}
@@ -49,6 +52,16 @@ func sortedServices(pg *ParsedGraph) []string {
 	names := make([]string, 0, len(pg.Services))
 	for n := range pg.Services {
 		names = append(names, n)
+	}
+	sort.Strings(names)
+	return names
+}
+
+func entryAPINames(pg *ParsedGraph) []string {
+	entries := pg.EntryInterfaces()
+	names := make([]string, 0, len(entries))
+	for _, n := range entries {
+		names = append(names, n.Interface)
 	}
 	sort.Strings(names)
 	return names
@@ -440,26 +453,24 @@ func writeGRPCClient(module string, outDir string) error {
 import (
 	"time"
 
+	"{{.Module}}/pkg/rpcpolicy"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/keepalive"
 )
 
-func GetConn(addr string, extra ...grpc.DialOption) *grpc.ClientConn {
+// DialClient dials addr with optional retry policy (when sidecar is false) and unary client interceptors (inner chain).
+func DialClient(addr string, sidecar bool, unary ...grpc.UnaryClientInterceptor) *grpc.ClientConn {
 	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
-	opts = append(opts, extra...)
-	conn, err := grpc.NewClient(addr, opts...)
-	if err != nil {
-		panic("did not connect: " + err.Error())
+	var chain []grpc.UnaryClientInterceptor
+	if r := rpcpolicy.RetryUnaryInterceptorOpt(sidecar); r != nil {
+		chain = append(chain, r)
 	}
-	return conn
-}
-
-func GetRajomonClient(addr string, interceptor grpc.DialOption) *grpc.ClientConn {
-	conn, err := grpc.NewClient(addr,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		interceptor,
-	)
+	chain = append(chain, unary...)
+	if len(chain) > 0 {
+		opts = append(opts, grpc.WithChainUnaryInterceptor(chain...))
+	}
+	conn, err := grpc.NewClient(addr, opts...)
 	if err != nil {
 		panic("did not connect: " + err.Error())
 	}
@@ -494,6 +505,7 @@ type entryServiceData struct {
 	UseSingleConn  bool
 	NeedBenchRng   bool
 	NeedParallel   bool
+	EntryAPIs      []string
 }
 
 type entryHandlerData struct {
@@ -629,6 +641,7 @@ func generateEntryService(pg *ParsedGraph, module string, svcName string, outDir
 		UseSingleConn: true,
 		NeedBenchRng:  needBenchRng,
 		NeedParallel:  needPar,
+		EntryAPIs:     entryAPINames(pg),
 	}
 	return renderTemplate(entryServiceTmpl, data, filepath.Join(outDir, "services", svcName, "main.go"))
 }
@@ -636,9 +649,11 @@ func generateEntryService(pg *ParsedGraph, module string, svcName string, outDir
 var entryServiceTmpl = `package main
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strings"
+	"{{.Module}}/pkg/rpcpolicy"
 	"{{.Module}}/utils"
 
 	"google.golang.org/grpc/metadata"{{if .Clients}}
@@ -675,6 +690,14 @@ func benchFloat() float64 {
 }
 
 {{end}}
+
+func init() {
+	rpcpolicy.MustValidatePolicyEnv([]string{
+{{- range .EntryAPIs}}		"{{.}}",
+{{- end}}
+	})
+}
+
 type Server struct {
 {{- range .Clients}}
 	{{.ProtoMicroservice}}Client pb.{{.ProtoMicroservice}}Client
@@ -689,10 +712,10 @@ func (s *Server) Run() error {
 	sidecar := utils.GetEnvVar("sidecar", false) == "true"
 {{if .Clients}}	var conn *grpc.ClientConn
 	if sidecar {
-		conn = pkg.GetConn(utils.GetEnvVar("{{.EgressEnv}}", true))
+		conn = pkg.DialClient(utils.GetEnvVar("{{.EgressEnv}}", true), sidecar)
 	}
 {{range .Clients}}	if !sidecar {
-		conn = pkg.GetConn(utils.GetEnvVar("{{.AddrEnv}}", true))
+		conn = pkg.DialClient(utils.GetEnvVar("{{.AddrEnv}}", true), sidecar)
 	}
 	s.{{.ProtoMicroservice}}Client = pb.New{{.ProtoMicroservice}}Client(conn)
 {{end}}
@@ -734,6 +757,11 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 	switch path {
 {{range .Handlers}}	case "{{.Interface}}":
 		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "{{.Interface}}", "rpc-id", rpcID))
+		if !sidecar {
+			var cancel context.CancelFunc
+			ctx, cancel = rpcpolicy.MaybeDeadlineForAPI(ctx, "{{.Interface}}")
+			defer cancel()
+		}
 {{if .Bimodal}}		u := benchFloat()
 		if u < {{printf "%.9g" .BimodalP0}} {
 			utils.BusyLoop({{.BimodalR0}})
@@ -814,6 +842,7 @@ type grpcServiceData struct {
 	PortEnv          string
 	NeedBenchRng     bool
 	NeedParallel     bool
+	EntryAPIs        []string
 }
 
 type grpcAPICase struct {
@@ -874,6 +903,7 @@ func buildGRPCServiceData(pg *ParsedGraph, module string, svcName string) grpcSe
 		PortEnv:          svcName + "_PORT",
 		NeedBenchRng:     needBenchRng,
 		NeedParallel:     needPar,
+		EntryAPIs:        entryAPINames(pg),
 	}
 }
 
@@ -903,6 +933,7 @@ type rajomonClientData struct {
 	Module           string
 	ProtoServiceName string
 	Handlers         []rajomonClientHandler
+	EntryAPIs        []string
 }
 
 func generateRajomonClientService(pg *ParsedGraph, module string, outDir string) error {
@@ -916,6 +947,7 @@ func generateRajomonClientService(pg *ParsedGraph, module string, outDir string)
 		Module:           module,
 		ProtoServiceName: protoServiceName(entry),
 		Handlers:         handlers,
+		EntryAPIs:        entryAPINames(pg),
 	}
 	return renderTemplate(rajomonClientTmpl, data, filepath.Join(outDir, "services", "rajomon-client", "main.go"))
 }
@@ -931,6 +963,7 @@ import (
 	dagor "{{.Module}}/dagor"
 	dagorinit "{{.Module}}/dagor_init"
 	rajomoninit "{{.Module}}/rajomon_init"
+	"{{.Module}}/pkg/rpcpolicy"
 	"{{.Module}}/utils"
 
 	"github.com/pennsail/rajomon"
@@ -967,6 +1000,14 @@ func benchFloat() float64 {
 }
 
 {{end}}
+
+func init() {
+	rpcpolicy.MustValidatePolicyEnv([]string{
+{{- range .EntryAPIs}}		"{{.}}",
+{{- end}}
+	})
+}
+
 type Server struct {
 	pb.Unimplemented{{.ProtoServiceName}}Server
 {{- range .Clients}}
@@ -1022,16 +1063,16 @@ func (s *Server) Run() error {
 	pb.Register{{.ProtoServiceName}}Server(srv, s)
 {{if .Clients}}	var conn *grpc.ClientConn
 	if sidecar {
-		conn = pkg.GetConn(utils.GetEnvVar("{{.EgressEnv}}", true))
+		conn = pkg.DialClient(utils.GetEnvVar("{{.EgressEnv}}", true), sidecar)
 	}
 {{range .Clients}}	if !sidecar {
 		addr := utils.GetEnvVar("{{.AddrEnv}}", true)
 		if useRajomon {
-			conn = pkg.GetRajomonClient(addr, grpc.WithUnaryInterceptor(priceTable.UnaryInterceptorClient))
+			conn = pkg.DialClient(addr, sidecar, priceTable.UnaryInterceptorClient)
 		} else if useDagor {
-			conn = pkg.GetConn(addr, grpc.WithUnaryInterceptor(dagorNode.UnaryInterceptorClient))
+			conn = pkg.DialClient(addr, sidecar, dagorNode.UnaryInterceptorClient)
 		} else {
-			conn = pkg.GetConn(addr)
+			conn = pkg.DialClient(addr, sidecar)
 		}
 	}
 	s.{{.ProtoMicroservice}}Client = pb.New{{.ProtoMicroservice}}Client(conn)
@@ -1131,6 +1172,7 @@ import (
 	dagor "{{.Module}}/dagor"
 	dagorinit "{{.Module}}/dagor_init"
 	rajomoninit "{{.Module}}/rajomon_init"
+	"{{.Module}}/pkg/rpcpolicy"
 	"{{.Module}}/utils"
 
 	"github.com/pennsail/rajomon"
@@ -1167,6 +1209,14 @@ func benchFloat() float64 {
 }
 
 {{end}}
+
+func init() {
+	rpcpolicy.MustValidatePolicyEnv([]string{
+{{- range .EntryAPIs}}		"{{.}}",
+{{- end}}
+	})
+}
+
 type Server struct {
 	pb.Unimplemented{{.ProtoServiceName}}Server
 {{- range .Clients}}
@@ -1206,9 +1256,9 @@ func (s *Server) Run() error {
 		addr := utils.GetEnvVar("{{.AddrEnv}}", true)
 		var conn *grpc.ClientConn
 		if useRajomon {
-			conn = pkg.GetRajomonClient(addr, grpc.WithUnaryInterceptor(pt.UnaryInterceptorClient))
+			conn = pkg.DialClient(addr, false, pt.UnaryInterceptorClient)
 		} else {
-			conn = pkg.GetConn(addr, grpc.WithUnaryInterceptor(dn.UnaryInterceptorClient))
+			conn = pkg.DialClient(addr, false, dn.UnaryInterceptorClient)
 		}
 		s.{{.ProtoMicroservice}}Client = pb.New{{.ProtoMicroservice}}Client(conn)
 	}
@@ -1303,6 +1353,7 @@ import (
 	pb "{{.Module}}/protobuf"
 	dagorinit "{{.Module}}/dagor_init"
 	rajomoninit "{{.Module}}/rajomon_init"
+	"{{.Module}}/pkg/rpcpolicy"
 	"{{.Module}}/utils"
 
 	"google.golang.org/grpc"
@@ -1310,6 +1361,13 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 )
+
+func init() {
+	rpcpolicy.MustValidatePolicyEnv([]string{
+{{- range .EntryAPIs}}		"{{.}}",
+{{- end}}
+	})
+}
 
 var log = utils.GetLogger("rajomon-client")
 
@@ -1341,11 +1399,11 @@ func (s *Server) Run() error {
 	if useRajomon {
 		pt := rajomoninit.GetPriceTable("client", true)
 		log.Info("creating gRPC client (connection is lazy until first RPC)", "target", addr)
-		conn = pkg.GetRajomonClient(addr, grpc.WithUnaryInterceptor(pt.UnaryInterceptorEnduser))
+		conn = pkg.DialClient(addr, false, pt.UnaryInterceptorEnduser)
 	} else {
 		dn := dagorinit.GetDagorNode("client", false, true)
 		log.Info("creating gRPC client (connection is lazy until first RPC)", "target", addr)
-		conn = pkg.GetConn(addr, grpc.WithUnaryInterceptor(dn.UnaryInterceptorClient))
+		conn = pkg.DialClient(addr, false, dn.UnaryInterceptorClient)
 	}
 	s.grpcTarget = addr
 	s.client = pb.New{{.ProtoServiceName}}Client(conn)
@@ -1365,6 +1423,8 @@ func (s *Server) Run() error {
 {{range .Handlers}}
 func (s *Server) handle_{{.MethodName}}(w http.ResponseWriter, r *http.Request) {
 	ctx := metadata.AppendToOutgoingContext(r.Context(), "method", "{{.Interface}}", "api", "{{.Interface}}")
+	ctx, cancel := rpcpolicy.MaybeDeadlineForAPI(ctx, "{{.Interface}}")
+	defer cancel()
 	_, err := s.client.{{.MethodName}}(ctx, &pb.Request{})
 	if err != nil {
 		st := status.Code(err)

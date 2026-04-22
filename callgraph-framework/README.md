@@ -35,7 +35,7 @@ Requires [graphviz](https://graphviz.org/) (`dot` on PATH): `apt install graphvi
 
 - `build.sh [tag]` — build all images
 - `push.sh [tag]` — push all images (run after build)
-- `deploy.sh [plain|sidecar|rajomon|dagor]` — deploy to K8s (uses `TAG`, `REGISTRY`). `./deploy.sh sidecar debug` enables workload debug (see below). `debug` is only valid with `sidecar`, not with plain, rajomon, or dagor.
+- `deploy.sh [plain|sidecar|rajomon|dagor]` — deploy to K8s (uses `TAG`, `REGISTRY`). `./deploy.sh sidecar debug` enables workload debug (see below). `debug` is only valid with `sidecar`, not with plain, rajomon, or dagor. For **plain** (non-sidecar) HTTP entry, optional client deadline/retry env vars are described under **Client RPC deadline and retry** (not applied in sidecar mode).
 - `destroy.sh` — tear down
 - `collect_logs.sh` — collect pod logs. If the environment variable `COLLECT_SIDECAR_NANOLOG=1` is set (done by `exec` when `--nanolog-debug` is enabled) and mode is `sidecar`, the script also `kubectl cp`s `/compressedLog` from each sidecar container into `$OUTPUT_DIR` as `*-sidecar.clog` (plus ingress as `*-ingress-sidecar.clog`). Decompression uses `benchmarks/sidecar/external/NanoLog/runtime/decompressor` from the repo checkout that runs the executor.
 
@@ -84,7 +84,7 @@ After `go run ./cmd/gen ...`, run `go mod tidy` in the generated benchmark root 
 ./deploy.sh rajomon
 ```
 
-Use **`destroy.sh rajomon`** or **`destroy.sh dagor`** when tearing down that mode so `rajomon-client` and the `*-grpc` entry pod are removed. Load tests can use the same URLs as plain mode: `http://<node>:3000/<interface>` (see `entry_path.txt`).
+Use **`destroy.sh rajomon`** or **`destroy.sh dagor`** when tearing down that mode so `rajomon-client` and the `*-grpc` entry pod are removed. Load tests can use the same URLs as plain mode: `http://<node>:3000/<interface>` (see `entry_path.txt`). Optional client deadline/retry env is documented under **Client RPC deadline and retry** below.
 
 ### Dagor mode
 
@@ -102,7 +102,34 @@ Same gRPC topology as Rajomon: `k8s/manifests/app-grpc.yaml`, HTTP entry **`rajo
 ./deploy.sh dagor
 ```
 
-Use **`destroy.sh dagor`** to remove `rajomon-client`, the `*-grpc` entry pod, and related services.
+Use **`destroy.sh dagor`** to remove `rajomon-client`, the `*-grpc` entry pod, and related services. Optional client deadline/retry env is documented under **Client RPC deadline and retry** below.
+
+### Client RPC deadline and retry
+
+Applies only to **plain**, **rajomon**, and **dagor** deployments. **Sidecar** workloads do not attach deadline/retry policy on generated egress or internal client paths (`sidecar=true`); behavior there stays as before.
+
+**Deadline (`BENCH_RPC_DEADLINE_MODE`):**
+
+- `none` (default when unset) — no extra client deadline at the HTTP entry; downstream timing unchanged.
+- `remaining_slo` — the HTTP entry (plain service or `rajomon-client`) sets a context deadline of **60%** of the per-API SLO in milliseconds. The value is read from **`BENCH_RPC_SLO_MS_<interface>`** (same name as the HTTP path / experiment `apis` entry). That deadline propagates on outbound gRPC so child RPCs see the remaining budget. If `remaining_slo` is set and a required **`BENCH_RPC_SLO_MS_*`** is missing or invalid, the process **exits with an error at startup** (executor also validates before deploy when this mode is selected).
+
+**Retry (`BENCH_RPC_RETRY_MODE`):**
+
+- `none` (default) — no retry interceptor.
+- `fixed` — up to **4** total attempts (1 initial + 3 retries). Backoff between attempts is **5%** of **`BENCH_RPC_SLO_MS_<api>`** (minimum **1 ms** for that base portion) plus **uniform jitter** from **0** to **1%** of the same SLO (sub-ms jitter allowed). Outgoing metadata **`api`** or **`method`** must identify the interface, and the matching **`BENCH_RPC_SLO_MS_*`** env must be set; otherwise the client returns an error instead of retrying.
+- `token_bucket` — retries consume **one** token per retry attempt (bucket starts full at **`BENCH_RPC_RETRY_BUCKET_CAPACITY`**, default **10**). Each **successful** RPC adds **0.02** token back (capped at capacity); there is no time-based refill. Between retries uses the same **5% + [0,1%] jitter** backoff and metadata/SLO requirements as `fixed`. Optional env: **`BENCH_RPC_RETRY_BUCKET_CAPACITY`**. If there are not enough tokens for the next retry, the call fails without that retry.
+
+Retries apply to **all** unary RPC errors returned by the invoker, including **`ResourceExhausted`** (overload). No further attempts are scheduled if the request context is already done (e.g. deadline expired).
+
+**Where SLO numbers live:** only in the executor suite **`config.json`** field **`slos`** (existing schema), which the executor maps to **`BENCH_RPC_SLO_MS_<api>`** in the workload env. Do **not** put SLO fields under **`fault-tolerance`** in **`experiments.json`**. You can still override a single API for one run via **`deploy_env`**.
+
+**Optional `experiments.json` `fault-tolerance`** (hyphenated key; **`fault_tolerance`** also accepted when merging): JSON object with **`deadline_mode`**, **`retry_mode`**, and optionally **`retry_bucket_capacity`** (maps to **`BENCH_RPC_RETRY_BUCKET_CAPACITY`**). If the whole object is omitted, policy defaults are **`none`** / **`none`**. Omitted sub-keys inside the object also default to **`none`**.
+
+**Env merge order** for a run: **`config.slos` → `fault-tolerance` → tuner `deploy_params` → experiment `deploy_env`** (later keys win). Regenerating benchmarks (`go run ./cmd/gen ...`) picks up template/`pkg/rpcpolicy` changes; editing **`slos`** in **`config.json`** does not require rebuilding images.
+
+**RWG / `run-plain.sh` HTTP timeouts** are separate from this gRPC deadline; aligning them is optional follow-up work.
+
+See also **Rajomon mode** and **Dagor mode** above for deploy layout; tunables for this section apply to those HTTP→gRPC entry paths as well.
 
 ## Call Graph Format
 
