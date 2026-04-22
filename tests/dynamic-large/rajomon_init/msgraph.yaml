@@ -9,10 +9,8 @@ applications:
     backend4:
     - backend5
     - backend6
-    - backend7
     backend5: []
     backend6: []
-    backend7: []
     frontend-grpc:
     - backend1
   entrypoint: frontend-grpc

@@ -14,8 +14,6 @@ kubectl delete pod -l app=backend5 --ignore-not-found --wait=true
 kubectl delete service -l app=backend5 --ignore-not-found
 kubectl delete pod -l app=backend6 --ignore-not-found --wait=true
 kubectl delete service -l app=backend6 --ignore-not-found
-kubectl delete pod -l app=backend7 --ignore-not-found --wait=true
-kubectl delete service -l app=backend7 --ignore-not-found
 kubectl delete pod -l app=frontend --ignore-not-found --wait=true
 kubectl delete service -l app=frontend --ignore-not-found
 kubectl delete configmap dynamic-large-config --ignore-not-found

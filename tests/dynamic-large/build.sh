@@ -45,8 +45,6 @@ echo "Building backend5..."
 docker build --build-arg SERVICE=services/backend5 -f Dockerfile -t "${REGISTRY}/${BENCH}-backend5:${TAG}" .
 echo "Building backend6..."
 docker build --build-arg SERVICE=services/backend6 -f Dockerfile -t "${REGISTRY}/${BENCH}-backend6:${TAG}" .
-echo "Building backend7..."
-docker build --build-arg SERVICE=services/backend7 -f Dockerfile -t "${REGISTRY}/${BENCH}-backend7:${TAG}" .
 echo "Building frontend..."
 docker build --build-arg SERVICE=services/frontend -f Dockerfile -t "${REGISTRY}/${BENCH}-frontend:${TAG}" .
 echo "Building frontend-grpc..."
@@ -64,7 +62,6 @@ docker push "${REGISTRY}/${BENCH}-backend3:${TAG}"
 docker push "${REGISTRY}/${BENCH}-backend4:${TAG}"
 docker push "${REGISTRY}/${BENCH}-backend5:${TAG}"
 docker push "${REGISTRY}/${BENCH}-backend6:${TAG}"
-docker push "${REGISTRY}/${BENCH}-backend7:${TAG}"
 docker push "${REGISTRY}/${BENCH}-frontend:${TAG}"
 docker push "${REGISTRY}/${BENCH}-frontend-grpc:${TAG}"
 docker push "${REGISTRY}/${BENCH}-rajomon-client:${TAG}"

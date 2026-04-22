@@ -247,47 +247,6 @@ spec:
 apiVersion: v1
 kind: Pod
 metadata:
-  name: backend7
-  labels:
-    app: backend7
-spec:
-  restartPolicy: Never
-  containers:
-  - name: app
-    image: dynamic-large-backend7:latest
-    resources:
-      requests:
-        cpu: "1"
-      limits:
-        cpu: "1"
-    env:
-    - name: GOMAXPROCS
-      value: "1"
-    envFrom:
-    - configMapRef:
-        name: dynamic-large-config
-    ports:
-    - containerPort: 2000
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: dynamic-large-backend7
-  labels:
-    app: backend7
-spec:
-  selector:
-    app: backend7
-  ports:
-  - name: grpc
-    port: 2000
-    targetPort: 2000
-    protocol: TCP
-
----
-apiVersion: v1
-kind: Pod
-metadata:
   name: frontend-grpc
   labels:
     app: frontend-grpc
