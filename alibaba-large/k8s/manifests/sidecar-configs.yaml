@@ -83,7 +83,7 @@ data:
     report_latency: True
     name: ms-19439
     cpu_count: 5
-    over_commitment: 0.0
+    over_commitment: 1.0
     
   ms-21298.yaml: |
     routing:
@@ -107,7 +107,7 @@ data:
     report_latency: True
     name: ms-21298
     cpu_count: 5
-    over_commitment: 0.0
+    over_commitment: 1.0
     
   ms-25781.yaml: |
     routing:
@@ -130,7 +130,7 @@ data:
     report_latency: True
     name: ms-25781
     cpu_count: 3
-    over_commitment: 0.0
+    over_commitment: 1.0
     
   ms-25806.yaml: |
     mapping:
@@ -342,7 +342,7 @@ data:
     report_latency: True
     name: ms-51787
     cpu_count: 4
-    over_commitment: 0.0
+    over_commitment: 1.0
     
   ms-53792.yaml: |
     routing:
@@ -370,7 +370,7 @@ data:
     report_latency: True
     name: ms-53792
     cpu_count: 4
-    over_commitment: 0.0
+    over_commitment: 1.0
     
   ms-56113.yaml: |
     mapping:
@@ -410,7 +410,7 @@ data:
     report_latency: True
     name: ms-5720
     cpu_count: 4
-    over_commitment: 0.0
+    over_commitment: 1.0
     
   ms-58796.yaml: |
     routing:
@@ -433,7 +433,7 @@ data:
     report_latency: True
     name: ms-58796
     cpu_count: 4
-    over_commitment: 0.0
+    over_commitment: 1.0
     
   ms-62039.yaml: |
     routing:
@@ -456,7 +456,7 @@ data:
     report_latency: True
     name: ms-62039
     cpu_count: 4
-    over_commitment: 0.0
+    over_commitment: 1.0
     
   ms-64512.yaml: |
     routing:
@@ -576,7 +576,7 @@ data:
     is_frontend: True
     frontend_pool_connections: 200
     cpu_count: 5
-    over_commitment: 0.0
+    over_commitment: 1.0
     
   ms-66921.yaml: |
     routing:
@@ -599,7 +599,7 @@ data:
     report_latency: True
     name: ms-66921
     cpu_count: 4
-    over_commitment: 0.0
+    over_commitment: 1.0
     
   ms-67465.yaml: |
     routing:
@@ -622,7 +622,7 @@ data:
     report_latency: True
     name: ms-67465
     cpu_count: 4
-    over_commitment: 0.0
+    over_commitment: 1.0
     
   ms-70124.yaml: |
     routing:
@@ -645,7 +645,7 @@ data:
     report_latency: True
     name: ms-70124
     cpu_count: 3
-    over_commitment: 0.0
+    over_commitment: 1.0
     
   ms-7103.yaml: |
     mapping:
