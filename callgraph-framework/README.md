@@ -30,18 +30,18 @@ Requires [graphviz](https://graphviz.org/) (`dot` on PATH): `apt install graphvi
 - Go 1.25+
 - protoc with protoc-gen-go and protoc-gen-go-grpc plugins
 - graphviz (for viz tool and `gen -v`)
+- Docker with [Buildx](https://docs.docker.com/build/) enabled (`docker buildx` / `docker buildx bake`) for generated benchmark images
 
 ## Scripts
 
-- `build.sh [tag]` — build all images
-- `push.sh [tag]` — push all images (run after build)
+- `build.sh [tag]` — build the sidecar (if present), build all workload images with `docker buildx bake` (shared compile + parallel final stages), then push every image in parallel (`REGISTRY`, `TAG`, `BENCH` env vars behave as before).
 - `deploy.sh [plain|sidecar|rajomon|dagor]` — deploy to K8s (uses `TAG`, `REGISTRY`). `./deploy.sh sidecar debug` enables workload debug (see below). `debug` is only valid with `sidecar`, not with plain, rajomon, or dagor.
 - `destroy.sh` — tear down
 - `collect_logs.sh` — collect pod logs. If the environment variable `COLLECT_SIDECAR_NANOLOG=1` is set (done by `exec` when `--nanolog-debug` is enabled) and mode is `sidecar`, the script also `kubectl cp`s `/compressedLog` from each sidecar container into `$OUTPUT_DIR` as `*-sidecar.clog` (plus ingress as `*-ingress-sidecar.clog`). Decompression uses `benchmarks/sidecar/external/NanoLog/runtime/decompressor` from the repo checkout that runs the executor.
 
 ### Sidecar deploy debug
 
-Use `./deploy.sh sidecar debug` after `./build.sh` / `./push.sh` as usual. Requires [mikefarah yq](https://github.com/mikefarah/yq) v4 on `PATH` (the script exits with an install hint if it is missing).
+Use `./deploy.sh sidecar debug` after `./build.sh` as usual. Requires [mikefarah yq](https://github.com/mikefarah/yq) v4 on `PATH` (the script exits with an install hint if it is missing).
 
 Debug mode only changes **workload** manifests (`*-sidecar.yaml`, `ingress.yaml`) under a temp copy before `kubectl apply`: every `Pod` gets `spec.restartPolicy: Never`. If you set `SIDECAR_GLOG_V` and/or `SIDECAR_GLOG_VMODULE` (or define them in `k8s/sidecar-debug-glog.env`), the `sidecar` container also gets `GLOG_v` / `GLOG_vmodule` (existing entries with those names are replaced). You can use debug mode for **restart behavior only** without setting any verbosity. **Prometheus** is still applied from `k8s/manifests/prometheus.yaml` exactly like non-debug sidecar deploy.
 
@@ -78,7 +78,6 @@ After `go run ./cmd/gen ...`, run `go mod tidy` in the generated benchmark root 
 
 ```bash
 ./build.sh
-./push.sh
 # Optional tunables (shell env, same idea as benchmarks/hotel):
 # priceUpdateRate, latencyThreshold, tokenUpdateRate, priceStep, tokenUpdateStep
 ./deploy.sh rajomon
@@ -97,7 +96,6 @@ Same gRPC topology as Rajomon: `k8s/manifests/app-grpc.yaml`, HTTP entry **`rajo
 
 ```bash
 ./build.sh
-./push.sh
 # Optional: export Alpha=0.5 Beta=0.02
 ./deploy.sh dagor
 ```

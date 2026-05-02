@@ -14,6 +14,113 @@ func k8sName(s string) string {
 	return strings.ReplaceAll(strings.ToLower(s), "_", "-")
 }
 
+// workloadBakeEntry is one runnable Go workload Docker image produced from the benchmark repo.
+type workloadBakeEntry struct {
+	ServicePath string // e.g. services/frontend — forward slashes
+	K8sName     string // image suffix and k8s app name (lowercase, underscores → hyphens)
+}
+
+func workloadBakeEntries(pg *ParsedGraph, svcNames []string) []workloadBakeEntry {
+	var entries []workloadBakeEntry
+	for _, s := range svcNames {
+		entries = append(entries, workloadBakeEntry{
+			ServicePath: filepath.ToSlash(filepath.Join("services", s)),
+			K8sName:     k8sName(s),
+		})
+	}
+	ek := EntryGrpcK8s(pg)
+	entries = append(entries, workloadBakeEntry{
+		ServicePath: filepath.ToSlash(filepath.Join("services", ek)),
+		K8sName:     ek,
+	})
+	return append(entries, workloadBakeEntry{
+		ServicePath: filepath.ToSlash(filepath.Join("services", "rajomon-client")),
+		K8sName:     "rajomon-client",
+	})
+}
+
+func generateDockerignore(outDir string) error {
+	di := `# Trims workload image build context; keep anything required for Go compile.
+.git/
+callgraph.json
+k8s/
+deploy.sh
+destroy.sh
+collect_logs.sh
+docker-bake.hcl
+run-plain.sh
+run.sh
+entry_path.txt
+*.pdf
+out/
+out-*
+`
+	return os.WriteFile(filepath.Join(outDir, ".dockerignore"), []byte(di), 0644)
+}
+
+func generateWorkloadDockerfile(pg *ParsedGraph, svcNames []string, outDir string) error {
+	entries := workloadBakeEntries(pg, svcNames)
+	var b strings.Builder
+	b.WriteString("# syntax=docker/dockerfile:1\n\n")
+	b.WriteString("FROM golang:1.25-alpine AS deps\nWORKDIR /app\n")
+	b.WriteString("COPY go.mod go.sum ./\n")
+	b.WriteString("RUN --mount=type=cache,target=/go/pkg/mod \\\n\tgo mod download\n\n")
+	b.WriteString("FROM deps AS builder\nWORKDIR /app\n")
+	b.WriteString("COPY . .\n")
+	b.WriteString("RUN --mount=type=cache,target=/go/pkg/mod \\\n\tgo mod tidy && ")
+	for i, e := range entries {
+		if i > 0 {
+			b.WriteString(" && \\\n\t")
+		}
+		fmt.Fprintf(&b, "mkdir -p /out/%s && CGO_ENABLED=0 go build -ldflags=\"-s -w\" -o /out/%s/main ./%s",
+			e.K8sName, e.K8sName, e.ServicePath)
+	}
+	b.WriteString("\n\n")
+	for _, e := range entries {
+		fmt.Fprintf(&b, "FROM alpine:latest AS svc-%s\n", e.K8sName)
+		b.WriteString("WORKDIR /root/\n")
+		fmt.Fprintf(&b, "COPY --from=builder /out/%s/main .\n", e.K8sName)
+		b.WriteString("COPY --from=builder /app/rajomon_init /rajomon_init\n")
+		b.WriteString("COPY --from=builder /app/dagor_init /dagor_init\n")
+		b.WriteString("EXPOSE 2000\n")
+		b.WriteString("CMD [\"./main\"]\n\n")
+	}
+	return os.WriteFile(filepath.Join(outDir, "Dockerfile"), []byte(b.String()), 0644)
+}
+
+func generateDockerBakeHcl(pg *ParsedGraph, benchmarkName string, svcNames []string, outDir string) error {
+	entries := workloadBakeEntries(pg, svcNames)
+	var b strings.Builder
+	fmt.Fprintf(&b, `variable "REGISTRY" {
+  default = "farzad1132"
+}
+variable "TAG" {
+  default = "latest"
+}
+variable "BENCH" {
+  default = "%s"
+}
+
+`, benchmarkName)
+	b.WriteString("group \"default\" {\n  targets = [")
+	for i, e := range entries {
+		if i > 0 {
+			b.WriteString(", ")
+		}
+		fmt.Fprintf(&b, "%q", e.K8sName)
+	}
+	b.WriteString("]\n}\n\n")
+	for _, e := range entries {
+		fmt.Fprintf(&b, "target %q {\n", e.K8sName)
+		b.WriteString("  context = \".\"\n")
+		b.WriteString("  dockerfile = \"Dockerfile\"\n")
+		fmt.Fprintf(&b, "  target = \"svc-%s\"\n", e.K8sName)
+		fmt.Fprintf(&b, "  tags = [\"${REGISTRY}/${BENCH}-%s:${TAG}\"]\n", e.K8sName)
+		b.WriteString("}\n\n")
+	}
+	return os.WriteFile(filepath.Join(outDir, "docker-bake.hcl"), []byte(b.String()), 0644)
+}
+
 func GenerateK8s(pg *ParsedGraph, benchmarkName string, registry string, outDir string) error {
 	svcNames := sortedServices(pg)
 	if err := generateAppYaml(pg, benchmarkName, svcNames, outDir); err != nil {
@@ -828,10 +935,17 @@ spec:
 
 func GenerateScripts(pg *ParsedGraph, benchmarkName string, outDir string) error {
 	svcNames := sortedServices(pg)
-	if err := generateBuildScript(pg, benchmarkName, svcNames, outDir); err != nil {
+	_ = os.Remove(filepath.Join(outDir, "push.sh"))
+	if err := generateDockerignore(outDir); err != nil {
 		return err
 	}
-	if err := generatePushScript(pg, benchmarkName, svcNames, outDir); err != nil {
+	if err := generateWorkloadDockerfile(pg, svcNames, outDir); err != nil {
+		return err
+	}
+	if err := generateDockerBakeHcl(pg, benchmarkName, svcNames, outDir); err != nil {
+		return err
+	}
+	if err := generateBuildScript(pg, benchmarkName, svcNames, outDir); err != nil {
 		return err
 	}
 	if err := generateDeployScript(pg, benchmarkName, outDir); err != nil {
@@ -846,23 +960,13 @@ func GenerateScripts(pg *ParsedGraph, benchmarkName string, outDir string) error
 	if err := generateWrapperScripts(pg, outDir); err != nil {
 		return err
 	}
-	return generateDockerfile(outDir)
+	return nil
 }
 
 func generateBuildScript(pg *ParsedGraph, benchmarkName string, svcNames []string, outDir string) error {
-	type svcEntry struct {
-		Name    string
-		K8sName string
-	}
-	var entries []svcEntry
-	for _, s := range svcNames {
-		entries = append(entries, svcEntry{s, k8sName(s)})
-	}
-	ek := EntryGrpcK8s(pg)
-	entries = append(entries, svcEntry{ek, ek})
-	entries = append(entries, svcEntry{"rajomon-client", "rajomon-client"})
+	entries := workloadBakeEntries(pg, svcNames)
 	tmpl := `#!/bin/bash
-set -e
+set -euo pipefail
 TAG=${1:-${TAG:-latest}}
 STATUS_FILE=${2:-}
 REGISTRY=${REGISTRY:-farzad1132}
@@ -896,15 +1000,19 @@ if [ -n "$SIDECAR_DIR" ]; then
   docker build -f "$SIDECAR_DIR/Dockerfile" -t "${REGISTRY}/sidecar-sidecar:${TAG}" "$SIDECAR_DIR"
 fi
 
-{{range .Entries}}echo "Building {{.Name}}..."
-docker build --build-arg SERVICE=services/{{.Name}} -f Dockerfile -t "${REGISTRY}/${BENCH}-{{.K8sName}}:${TAG}" .
-{{end}}
+echo "Building workload images (docker buildx bake)..."
+REGISTRY="${REGISTRY}" TAG="${TAG}" BENCH="${BENCH}" docker buildx bake -f docker-bake.hcl
+
 echo "Pushing images..."
+PUSH_IMAGES=()
 if [ -n "$SIDECAR_DIR" ]; then
-  docker push "${REGISTRY}/sidecar-sidecar:${TAG}"
+  PUSH_IMAGES+=("${REGISTRY}/sidecar-sidecar:${TAG}")
 fi
-{{range .Entries}}docker push "${REGISTRY}/${BENCH}-{{.K8sName}}:${TAG}"
+{{range .Entries}}
+PUSH_IMAGES+=("${REGISTRY}/${BENCH}-{{.K8sName}}:${TAG}")
 {{end}}
+printf '%s\0' "${PUSH_IMAGES[@]}" | xargs -0 -P "$(nproc)" -n1 docker push
+
 if [ -n "$STATUS_FILE" ]; then
   mkdir -p "$(dirname "$STATUS_FILE")"
   touch "$STATUS_FILE"
@@ -918,35 +1026,6 @@ echo "Build complete."
 		"Entries":       entries,
 	})
 	return os.WriteFile(filepath.Join(outDir, "build.sh"), b.Bytes(), 0755)
-}
-
-func generatePushScript(pg *ParsedGraph, benchmarkName string, svcNames []string, outDir string) error {
-	var k8sNames []string
-	for _, s := range svcNames {
-		k8sNames = append(k8sNames, k8sName(s))
-	}
-	k8sNames = append(k8sNames, EntryGrpcK8s(pg), "rajomon-client")
-	tmpl := `#!/bin/bash
-set -e
-TAG=${1:-${TAG:-latest}}
-REGISTRY=${REGISTRY:-farzad1132}
-BENCH={{.BenchmarkName}}
-
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$ROOT_DIR"
-
-echo "Pushing images..."
-{{range .K8sNames}}docker push "${REGISTRY}/${BENCH}-{{.}}:${TAG}"
-{{end}}
-echo "Push complete."
-`
-	t, _ := template.New("").Parse(tmpl)
-	var b bytes.Buffer
-	t.Execute(&b, map[string]interface{}{
-		"BenchmarkName": benchmarkName,
-		"K8sNames":      k8sNames,
-	})
-	return os.WriteFile(filepath.Join(outDir, "push.sh"), b.Bytes(), 0755)
 }
 
 func generateDeployScript(pg *ParsedGraph, benchmarkName string, outDir string) error {
@@ -1343,24 +1422,4 @@ else
 fi
 `
 	return os.WriteFile(filepath.Join(outDir, "run-plain.sh"), []byte(runPlainSh), 0755)
-}
-
-func generateDockerfile(outDir string) error {
-	df := `FROM golang:1.25-alpine AS builder
-WORKDIR /app
-COPY go.mod ./
-COPY . .
-RUN go mod tidy
-ARG SERVICE
-RUN go build -o /app/main ./${SERVICE}
-
-FROM alpine:latest
-WORKDIR /root/
-COPY --from=builder /app/main .
-COPY --from=builder /app/rajomon_init /rajomon_init
-COPY --from=builder /app/dagor_init /dagor_init
-EXPOSE 2000
-CMD ["./main"]
-`
-	return os.WriteFile(filepath.Join(outDir, "Dockerfile"), []byte(df), 0644)
 }
