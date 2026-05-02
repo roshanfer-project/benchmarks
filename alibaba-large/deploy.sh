@@ -150,10 +150,22 @@ elif [ "$MODE" = "rajomon" ]; then
   for IMG in ms-12657 ms-14758 ms-18750 ms-19439 ms-21298 ms-25781 ms-25806 ms-2687 ms-33572 ms-38190 ms-40087 ms-41667 ms-43032 ms-43754 ms-44246 ms-45067 ms-51783 ms-51787 ms-53792 ms-56113 ms-5720 ms-58796 ms-62039 ms-64512-grpc ms-66921 ms-67465 ms-70124 ms-7103 ms-9105 rajomon-client; do
     sed -i "s|${BENCH}-${IMG}:latest|${REGISTRY}/${BENCH}-${IMG}:${TAG}|g" "$TMP_DIR/app-grpc.yaml"
   done
+  deploy_fail=0
+  declare -a deploy_pids=()
   for SVC in ms-14758 ms-12657 ms-45067 ms-7103 ms-19439 ms-56113 ms-25806 ms-21298 ms-25781 ms-2687 ms-40087 ms-43032 ms-51783 ms-44246 ms-51787 ms-41667 ms-33572 ms-5720 ms-53792 ms-38190 ms-58796 ms-18750 ms-62039 ms-43754 ms-66921 ms-67465 ms-70124 ms-9105 ms-64512-grpc rajomon-client; do
-    kubectl apply -f "$TMP_DIR/app-grpc.yaml" -l app="${SVC}"
-    kubectl_wait_ready_or_fail "${SVC}" "${WAIT_TIMEOUT}"
+    (
+      kubectl apply -f "$TMP_DIR/app-grpc.yaml" -l app="${SVC}"
+      kubectl_wait_ready_or_fail "${SVC}" "${WAIT_TIMEOUT}"
+    ) &
+    deploy_pids+=($!)
   done
+  for pid in "${deploy_pids[@]}"; do
+    wait "$pid" || deploy_fail=1
+  done
+  if [ "$deploy_fail" -ne 0 ]; then
+    echo "deploy.sh (rajomon): one or more workloads failed readiness" >&2
+    exit 1
+  fi
 elif [ "$MODE" = "dagor" ]; then
   cat k8s/dagor.env > "$TMP_DIR/dagor_merged.env"
   echo "" >> "$TMP_DIR/dagor_merged.env"
@@ -177,10 +189,22 @@ elif [ "$MODE" = "dagor" ]; then
   for IMG in ms-12657 ms-14758 ms-18750 ms-19439 ms-21298 ms-25781 ms-25806 ms-2687 ms-33572 ms-38190 ms-40087 ms-41667 ms-43032 ms-43754 ms-44246 ms-45067 ms-51783 ms-51787 ms-53792 ms-56113 ms-5720 ms-58796 ms-62039 ms-64512-grpc ms-66921 ms-67465 ms-70124 ms-7103 ms-9105 rajomon-client; do
     sed -i "s|${BENCH}-${IMG}:latest|${REGISTRY}/${BENCH}-${IMG}:${TAG}|g" "$TMP_DIR/app-grpc.yaml"
   done
+  deploy_fail=0
+  declare -a deploy_pids=()
   for SVC in ms-14758 ms-12657 ms-45067 ms-7103 ms-19439 ms-56113 ms-25806 ms-21298 ms-25781 ms-2687 ms-40087 ms-43032 ms-51783 ms-44246 ms-51787 ms-41667 ms-33572 ms-5720 ms-53792 ms-38190 ms-58796 ms-18750 ms-62039 ms-43754 ms-66921 ms-67465 ms-70124 ms-9105 ms-64512-grpc rajomon-client; do
-    kubectl apply -f "$TMP_DIR/app-grpc.yaml" -l app="${SVC}"
-    kubectl_wait_ready_or_fail "${SVC}" "${WAIT_TIMEOUT}"
+    (
+      kubectl apply -f "$TMP_DIR/app-grpc.yaml" -l app="${SVC}"
+      kubectl_wait_ready_or_fail "${SVC}" "${WAIT_TIMEOUT}"
+    ) &
+    deploy_pids+=($!)
   done
+  for pid in "${deploy_pids[@]}"; do
+    wait "$pid" || deploy_fail=1
+  done
+  if [ "$deploy_fail" -ne 0 ]; then
+    echo "deploy.sh (dagor): one or more workloads failed readiness" >&2
+    exit 1
+  fi
 else
   kubectl create configmap alibaba-large-config --from-env-file=k8s/plain.env --dry-run=client -o yaml > "$TMP_DIR/configmap.yaml"
   kubectl apply -f "$TMP_DIR/configmap.yaml"
@@ -189,11 +213,23 @@ else
   kubectl_wait_ready_or_fail prometheus-pushgateway 60
   kubectl_wait_ready_or_fail prometheus 60
 
+  deploy_fail=0
+  declare -a deploy_pids=()
   for SVC in ms-14758 ms-12657 ms-45067 ms-7103 ms-19439 ms-56113 ms-25806 ms-21298 ms-25781 ms-2687 ms-40087 ms-43032 ms-51783 ms-44246 ms-51787 ms-41667 ms-33572 ms-5720 ms-53792 ms-38190 ms-58796 ms-18750 ms-62039 ms-43754 ms-66921 ms-67465 ms-70124 ms-9105 ms-64512; do
-    sed "s|${BENCH}-${SVC}:latest|${REGISTRY}/${BENCH}-${SVC}:${TAG}|g" "k8s/manifests/${SVC}.yaml" > "$TMP_DIR/${SVC}.yaml"
-    kubectl apply -f "$TMP_DIR/${SVC}.yaml"
-    kubectl_wait_ready_or_fail "${SVC}" "${WAIT_TIMEOUT}"
+    (
+      sed "s|${BENCH}-${SVC}:latest|${REGISTRY}/${BENCH}-${SVC}:${TAG}|g" "k8s/manifests/${SVC}.yaml" > "$TMP_DIR/${SVC}.yaml"
+      kubectl apply -f "$TMP_DIR/${SVC}.yaml"
+      kubectl_wait_ready_or_fail "${SVC}" "${WAIT_TIMEOUT}"
+    ) &
+    deploy_pids+=($!)
   done
+  for pid in "${deploy_pids[@]}"; do
+    wait "$pid" || deploy_fail=1
+  done
+  if [ "$deploy_fail" -ne 0 ]; then
+    echo "deploy.sh (plain): one or more workloads failed readiness" >&2
+    exit 1
+  fi
 
   kubectl apply -f k8s/manifests/entry.yaml
 fi

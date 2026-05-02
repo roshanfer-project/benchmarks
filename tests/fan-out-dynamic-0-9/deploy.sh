@@ -150,10 +150,22 @@ elif [ "$MODE" = "rajomon" ]; then
   for IMG in backend1 backend2 frontend-grpc rajomon-client; do
     sed -i "s|${BENCH}-${IMG}:latest|${REGISTRY}/${BENCH}-${IMG}:${TAG}|g" "$TMP_DIR/app-grpc.yaml"
   done
+  deploy_fail=0
+  declare -a deploy_pids=()
   for SVC in backend1 backend2 frontend-grpc rajomon-client; do
-    kubectl apply -f "$TMP_DIR/app-grpc.yaml" -l app="${SVC}"
-    kubectl_wait_ready_or_fail "${SVC}" "${WAIT_TIMEOUT}"
+    (
+      kubectl apply -f "$TMP_DIR/app-grpc.yaml" -l app="${SVC}"
+      kubectl_wait_ready_or_fail "${SVC}" "${WAIT_TIMEOUT}"
+    ) &
+    deploy_pids+=($!)
   done
+  for pid in "${deploy_pids[@]}"; do
+    wait "$pid" || deploy_fail=1
+  done
+  if [ "$deploy_fail" -ne 0 ]; then
+    echo "deploy.sh (rajomon): one or more workloads failed readiness" >&2
+    exit 1
+  fi
 elif [ "$MODE" = "dagor" ]; then
   cat k8s/dagor.env > "$TMP_DIR/dagor_merged.env"
   echo "" >> "$TMP_DIR/dagor_merged.env"
@@ -177,10 +189,22 @@ elif [ "$MODE" = "dagor" ]; then
   for IMG in backend1 backend2 frontend-grpc rajomon-client; do
     sed -i "s|${BENCH}-${IMG}:latest|${REGISTRY}/${BENCH}-${IMG}:${TAG}|g" "$TMP_DIR/app-grpc.yaml"
   done
+  deploy_fail=0
+  declare -a deploy_pids=()
   for SVC in backend1 backend2 frontend-grpc rajomon-client; do
-    kubectl apply -f "$TMP_DIR/app-grpc.yaml" -l app="${SVC}"
-    kubectl_wait_ready_or_fail "${SVC}" "${WAIT_TIMEOUT}"
+    (
+      kubectl apply -f "$TMP_DIR/app-grpc.yaml" -l app="${SVC}"
+      kubectl_wait_ready_or_fail "${SVC}" "${WAIT_TIMEOUT}"
+    ) &
+    deploy_pids+=($!)
   done
+  for pid in "${deploy_pids[@]}"; do
+    wait "$pid" || deploy_fail=1
+  done
+  if [ "$deploy_fail" -ne 0 ]; then
+    echo "deploy.sh (dagor): one or more workloads failed readiness" >&2
+    exit 1
+  fi
 else
   kubectl create configmap fan-out-dynamic-0-9-config --from-env-file=k8s/plain.env --dry-run=client -o yaml > "$TMP_DIR/configmap.yaml"
   kubectl apply -f "$TMP_DIR/configmap.yaml"
@@ -189,11 +213,23 @@ else
   kubectl_wait_ready_or_fail prometheus-pushgateway 60
   kubectl_wait_ready_or_fail prometheus 60
 
+  deploy_fail=0
+  declare -a deploy_pids=()
   for SVC in backend1 backend2 frontend; do
-    sed "s|${BENCH}-${SVC}:latest|${REGISTRY}/${BENCH}-${SVC}:${TAG}|g" "k8s/manifests/${SVC}.yaml" > "$TMP_DIR/${SVC}.yaml"
-    kubectl apply -f "$TMP_DIR/${SVC}.yaml"
-    kubectl_wait_ready_or_fail "${SVC}" "${WAIT_TIMEOUT}"
+    (
+      sed "s|${BENCH}-${SVC}:latest|${REGISTRY}/${BENCH}-${SVC}:${TAG}|g" "k8s/manifests/${SVC}.yaml" > "$TMP_DIR/${SVC}.yaml"
+      kubectl apply -f "$TMP_DIR/${SVC}.yaml"
+      kubectl_wait_ready_or_fail "${SVC}" "${WAIT_TIMEOUT}"
+    ) &
+    deploy_pids+=($!)
   done
+  for pid in "${deploy_pids[@]}"; do
+    wait "$pid" || deploy_fail=1
+  done
+  if [ "$deploy_fail" -ne 0 ]; then
+    echo "deploy.sh (plain): one or more workloads failed readiness" >&2
+    exit 1
+  fi
 
   kubectl apply -f k8s/manifests/entry.yaml
 fi
