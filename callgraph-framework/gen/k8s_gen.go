@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"text/template"
 )
@@ -1249,19 +1250,36 @@ echo "Deploy complete."
 }
 
 func generateDestroyScript(pg *ParsedGraph, benchmarkName string, svcNames []string, outDir string) error {
-	var parts []string
-	for _, s := range svcNames {
-		kn := k8sName(s)
-		parts = append(parts, fmt.Sprintf("kubectl delete pod -l app=%s --ignore-not-found --wait=true", kn))
-		parts = append(parts, fmt.Sprintf("kubectl delete service -l app=%s --ignore-not-found", kn))
-	}
 	ek := EntryGrpcK8s(pg)
-	script := `#!/bin/bash
+
+	var b strings.Builder
+	b.WriteString(`#!/bin/bash
 MODE=${1:-${SYSTEM:-plain}}
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT_DIR"
-` + strings.Join(parts, "\n") + `
-kubectl delete configmap ` + benchmarkName + `-config --ignore-not-found
+
+fail=0
+declare -a pids=()
+`)
+	if len(svcNames) > 0 {
+		quoted := make([]string, 0, len(svcNames))
+		for _, s := range svcNames {
+			quoted = append(quoted, strconv.Quote(k8sName(s)))
+		}
+		b.WriteString(fmt.Sprintf(`for kn in %s; do
+  (
+    kubectl delete pod -l app="$kn" --ignore-not-found --wait=true
+    kubectl delete service -l app="$kn" --ignore-not-found
+  ) &
+  pids+=($!)
+done
+for pid in "${pids[@]}"; do
+  wait "$pid" || fail=1
+done
+
+`, strings.Join(quoted, " ")))
+	}
+	b.WriteString(`kubectl delete configmap ` + benchmarkName + `-config --ignore-not-found
 kubectl delete deployment prometheus prometheus-pushgateway --ignore-not-found --wait=true
 kubectl delete service prometheus prometheus-pushgateway prometheus-external --ignore-not-found
 kubectl delete configmap prometheus-config --ignore-not-found
@@ -1278,8 +1296,9 @@ if [ "$MODE" = "rajomon" ] || [ "$MODE" = "dagor" ]; then
   kubectl delete service -l app=` + ek + ` --ignore-not-found
 fi
 echo "Destroy complete."
-`
-	return os.WriteFile(filepath.Join(outDir, "destroy.sh"), []byte(script), 0755)
+exit "$fail"
+`)
+	return os.WriteFile(filepath.Join(outDir, "destroy.sh"), []byte(b.String()), 0755)
 }
 
 func generateCollectLogsScript(pg *ParsedGraph, svcNames []string, outDir string) error {
