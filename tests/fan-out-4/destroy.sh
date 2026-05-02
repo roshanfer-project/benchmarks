@@ -2,16 +2,20 @@
 MODE=${1:-${SYSTEM:-plain}}
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT_DIR"
-kubectl delete pod -l app=backend1 --ignore-not-found --wait=true
-kubectl delete service -l app=backend1 --ignore-not-found
-kubectl delete pod -l app=backend2 --ignore-not-found --wait=true
-kubectl delete service -l app=backend2 --ignore-not-found
-kubectl delete pod -l app=backend3 --ignore-not-found --wait=true
-kubectl delete service -l app=backend3 --ignore-not-found
-kubectl delete pod -l app=backend4 --ignore-not-found --wait=true
-kubectl delete service -l app=backend4 --ignore-not-found
-kubectl delete pod -l app=frontend --ignore-not-found --wait=true
-kubectl delete service -l app=frontend --ignore-not-found
+
+fail=0
+declare -a pids=()
+for kn in "backend1" "backend2" "backend3" "backend4" "frontend"; do
+  (
+    kubectl delete pod -l app="$kn" --ignore-not-found --wait=true
+    kubectl delete service -l app="$kn" --ignore-not-found
+  ) &
+  pids+=($!)
+done
+for pid in "${pids[@]}"; do
+  wait "$pid" || fail=1
+done
+
 kubectl delete configmap fan-out-4-config --ignore-not-found
 kubectl delete deployment prometheus prometheus-pushgateway --ignore-not-found --wait=true
 kubectl delete service prometheus prometheus-pushgateway prometheus-external --ignore-not-found
@@ -29,3 +33,4 @@ if [ "$MODE" = "rajomon" ] || [ "$MODE" = "dagor" ]; then
   kubectl delete service -l app=frontend-grpc --ignore-not-found
 fi
 echo "Destroy complete."
+exit "$fail"
