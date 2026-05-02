@@ -11,12 +11,12 @@ spec:
     image: alibaba-large-ms-12657:latest
     resources:
       requests:
-        cpu: "1"
+        cpu: "3"
       limits:
-        cpu: "1"
+        cpu: "3"
     env:
     - name: GOMAXPROCS
-      value: "1"
+      value: "3"
     envFrom:
     - configMapRef:
         name: alibaba-large-config
@@ -52,12 +52,12 @@ spec:
     image: alibaba-large-ms-14758:latest
     resources:
       requests:
-        cpu: "1"
+        cpu: "3"
       limits:
-        cpu: "1"
+        cpu: "3"
     env:
     - name: GOMAXPROCS
-      value: "1"
+      value: "3"
     envFrom:
     - configMapRef:
         name: alibaba-large-config
@@ -93,12 +93,12 @@ spec:
     image: alibaba-large-ms-18750:latest
     resources:
       requests:
-        cpu: "1"
+        cpu: "3"
       limits:
-        cpu: "1"
+        cpu: "3"
     env:
     - name: GOMAXPROCS
-      value: "1"
+      value: "3"
     envFrom:
     - configMapRef:
         name: alibaba-large-config
@@ -134,12 +134,12 @@ spec:
     image: alibaba-large-ms-19439:latest
     resources:
       requests:
-        cpu: "1"
+        cpu: "5"
       limits:
-        cpu: "1"
+        cpu: "5"
     env:
     - name: GOMAXPROCS
-      value: "1"
+      value: "5"
     envFrom:
     - configMapRef:
         name: alibaba-large-config
@@ -175,12 +175,12 @@ spec:
     image: alibaba-large-ms-21298:latest
     resources:
       requests:
-        cpu: "1"
+        cpu: "5"
       limits:
-        cpu: "1"
+        cpu: "5"
     env:
     - name: GOMAXPROCS
-      value: "1"
+      value: "5"
     envFrom:
     - configMapRef:
         name: alibaba-large-config
@@ -216,12 +216,12 @@ spec:
     image: alibaba-large-ms-25781:latest
     resources:
       requests:
-        cpu: "2"
+        cpu: "3"
       limits:
-        cpu: "2"
+        cpu: "3"
     env:
     - name: GOMAXPROCS
-      value: "2"
+      value: "3"
     envFrom:
     - configMapRef:
         name: alibaba-large-config
@@ -257,12 +257,12 @@ spec:
     image: alibaba-large-ms-25806:latest
     resources:
       requests:
-        cpu: "3"
+        cpu: "8"
       limits:
-        cpu: "3"
+        cpu: "8"
     env:
     - name: GOMAXPROCS
-      value: "3"
+      value: "8"
     envFrom:
     - configMapRef:
         name: alibaba-large-config
@@ -298,12 +298,12 @@ spec:
     image: alibaba-large-ms-2687:latest
     resources:
       requests:
-        cpu: "3"
+        cpu: "4"
       limits:
-        cpu: "3"
+        cpu: "4"
     env:
     - name: GOMAXPROCS
-      value: "3"
+      value: "4"
     envFrom:
     - configMapRef:
         name: alibaba-large-config
@@ -339,12 +339,12 @@ spec:
     image: alibaba-large-ms-33572:latest
     resources:
       requests:
-        cpu: "1"
+        cpu: "4"
       limits:
-        cpu: "1"
+        cpu: "4"
     env:
     - name: GOMAXPROCS
-      value: "1"
+      value: "4"
     envFrom:
     - configMapRef:
         name: alibaba-large-config
@@ -380,12 +380,12 @@ spec:
     image: alibaba-large-ms-38190:latest
     resources:
       requests:
-        cpu: "1"
+        cpu: "4"
       limits:
-        cpu: "1"
+        cpu: "4"
     env:
     - name: GOMAXPROCS
-      value: "1"
+      value: "4"
     envFrom:
     - configMapRef:
         name: alibaba-large-config
@@ -421,12 +421,12 @@ spec:
     image: alibaba-large-ms-40087:latest
     resources:
       requests:
-        cpu: "3"
+        cpu: "6"
       limits:
-        cpu: "3"
+        cpu: "6"
     env:
     - name: GOMAXPROCS
-      value: "3"
+      value: "6"
     envFrom:
     - configMapRef:
         name: alibaba-large-config
@@ -462,12 +462,12 @@ spec:
     image: alibaba-large-ms-41667:latest
     resources:
       requests:
-        cpu: "1"
+        cpu: "4"
       limits:
-        cpu: "1"
+        cpu: "4"
     env:
     - name: GOMAXPROCS
-      value: "1"
+      value: "4"
     envFrom:
     - configMapRef:
         name: alibaba-large-config
@@ -503,12 +503,12 @@ spec:
     image: alibaba-large-ms-43032:latest
     resources:
       requests:
-        cpu: "3"
+        cpu: "4"
       limits:
-        cpu: "3"
+        cpu: "4"
     env:
     - name: GOMAXPROCS
-      value: "3"
+      value: "4"
     envFrom:
     - configMapRef:
         name: alibaba-large-config
@@ -544,12 +544,12 @@ spec:
     image: alibaba-large-ms-43754:latest
     resources:
       requests:
-        cpu: "1"
+        cpu: "4"
       limits:
-        cpu: "1"
+        cpu: "4"
     env:
     - name: GOMAXPROCS
-      value: "1"
+      value: "4"
     envFrom:
     - configMapRef:
         name: alibaba-large-config
@@ -585,12 +585,12 @@ spec:
     image: alibaba-large-ms-44246:latest
     resources:
       requests:
-        cpu: "3"
+        cpu: "4"
       limits:
-        cpu: "3"
+        cpu: "4"
     env:
     - name: GOMAXPROCS
-      value: "3"
+      value: "4"
     envFrom:
     - configMapRef:
         name: alibaba-large-config
@@ -626,12 +626,12 @@ spec:
     image: alibaba-large-ms-45067:latest
     resources:
       requests:
-        cpu: "1"
+        cpu: "4"
       limits:
-        cpu: "1"
+        cpu: "4"
     env:
     - name: GOMAXPROCS
-      value: "1"
+      value: "4"
     envFrom:
     - configMapRef:
         name: alibaba-large-config
@@ -667,12 +667,12 @@ spec:
     image: alibaba-large-ms-51783:latest
     resources:
       requests:
-        cpu: "1"
+        cpu: "4"
       limits:
-        cpu: "1"
+        cpu: "4"
     env:
     - name: GOMAXPROCS
-      value: "1"
+      value: "4"
     envFrom:
     - configMapRef:
         name: alibaba-large-config
@@ -708,12 +708,12 @@ spec:
     image: alibaba-large-ms-51787:latest
     resources:
       requests:
-        cpu: "1"
+        cpu: "4"
       limits:
-        cpu: "1"
+        cpu: "4"
     env:
     - name: GOMAXPROCS
-      value: "1"
+      value: "4"
     envFrom:
     - configMapRef:
         name: alibaba-large-config
@@ -749,12 +749,12 @@ spec:
     image: alibaba-large-ms-53792:latest
     resources:
       requests:
-        cpu: "1"
+        cpu: "4"
       limits:
-        cpu: "1"
+        cpu: "4"
     env:
     - name: GOMAXPROCS
-      value: "1"
+      value: "4"
     envFrom:
     - configMapRef:
         name: alibaba-large-config
@@ -790,12 +790,12 @@ spec:
     image: alibaba-large-ms-56113:latest
     resources:
       requests:
-        cpu: "4"
+        cpu: "8"
       limits:
-        cpu: "4"
+        cpu: "8"
     env:
     - name: GOMAXPROCS
-      value: "4"
+      value: "8"
     envFrom:
     - configMapRef:
         name: alibaba-large-config
@@ -831,12 +831,12 @@ spec:
     image: alibaba-large-ms-5720:latest
     resources:
       requests:
-        cpu: "3"
+        cpu: "4"
       limits:
-        cpu: "3"
+        cpu: "4"
     env:
     - name: GOMAXPROCS
-      value: "3"
+      value: "4"
     envFrom:
     - configMapRef:
         name: alibaba-large-config
@@ -872,12 +872,12 @@ spec:
     image: alibaba-large-ms-58796:latest
     resources:
       requests:
-        cpu: "1"
+        cpu: "4"
       limits:
-        cpu: "1"
+        cpu: "4"
     env:
     - name: GOMAXPROCS
-      value: "1"
+      value: "4"
     envFrom:
     - configMapRef:
         name: alibaba-large-config
@@ -913,12 +913,12 @@ spec:
     image: alibaba-large-ms-62039:latest
     resources:
       requests:
-        cpu: "1"
+        cpu: "4"
       limits:
-        cpu: "1"
+        cpu: "4"
     env:
     - name: GOMAXPROCS
-      value: "1"
+      value: "4"
     envFrom:
     - configMapRef:
         name: alibaba-large-config
@@ -954,12 +954,12 @@ spec:
     image: alibaba-large-ms-64512-grpc:latest
     resources:
       requests:
-        cpu: "1"
+        cpu: "5"
       limits:
-        cpu: "1"
+        cpu: "5"
     env:
     - name: GOMAXPROCS
-      value: "1"
+      value: "5"
     envFrom:
     - configMapRef:
         name: alibaba-large-config
@@ -995,12 +995,12 @@ spec:
     image: alibaba-large-ms-66921:latest
     resources:
       requests:
-        cpu: "1"
+        cpu: "4"
       limits:
-        cpu: "1"
+        cpu: "4"
     env:
     - name: GOMAXPROCS
-      value: "1"
+      value: "4"
     envFrom:
     - configMapRef:
         name: alibaba-large-config
@@ -1036,12 +1036,12 @@ spec:
     image: alibaba-large-ms-67465:latest
     resources:
       requests:
-        cpu: "1"
+        cpu: "4"
       limits:
-        cpu: "1"
+        cpu: "4"
     env:
     - name: GOMAXPROCS
-      value: "1"
+      value: "4"
     envFrom:
     - configMapRef:
         name: alibaba-large-config
@@ -1077,12 +1077,12 @@ spec:
     image: alibaba-large-ms-70124:latest
     resources:
       requests:
-        cpu: "1"
+        cpu: "3"
       limits:
-        cpu: "1"
+        cpu: "3"
     env:
     - name: GOMAXPROCS
-      value: "1"
+      value: "3"
     envFrom:
     - configMapRef:
         name: alibaba-large-config
@@ -1118,12 +1118,12 @@ spec:
     image: alibaba-large-ms-7103:latest
     resources:
       requests:
-        cpu: "2"
+        cpu: "7"
       limits:
-        cpu: "2"
+        cpu: "7"
     env:
     - name: GOMAXPROCS
-      value: "2"
+      value: "7"
     envFrom:
     - configMapRef:
         name: alibaba-large-config
@@ -1159,12 +1159,12 @@ spec:
     image: alibaba-large-ms-9105:latest
     resources:
       requests:
-        cpu: "1"
+        cpu: "6"
       limits:
-        cpu: "1"
+        cpu: "6"
     env:
     - name: GOMAXPROCS
-      value: "1"
+      value: "6"
     envFrom:
     - configMapRef:
         name: alibaba-large-config
@@ -1200,12 +1200,12 @@ spec:
     image: alibaba-large-rajomon-client:latest
     resources:
       requests:
-        cpu: "2"
+        cpu: "6"
       limits:
-        cpu: "2"
+        cpu: "6"
     env:
     - name: GOMAXPROCS
-      value: "2"
+      value: "6"
     envFrom:
     - configMapRef:
         name: alibaba-large-config

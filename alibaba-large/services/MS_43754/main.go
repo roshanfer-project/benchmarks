@@ -83,7 +83,7 @@ func (s *Server) Run() error {
 
 
 func (s *Server) XRm60XyryM(ctx context.Context, req *pb.Request) (*pb.Response, error) {
-	utils.BusyLoop(857)
+	utils.BusyLoop(320)
 
 	md, _ := metadata.FromIncomingContext(ctx)
 	api := ""

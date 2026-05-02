@@ -21,7 +21,6 @@ import (
 type Server struct {
 	pb.UnimplementedMS_58796Server
 	MS_38190Client pb.MS_38190Client
-	MS_7103Client pb.MS_7103Client
 }
 
 const serviceName = "MS_58796"
@@ -85,17 +84,6 @@ func (s *Server) Run() error {
 		}
 	}
 	s.MS_38190Client = pb.NewMS_38190Client(conn)
-	if !sidecar {
-		addr := utils.GetEnvVar("MS_7103_ADDR", true)
-		if useRajomon {
-			conn = pkg.GetRajomonClient(addr, grpc.WithUnaryInterceptor(priceTable.UnaryInterceptorClient))
-		} else if useDagor {
-			conn = pkg.GetConn(addr, grpc.WithUnaryInterceptor(dagorNode.UnaryInterceptorClient))
-		} else {
-			conn = pkg.GetConn(addr)
-		}
-	}
-	s.MS_7103Client = pb.NewMS_7103Client(conn)
 
 
 	reflection.Register(srv)
@@ -112,7 +100,7 @@ func (s *Server) Run() error {
 
 
 func (s *Server) AbNb_BH36(ctx context.Context, req *pb.Request) (*pb.Response, error) {
-	utils.BusyLoop(492)
+	utils.BusyLoop(256)
 
 	md, _ := metadata.FromIncomingContext(ctx)
 	api := ""
@@ -123,11 +111,6 @@ func (s *Server) AbNb_BH36(ctx context.Context, req *pb.Request) (*pb.Response, 
 	case "Z8trRkp4mp":
 		var err error
 		_, err = s.MS_38190Client.IC2EiGNaE(ctx, req)
-		if err != nil {
-			log.Error("downstream call failed", "error", err)
-			return nil, err
-		}
-		_, err = s.MS_7103Client.RswWe4AhfE(ctx, req)
 		if err != nil {
 			log.Error("downstream call failed", "error", err)
 			return nil, err

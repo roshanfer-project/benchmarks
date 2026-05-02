@@ -16,7 +16,7 @@ data:
     ingress_upstream_port: 2000
     report_latency: True
     name: ms-12657
-    cpu_count: 1
+    cpu_count: 3
     over_commitment: 0.0
     
   ms-14758.yaml: |
@@ -32,7 +32,7 @@ data:
     ingress_upstream_port: 2000
     report_latency: True
     name: ms-14758
-    cpu_count: 1
+    cpu_count: 3
     over_commitment: 0.0
     
   ms-18750.yaml: |
@@ -48,7 +48,7 @@ data:
     ingress_upstream_port: 2000
     report_latency: True
     name: ms-18750
-    cpu_count: 1
+    cpu_count: 3
     over_commitment: 0.0
     
   ms-19439.yaml: |
@@ -82,7 +82,7 @@ data:
     ingress_upstream_port: 2000
     report_latency: True
     name: ms-19439
-    cpu_count: 1
+    cpu_count: 5
     over_commitment: 0.0
     
   ms-21298.yaml: |
@@ -106,7 +106,7 @@ data:
     ingress_upstream_port: 2000
     report_latency: True
     name: ms-21298
-    cpu_count: 1
+    cpu_count: 5
     over_commitment: 0.0
     
   ms-25781.yaml: |
@@ -129,20 +129,13 @@ data:
     ingress_upstream_port: 2000
     report_latency: True
     name: ms-25781
-    cpu_count: 2
+    cpu_count: 3
     over_commitment: 0.0
     
   ms-25806.yaml: |
-    routing:
-      benchmark.MS_56113/F0bDDol0sG:
-        upstream:
-          host: alibaba-large-ms-56113
-          port: 3000
     mapping:
       benchmark.MS_25806/M0PIREyu4tb:
       benchmark.MS_25806/FQN3ARekoW:
-        downstreams:
-          - benchmark.MS_56113/F0bDDol0sG
       benchmark.MS_25806/qQqbn5h_pP:
     ring_size: 1000
     buffer_count: 1024
@@ -154,7 +147,7 @@ data:
     ingress_upstream_port: 2000
     report_latency: True
     name: ms-25806
-    cpu_count: 3
+    cpu_count: 8
     over_commitment: 0.0
     
   ms-2687.yaml: |
@@ -170,7 +163,7 @@ data:
     ingress_upstream_port: 2000
     report_latency: True
     name: ms-2687
-    cpu_count: 3
+    cpu_count: 4
     over_commitment: 0.0
     
   ms-33572.yaml: |
@@ -186,7 +179,7 @@ data:
     ingress_upstream_port: 2000
     report_latency: True
     name: ms-33572
-    cpu_count: 1
+    cpu_count: 4
     over_commitment: 0.0
     
   ms-38190.yaml: |
@@ -202,7 +195,7 @@ data:
     ingress_upstream_port: 2000
     report_latency: True
     name: ms-38190
-    cpu_count: 1
+    cpu_count: 4
     over_commitment: 0.0
     
   ms-40087.yaml: |
@@ -219,7 +212,7 @@ data:
     ingress_upstream_port: 2000
     report_latency: True
     name: ms-40087
-    cpu_count: 3
+    cpu_count: 6
     over_commitment: 0.0
     
   ms-41667.yaml: |
@@ -235,7 +228,7 @@ data:
     ingress_upstream_port: 2000
     report_latency: True
     name: ms-41667
-    cpu_count: 1
+    cpu_count: 4
     over_commitment: 0.0
     
   ms-43032.yaml: |
@@ -251,7 +244,7 @@ data:
     ingress_upstream_port: 2000
     report_latency: True
     name: ms-43032
-    cpu_count: 3
+    cpu_count: 4
     over_commitment: 0.0
     
   ms-43754.yaml: |
@@ -267,7 +260,7 @@ data:
     ingress_upstream_port: 2000
     report_latency: True
     name: ms-43754
-    cpu_count: 1
+    cpu_count: 4
     over_commitment: 0.0
     
   ms-44246.yaml: |
@@ -283,7 +276,7 @@ data:
     ingress_upstream_port: 2000
     report_latency: True
     name: ms-44246
-    cpu_count: 3
+    cpu_count: 4
     over_commitment: 0.0
     
   ms-45067.yaml: |
@@ -299,7 +292,7 @@ data:
     ingress_upstream_port: 2000
     report_latency: True
     name: ms-45067
-    cpu_count: 1
+    cpu_count: 4
     over_commitment: 0.0
     
   ms-51783.yaml: |
@@ -315,34 +308,29 @@ data:
     ingress_upstream_port: 2000
     report_latency: True
     name: ms-51783
-    cpu_count: 1
+    cpu_count: 4
     over_commitment: 0.0
     
   ms-51787.yaml: |
     routing:
-      benchmark.MS_25806/M0PIREyu4tb:
-        upstream:
-          host: alibaba-large-ms-25806
-          port: 3000
       benchmark.MS_44246/nRLDYEHBqx:
         upstream:
           host: alibaba-large-ms-44246
-          port: 3000
-      benchmark.MS_56113/M0PIREyu4tb:
-        upstream:
-          host: alibaba-large-ms-56113
           port: 3000
       benchmark.MS_56113/KuU4P3BCru:
         upstream:
           host: alibaba-large-ms-56113
           port: 3000
+      benchmark.MS_25806/FQN3ARekoW:
+        upstream:
+          host: alibaba-large-ms-25806
+          port: 3000
     mapping:
       benchmark.MS_51787/rypaFB4pfJ:
         downstreams:
-          - benchmark.MS_25806/M0PIREyu4tb
           - benchmark.MS_44246/nRLDYEHBqx
-          - benchmark.MS_56113/M0PIREyu4tb
           - benchmark.MS_56113/KuU4P3BCru
+          - benchmark.MS_25806/FQN3ARekoW
     ring_size: 1000
     buffer_count: 1024
     buffer_size: 80000
@@ -353,7 +341,7 @@ data:
     ingress_upstream_port: 2000
     report_latency: True
     name: ms-51787
-    cpu_count: 1
+    cpu_count: 4
     over_commitment: 0.0
     
   ms-53792.yaml: |
@@ -381,13 +369,12 @@ data:
     ingress_upstream_port: 2000
     report_latency: True
     name: ms-53792
-    cpu_count: 1
+    cpu_count: 4
     over_commitment: 0.0
     
   ms-56113.yaml: |
     mapping:
       benchmark.MS_56113/M0PIREyu4tb:
-      benchmark.MS_56113/F0bDDol0sG:
       benchmark.MS_56113/KuU4P3BCru:
     ring_size: 1000
     buffer_count: 1024
@@ -399,7 +386,7 @@ data:
     ingress_upstream_port: 2000
     report_latency: True
     name: ms-56113
-    cpu_count: 4
+    cpu_count: 8
     over_commitment: 0.0
     
   ms-5720.yaml: |
@@ -422,7 +409,7 @@ data:
     ingress_upstream_port: 2000
     report_latency: True
     name: ms-5720
-    cpu_count: 3
+    cpu_count: 4
     over_commitment: 0.0
     
   ms-58796.yaml: |
@@ -431,15 +418,10 @@ data:
         upstream:
           host: alibaba-large-ms-38190
           port: 3000
-      benchmark.MS_7103/rswWe4AhfE:
-        upstream:
-          host: alibaba-large-ms-7103
-          port: 3000
     mapping:
       benchmark.MS_58796/abNb_B_h36:
         downstreams:
           - benchmark.MS_38190/IC2Ei_gNaE
-          - benchmark.MS_7103/rswWe4AhfE
     ring_size: 1000
     buffer_count: 1024
     buffer_size: 80000
@@ -450,7 +432,7 @@ data:
     ingress_upstream_port: 2000
     report_latency: True
     name: ms-58796
-    cpu_count: 1
+    cpu_count: 4
     over_commitment: 0.0
     
   ms-62039.yaml: |
@@ -473,7 +455,7 @@ data:
     ingress_upstream_port: 2000
     report_latency: True
     name: ms-62039
-    cpu_count: 1
+    cpu_count: 4
     over_commitment: 0.0
     
   ms-64512.yaml: |
@@ -499,10 +481,6 @@ data:
           host: alibaba-large-ms-25781
           port: 3000
       benchmark.MS_25806/M0PIREyu4tb:
-        upstream:
-          host: alibaba-large-ms-25806
-          port: 3000
-      benchmark.MS_25806/FQN3ARekoW:
         upstream:
           host: alibaba-large-ms-25806
           port: 3000
@@ -554,10 +532,6 @@ data:
         upstream:
           host: alibaba-large-ms-70124
           port: 3000
-      benchmark.MS_7103/rswWe4AhfE:
-        upstream:
-          host: alibaba-large-ms-7103
-          port: 3000
       benchmark.MS_9105/ByihMu7_9Z:
         upstream:
           host: alibaba-large-ms-9105
@@ -575,7 +549,6 @@ data:
           - benchmark.MS_21298/qRB35KFger
           - benchmark.MS_25781/qsLpARXiz2
           - benchmark.MS_25806/M0PIREyu4tb
-          - benchmark.MS_25806/FQN3ARekoW
           - benchmark.MS_2687/VdboDuPbKj
           - benchmark.MS_40087/M2QxmWDHq1o
           - benchmark.MS_40087/M5ISZV1sCx
@@ -588,7 +561,6 @@ data:
           - benchmark.MS_66921/eFOECNqigM
           - benchmark.MS_67465/wIe9cm5aqE
           - benchmark.MS_70124/v0gqd6H7nw
-          - benchmark.MS_7103/rswWe4AhfE
           - benchmark.MS_9105/ByihMu7_9Z
           - benchmark.MS_9105/msD67GoyH2
     ring_size: 1000
@@ -603,7 +575,7 @@ data:
     name: ms-64512
     is_frontend: True
     frontend_pool_connections: 200
-    cpu_count: 1
+    cpu_count: 5
     over_commitment: 0.0
     
   ms-66921.yaml: |
@@ -626,7 +598,7 @@ data:
     ingress_upstream_port: 2000
     report_latency: True
     name: ms-66921
-    cpu_count: 1
+    cpu_count: 4
     over_commitment: 0.0
     
   ms-67465.yaml: |
@@ -649,7 +621,7 @@ data:
     ingress_upstream_port: 2000
     report_latency: True
     name: ms-67465
-    cpu_count: 1
+    cpu_count: 4
     over_commitment: 0.0
     
   ms-70124.yaml: |
@@ -672,7 +644,7 @@ data:
     ingress_upstream_port: 2000
     report_latency: True
     name: ms-70124
-    cpu_count: 1
+    cpu_count: 3
     over_commitment: 0.0
     
   ms-7103.yaml: |
@@ -689,7 +661,7 @@ data:
     ingress_upstream_port: 2000
     report_latency: True
     name: ms-7103
-    cpu_count: 2
+    cpu_count: 7
     over_commitment: 0.0
     
   ms-9105.yaml: |
@@ -706,7 +678,7 @@ data:
     ingress_upstream_port: 2000
     report_latency: True
     name: ms-9105
-    cpu_count: 1
+    cpu_count: 6
     over_commitment: 0.0
     
   ingress.yaml: |
@@ -715,7 +687,7 @@ data:
         upstream:
           host: alibaba-large-ms-64512
           port: 3000
-        slo: 900
+        slo: 480
         priority: 0
     mapping:
       Z8trRkp4mp:

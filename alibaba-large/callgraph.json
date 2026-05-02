@@ -5,106 +5,106 @@
       "interfaces": [
         {
           "name": "kiMcs4YawB",
-          "avg_rt": 1.38
+          "avg_rt": 0.8
         }
       ],
-      "cpu": 1
+      "cpu": 3
     },
     {
       "id": "MS_14758",
       "interfaces": [
         {
           "name": "Mu-jZ40NDv",
-          "avg_rt": 2
+          "avg_rt": 0.8
         }
       ],
-      "cpu": 1
+      "cpu": 3
     },
     {
       "id": "MS_18750",
       "interfaces": [
         {
           "name": "vs2nQhH1hq",
-          "avg_rt": 1.5
+          "avg_rt": 0.8
         }
       ],
-      "cpu": 1
+      "cpu": 3
     },
     {
       "id": "MS_19439",
       "interfaces": [
         {
           "name": "KvuxGZYcwm",
-          "avg_rt": 1.96
+          "avg_rt": 0.8
         },
         {
           "name": "ufXkUzqEz3",
-          "avg_rt": 1.24
+          "avg_rt": 0.8
         }
       ],
-      "cpu": 1
+      "cpu": 5
     },
     {
       "id": "MS_21298",
       "interfaces": [
         {
           "name": "Te9DKpWLH7",
-          "avg_rt": 1.73
+          "avg_rt": 0.6
         },
         {
           "name": "qRB35KFger",
-          "avg_rt": 1.5
+          "avg_rt": 0.6
         }
       ],
-      "cpu": 1
+      "cpu": 5
     },
     {
       "id": "MS_25781",
       "interfaces": [
         {
           "name": "qsLpARXiz2",
-          "avg_rt": 2.69
+          "avg_rt": 0.8
         }
       ],
-      "cpu": 2
+      "cpu": 3
     },
     {
       "id": "MS_25806",
       "interfaces": [
         {
           "name": "0PIREyu4tb",
-          "avg_rt": 1.79
+          "avg_rt": 0.8
         },
         {
           "name": "FQN3ARekoW",
-          "avg_rt": 1.49
+          "avg_rt": 0.8
         },
         {
           "name": "qQqbn5h_pP",
-          "avg_rt": 2.88
+          "avg_rt": 0.8
         }
       ],
-      "cpu": 3
+      "cpu": 8
     },
     {
       "id": "MS_2687",
       "interfaces": [
         {
           "name": "VdboDuPbKj",
-          "avg_rt": 2.93
+          "avg_rt": 0.8
         }
       ],
-      "cpu": 3
+      "cpu": 4
     },
     {
       "id": "MS_33572",
       "interfaces": [
         {
           "name": "NdwV_io91H",
-          "avg_rt": 2.5
+          "avg_rt": 0.8
         }
       ],
-      "cpu": 1
+      "cpu": 4
     },
     {
       "id": "MS_38190",
@@ -114,149 +114,145 @@
           "avg_rt": 0.66
         }
       ],
-      "cpu": 1
+      "cpu": 4
     },
     {
       "id": "MS_40087",
       "interfaces": [
         {
           "name": "2QxmWDHq1o",
-          "avg_rt": 1.62
+          "avg_rt": 0.8
         },
         {
           "name": "M5ISZV1sCx",
-          "avg_rt": 2.92
+          "avg_rt": 0.8
         }
       ],
-      "cpu": 3
+      "cpu": 6
     },
     {
       "id": "MS_41667",
       "interfaces": [
         {
           "name": "bk01rUGHnE",
-          "avg_rt": 1.03
+          "avg_rt": 0.8
         }
       ],
-      "cpu": 1
+      "cpu": 4
     },
     {
       "id": "MS_43032",
       "interfaces": [
         {
           "name": "zSdnWDdKmj",
-          "avg_rt": 3.96
+          "avg_rt": 0.8
         }
       ],
-      "cpu": 3
+      "cpu": 4
     },
     {
       "id": "MS_43754",
       "interfaces": [
         {
           "name": "-Rm60xyryM",
-          "avg_rt": 2.68
+          "avg_rt": 1
         }
       ],
-      "cpu": 1
+      "cpu": 4
     },
     {
       "id": "MS_44246",
       "interfaces": [
         {
           "name": "nRLDYEHBqx",
-          "avg_rt": 1.9
+          "avg_rt": 0.8
         }
       ],
-      "cpu": 3
+      "cpu": 4
     },
     {
       "id": "MS_45067",
       "interfaces": [
         {
           "name": "wU2EZy8fzO",
-          "avg_rt": 3.27
+          "avg_rt": 1
         }
       ],
-      "cpu": 1
+      "cpu": 4
     },
     {
       "id": "MS_51783",
       "interfaces": [
         {
           "name": "zMa4ZJ012X",
-          "avg_rt": 3.39
+          "avg_rt": 0.8
         }
       ],
-      "cpu": 1
+      "cpu": 4
     },
     {
       "id": "MS_51787",
       "interfaces": [
         {
           "name": "rypaFB4pfJ",
-          "avg_rt": 1.12
+          "avg_rt": 0.8
         }
       ],
-      "cpu": 1
+      "cpu": 4
     },
     {
       "id": "MS_53792",
       "interfaces": [
         {
           "name": "8jkkxghEWB",
-          "avg_rt": 1.7
+          "avg_rt": 0.8
         }
       ],
-      "cpu": 1
+      "cpu": 4
     },
     {
       "id": "MS_56113",
       "interfaces": [
         {
           "name": "0PIREyu4tb",
-          "avg_rt": 1.75
-        },
-        {
-          "name": "F0bDDol0sG",
-          "avg_rt": 3
+          "avg_rt": 0.8
         },
         {
           "name": "KuU4P3BCru",
-          "avg_rt": 1.81
+          "avg_rt": 0.8
         }
       ],
-      "cpu": 4
+      "cpu": 8
     },
     {
       "id": "MS_5720",
       "interfaces": [
         {
           "name": "4Cgy9S6B5O",
-          "avg_rt": 3.25
+          "avg_rt": 0.8
         }
       ],
-      "cpu": 3
+      "cpu": 4
     },
     {
       "id": "MS_58796",
       "interfaces": [
         {
           "name": "abNb-B-h36",
-          "avg_rt": 1.54
+          "avg_rt": 0.8
         }
       ],
-      "cpu": 1
+      "cpu": 4
     },
     {
       "id": "MS_62039",
       "interfaces": [
         {
           "name": "nK4gw2phix",
-          "avg_rt": 2.92
+          "avg_rt": 0.8
         }
       ],
-      "cpu": 1
+      "cpu": 4
     },
     {
       "id": "USER",
@@ -273,70 +269,70 @@
       "interfaces": [
         {
           "name": "Z8trRkp4mp",
-          "avg_rt": 0.9,
-          "slo": 1125,
+          "avg_rt": 0.5,
+          "slo": 600,
           "priority": 0
         }
       ],
-      "cpu": 1
+      "cpu": 5
     },
     {
       "id": "MS_66921",
       "interfaces": [
         {
           "name": "eFOECNqigM",
-          "avg_rt": 1.06
+          "avg_rt": 0.8
         }
       ],
-      "cpu": 1
+      "cpu": 4
     },
     {
       "id": "MS_67465",
       "interfaces": [
         {
           "name": "wIe9cm5aqE",
-          "avg_rt": 1.85
+          "avg_rt": 0.8
         }
       ],
-      "cpu": 1
+      "cpu": 4
     },
     {
       "id": "MS_70124",
       "interfaces": [
         {
           "name": "v0gqd6H7nw",
-          "avg_rt": 3.64
+          "avg_rt": 1
         }
       ],
-      "cpu": 1
+      "cpu": 3
     },
     {
       "id": "MS_7103",
       "interfaces": [
         {
           "name": "hnZO60j2rH",
-          "avg_rt": 2.17
+          "avg_rt": 0.8
         },
         {
           "name": "rswWe4AhfE",
-          "avg_rt": 2.16
+          "avg_rt": 0.8
         }
       ],
-      "cpu": 2
+      "cpu": 7
     },
     {
       "id": "MS_9105",
       "interfaces": [
         {
           "name": "ByihMu7_9Z",
-          "avg_rt": 2.24
+          "avg_rt": 0.8
         },
         {
           "name": "msD67GoyH2",
-          "avg_rt": 1.88
+          "avg_rt": 0.8
         }
       ],
-      "cpu": 1
+      "cpu": 6
     }
   ],
   "edges": [
@@ -361,20 +357,8 @@
       "target": "MS_7103:rswWe4AhfE"
     },
     {
-      "source": "MS_25806:FQN3ARekoW",
-      "target": "MS_56113:F0bDDol0sG"
-    },
-    {
-      "source": "MS_51787:rypaFB4pfJ",
-      "target": "MS_25806:0PIREyu4tb"
-    },
-    {
       "source": "MS_51787:rypaFB4pfJ",
       "target": "MS_44246:nRLDYEHBqx"
-    },
-    {
-      "source": "MS_51787:rypaFB4pfJ",
-      "target": "MS_56113:0PIREyu4tb"
     },
     {
       "source": "MS_51787:rypaFB4pfJ",
@@ -395,10 +379,6 @@
     {
       "source": "MS_58796:abNb-B-h36",
       "target": "MS_38190:IC2Ei_gNaE"
-    },
-    {
-      "source": "MS_58796:abNb-B-h36",
-      "target": "MS_7103:rswWe4AhfE"
     },
     {
       "source": "MS_62039:nK4gw2phix",
@@ -433,7 +413,7 @@
       "target": "MS_25806:0PIREyu4tb"
     },
     {
-      "source": "MS_64512:Z8trRkp4mp",
+      "source": "MS_51787:rypaFB4pfJ",
       "target": "MS_25806:FQN3ARekoW"
     },
     {
@@ -483,10 +463,6 @@
     {
       "source": "MS_64512:Z8trRkp4mp",
       "target": "MS_70124:v0gqd6H7nw"
-    },
-    {
-      "source": "MS_64512:Z8trRkp4mp",
-      "target": "MS_7103:rswWe4AhfE"
     },
     {
       "source": "MS_64512:Z8trRkp4mp",

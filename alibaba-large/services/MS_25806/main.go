@@ -20,7 +20,6 @@ import (
 
 type Server struct {
 	pb.UnimplementedMS_25806Server
-	MS_56113Client pb.MS_56113Client
 }
 
 const serviceName = "MS_25806"
@@ -69,22 +68,6 @@ func (s *Server) Run() error {
 	}
 	srv := grpc.NewServer(opts...)
 	pb.RegisterMS_25806Server(srv, s)
-	var conn *grpc.ClientConn
-	if sidecar {
-		conn = pkg.GetConn(utils.GetEnvVar("MS_25806_EGRESS", true))
-	}
-	if !sidecar {
-		addr := utils.GetEnvVar("MS_56113_ADDR", true)
-		if useRajomon {
-			conn = pkg.GetRajomonClient(addr, grpc.WithUnaryInterceptor(priceTable.UnaryInterceptorClient))
-		} else if useDagor {
-			conn = pkg.GetConn(addr, grpc.WithUnaryInterceptor(dagorNode.UnaryInterceptorClient))
-		} else {
-			conn = pkg.GetConn(addr)
-		}
-	}
-	s.MS_56113Client = pb.NewMS_56113Client(conn)
-
 
 	reflection.Register(srv)
 	port := 2000
@@ -100,7 +83,7 @@ func (s *Server) Run() error {
 
 
 func (s *Server) M0PIREyu4Tb(ctx context.Context, req *pb.Request) (*pb.Response, error) {
-	utils.BusyLoop(572)
+	utils.BusyLoop(256)
 
 	md, _ := metadata.FromIncomingContext(ctx)
 	api := ""
@@ -116,7 +99,7 @@ func (s *Server) M0PIREyu4Tb(ctx context.Context, req *pb.Request) (*pb.Response
 }
 
 func (s *Server) FQN3ARekoW(ctx context.Context, req *pb.Request) (*pb.Response, error) {
-	utils.BusyLoop(476)
+	utils.BusyLoop(256)
 
 	md, _ := metadata.FromIncomingContext(ctx)
 	api := ""
@@ -125,13 +108,6 @@ func (s *Server) FQN3ARekoW(ctx context.Context, req *pb.Request) (*pb.Response,
 	}
 	switch api {
 	case "Z8trRkp4mp":
-		var err error
-		_, err = s.MS_56113Client.F0BDDol0SG(ctx, req)
-		if err != nil {
-			log.Error("downstream call failed", "error", err)
-			return nil, err
-		}
-
 
 	default:
 	}
@@ -139,7 +115,7 @@ func (s *Server) FQN3ARekoW(ctx context.Context, req *pb.Request) (*pb.Response,
 }
 
 func (s *Server) QQqbn5HPP(ctx context.Context, req *pb.Request) (*pb.Response, error) {
-	utils.BusyLoop(921)
+	utils.BusyLoop(256)
 
 	md, _ := metadata.FromIncomingContext(ctx)
 	api := ""
