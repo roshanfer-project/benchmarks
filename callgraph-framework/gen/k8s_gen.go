@@ -1187,10 +1187,22 @@ elif [ "$MODE" = "rajomon" ]; then
   for IMG in {{range $i, $e := .RajomonImgK8s}}{{if $i}} {{end}}{{$e}}{{end}}; do
     sed -i "s|${BENCH}-${IMG}:latest|${REGISTRY}/${BENCH}-${IMG}:${TAG}|g" "$TMP_DIR/app-grpc.yaml"
   done
+  deploy_fail=0
+  declare -a deploy_pids=()
   for SVC in {{range $i, $e := .RajomonDeployOrder}}{{if $i}} {{end}}{{$e}}{{end}}; do
-    kubectl apply -f "$TMP_DIR/app-grpc.yaml" -l app="${SVC}"
-    kubectl_wait_ready_or_fail "${SVC}" "${WAIT_TIMEOUT}"
+    (
+      kubectl apply -f "$TMP_DIR/app-grpc.yaml" -l app="${SVC}"
+      kubectl_wait_ready_or_fail "${SVC}" "${WAIT_TIMEOUT}"
+    ) &
+    deploy_pids+=($!)
   done
+  for pid in "${deploy_pids[@]}"; do
+    wait "$pid" || deploy_fail=1
+  done
+  if [ "$deploy_fail" -ne 0 ]; then
+    echo "deploy.sh (rajomon): one or more workloads failed readiness" >&2
+    exit 1
+  fi
 elif [ "$MODE" = "dagor" ]; then
   cat k8s/dagor.env > "$TMP_DIR/dagor_merged.env"
   echo "" >> "$TMP_DIR/dagor_merged.env"
@@ -1214,10 +1226,22 @@ elif [ "$MODE" = "dagor" ]; then
   for IMG in {{range $i, $e := .RajomonImgK8s}}{{if $i}} {{end}}{{$e}}{{end}}; do
     sed -i "s|${BENCH}-${IMG}:latest|${REGISTRY}/${BENCH}-${IMG}:${TAG}|g" "$TMP_DIR/app-grpc.yaml"
   done
+  deploy_fail=0
+  declare -a deploy_pids=()
   for SVC in {{range $i, $e := .RajomonDeployOrder}}{{if $i}} {{end}}{{$e}}{{end}}; do
-    kubectl apply -f "$TMP_DIR/app-grpc.yaml" -l app="${SVC}"
-    kubectl_wait_ready_or_fail "${SVC}" "${WAIT_TIMEOUT}"
+    (
+      kubectl apply -f "$TMP_DIR/app-grpc.yaml" -l app="${SVC}"
+      kubectl_wait_ready_or_fail "${SVC}" "${WAIT_TIMEOUT}"
+    ) &
+    deploy_pids+=($!)
   done
+  for pid in "${deploy_pids[@]}"; do
+    wait "$pid" || deploy_fail=1
+  done
+  if [ "$deploy_fail" -ne 0 ]; then
+    echo "deploy.sh (dagor): one or more workloads failed readiness" >&2
+    exit 1
+  fi
 else
   kubectl create configmap {{.BenchmarkName}}-config --from-env-file=k8s/plain.env --dry-run=client -o yaml > "$TMP_DIR/configmap.yaml"
   kubectl apply -f "$TMP_DIR/configmap.yaml"
@@ -1226,11 +1250,23 @@ else
   kubectl_wait_ready_or_fail prometheus-pushgateway 60
   kubectl_wait_ready_or_fail prometheus 60
 
+  deploy_fail=0
+  declare -a deploy_pids=()
   for SVC in {{range $i, $e := .K8sOrder}}{{if $i}} {{end}}{{$e}}{{end}}; do
-    sed "s|${BENCH}-${SVC}:latest|${REGISTRY}/${BENCH}-${SVC}:${TAG}|g" "k8s/manifests/${SVC}.yaml" > "$TMP_DIR/${SVC}.yaml"
-    kubectl apply -f "$TMP_DIR/${SVC}.yaml"
-    kubectl_wait_ready_or_fail "${SVC}" "${WAIT_TIMEOUT}"
+    (
+      sed "s|${BENCH}-${SVC}:latest|${REGISTRY}/${BENCH}-${SVC}:${TAG}|g" "k8s/manifests/${SVC}.yaml" > "$TMP_DIR/${SVC}.yaml"
+      kubectl apply -f "$TMP_DIR/${SVC}.yaml"
+      kubectl_wait_ready_or_fail "${SVC}" "${WAIT_TIMEOUT}"
+    ) &
+    deploy_pids+=($!)
   done
+  for pid in "${deploy_pids[@]}"; do
+    wait "$pid" || deploy_fail=1
+  done
+  if [ "$deploy_fail" -ne 0 ]; then
+    echo "deploy.sh (plain): one or more workloads failed readiness" >&2
+    exit 1
+  fi
 
   kubectl apply -f k8s/manifests/entry.yaml
 fi
@@ -1307,33 +1343,51 @@ func generateCollectLogsScript(pg *ParsedGraph, svcNames []string, outDir string
 		svcList += k8sName(s) + " "
 	}
 	svcList += EntryGrpcK8s(pg) + " rajomon-client "
+	trimmed := strings.TrimSpace(svcList)
 	script := `#!/bin/bash
 MODE=${1:-${SYSTEM:-plain}}
 OUTPUT_DIR=${OUTPUT_DIR:-./logs}
 mkdir -p "$OUTPUT_DIR"
-for svc in ` + strings.TrimSpace(svcList) + `; do
+declare -a log_pids=()
+for svc in ` + trimmed + `; do
   for pod in $(kubectl get pods -l app=$svc -o jsonpath='{.items[*].metadata.name}'); do
-    kubectl logs "$pod" > "$OUTPUT_DIR/${pod}.log" 2>&1
-    if [ "$MODE" = "sidecar" ]; then
-      kubectl logs "$pod" -c sidecar > "$OUTPUT_DIR/${pod}-sidecar.log" 2>&1
-    fi
+    (
+      kubectl logs "$pod" > "$OUTPUT_DIR/${pod}.log" 2>&1
+      if [ "$MODE" = "sidecar" ]; then
+        kubectl logs "$pod" -c sidecar > "$OUTPUT_DIR/${pod}-sidecar.log" 2>&1
+      fi
+    ) &
+    log_pids+=($!)
   done
 done
+for pid in "${log_pids[@]}"; do wait "$pid" || true; done
+
 if [ "$MODE" = "sidecar" ]; then
+  declare -a ing_pids=()
   for pod in $(kubectl get pods -l app=ingress -o jsonpath='{.items[*].metadata.name}'); do
-    kubectl logs "$pod" -c sidecar > "$OUTPUT_DIR/${pod}-sidecar.log" 2>&1
+    (
+      kubectl logs "$pod" -c sidecar > "$OUTPUT_DIR/${pod}-sidecar.log" 2>&1
+    ) &
+    ing_pids+=($!)
   done
+  for pid in "${ing_pids[@]}"; do wait "$pid" || true; done
 fi
+
 if [ "$MODE" = "sidecar" ] && [ "${COLLECT_SIDECAR_NANOLOG:-}" = "1" ]; then
-  for svc in ` + strings.TrimSpace(svcList) + `; do
+  declare -a cp_pids=()
+  for svc in ` + trimmed + `; do
     for pod in $(kubectl get pods -l app=$svc -o jsonpath='{.items[*].metadata.name}' 2>/dev/null); do
-      kubectl cp "$pod:/compressedLog" "$OUTPUT_DIR/${pod}-sidecar.clog" -c sidecar 2>/dev/null || true
+      ( kubectl cp "$pod:/compressedLog" "$OUTPUT_DIR/${pod}-sidecar.clog" -c sidecar 2>/dev/null || true ) &
+      cp_pids+=($!)
     done
   done
   for pod in $(kubectl get pods -l app=ingress -o jsonpath='{.items[*].metadata.name}' 2>/dev/null); do
-    kubectl cp "$pod:/compressedLog" "$OUTPUT_DIR/${pod}-ingress-sidecar.clog" -c sidecar 2>/dev/null || true
+    ( kubectl cp "$pod:/compressedLog" "$OUTPUT_DIR/${pod}-ingress-sidecar.clog" -c sidecar 2>/dev/null || true ) &
+    cp_pids+=($!)
   done
+  for pid in "${cp_pids[@]}"; do wait "$pid" || true; done
 fi
+
 echo "Logs collected."
 `
 	return os.WriteFile(filepath.Join(outDir, "collect_logs.sh"), []byte(script), 0755)
