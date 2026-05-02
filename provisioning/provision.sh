@@ -40,7 +40,6 @@ done
 
 mapfile -t HOSTS < <(grep -vE '^\s*#|^\s*$' "$HOSTS_FILE")
 
-# Helper to parse "user@host"
 parse_host_entry() {
     local entry=$1
     if [[ "$entry" == *"@"* ]]; then
@@ -59,25 +58,33 @@ ssh_exec() {
     ssh $SSH_OPTS "$user@$host" "$cmd"
 }
 
-log_info "Starting provisioning for ${#HOSTS[@]} hosts..."
+sanitize_log_id() {
+    local s=$1
+    s="${s//@/_at_}"
+    s="${s//\//_}"
+    echo "$s" | tr -c 'A-Za-z0-9_.-' '_'
+}
 
-for entry in "${HOSTS[@]}"; do
+# One host — invoked inside subshell; all output redirected to per-host log by caller.
+provision_single_host() {
+    set -e
+    local entry=$1
     parse_host_entry "$entry"
-    node_user="$CURRENT_USER"
-    node_host="$CURRENT_HOST"
-    
-    log_info "Provisioning $node_host ($node_user)..."
+    local node_user="$CURRENT_USER"
+    local node_host="$CURRENT_HOST"
 
-    # Check if already provisioned
+    log_loc() { echo -e "[${node_host}] ${BLUE}[INFO]${NC} $1"; }
+    ok_loc() { echo -e "[${node_host}] ${GREEN}[SUCCESS]${NC} $1"; }
+
+    log_loc "Provisioning ($node_user)..."
+
     if [ "$FORCE_PROVISION" != "true" ] && ssh_exec "$node_user" "$node_host" "[ -f .roshanfer_provisioned ]"; then
-         log_success "  Host $node_host already provisioned (found .roshanfer_provisioned). Skipping (-f to force)."
-         continue
+        ok_loc "Already provisioned (.roshanfer_provisioned). Skipping (-f to force)."
+        return 0
     fi
 
-    # 1. SSH Keys Setup
-    log_info "  [1/4] Setting up SSH keys..."
+    log_loc "[1/4] Setting up SSH keys..."
     ssh_exec "$node_user" "$node_host" "mkdir -p ~/.ssh && chmod 700 ~/.ssh"
-    # Copy local keys to remote (for git clone etc)
     if [ -f ~/.ssh/id_ed25519 ]; then
         scp $SSH_OPTS ~/.ssh/id_ed25519 "$node_user@$node_host:~/.ssh/"
         scp $SSH_OPTS ~/.ssh/id_ed25519.pub "$node_user@$node_host:~/.ssh/"
@@ -87,46 +94,105 @@ for entry in "${HOSTS[@]}"; do
         scp $SSH_OPTS ~/.ssh/id_rsa.pub "$node_user@$node_host:~/.ssh/"
         ssh_exec "$node_user" "$node_host" "chmod 600 ~/.ssh/id_rsa && chmod 644 ~/.ssh/id_rsa.pub"
     else
-        log_info "  No default SSH keys found to copy (id_ed25519 or id_rsa). Skipping key copy."
+        log_loc "No default SSH keys to copy (id_ed25519 or id_rsa). Skipping key copy."
     fi
 
-    # 2. Install Go
-    log_info "  [2/4] Installing Go..."
+    log_loc "[2/4] Installing Go..."
     cat "$SCRIPT_DIR/install_go.sh" | ssh_exec "$node_user" "$node_host" "bash -s"
 
-    # 3. Clone Experiment Repo
-    log_info "  [3/4] Cloning experiment repository..."
+    log_loc "[3/4] Clone / pull repo..."
     ssh_exec "$node_user" "$node_host" "ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null"
-    # Using the repo URL from k8s/create.sh logic
     REPO_URL="git@github.com:farzad1132/roshanfer-experments.git"
     DIR_NAME="roshanfer-experments"
-    
-    CLONE_CMD="if [ ! -d '$DIR_NAME' ]; then 
-                   git clone $REPO_URL $DIR_NAME; 
-               else 
+
+    CLONE_CMD="if [ ! -d '$DIR_NAME' ]; then
+                   git clone $REPO_URL $DIR_NAME;
+               else
                    echo 'Repo exists, pulling latest...';
                    cd $DIR_NAME && git pull;
                fi"
-    
+
     ssh_exec "$node_user" "$node_host" "$CLONE_CMD"
-    
-    # Initialize submodules (benchmarks: k8s/provision wrappers; rwg: load generator)
-    log_info "        Initializing submodules (benchmarks, rwg)..."
+
+    log_loc "Initializing submodules (benchmarks, rwg)..."
     ssh_exec "$node_user" "$node_host" "cd $DIR_NAME && git submodule update --init --recursive benchmarks rwg"
 
-    # Build rwg
-    log_info "        Building rwg..."
+    log_loc "Building rwg..."
     ssh_exec "$node_user" "$node_host" "cd $DIR_NAME/rwg && /usr/local/go/bin/go build ."
 
-
-    # 4. High Performance Setup
-    log_info "  [4/4] Configuring high performance settings..."
+    log_loc "[4/4] High performance settings..."
     cat "$SCRIPT_DIR/high_perf.sh" | ssh_exec "$node_user" "$node_host" "sudo bash -s"
 
-    # Mark as provisioned
     ssh_exec "$node_user" "$node_host" "touch .roshanfer_provisioned"
 
-    log_success "Finished provisioning $node_host"
+    ok_loc "Finished provisioning"
+}
+
+if [ "${#HOSTS[@]}" -eq 0 ]; then
+    log_error "No hosts in $HOSTS_FILE"
+    exit 1
+fi
+
+RUN_STAMP="$(date -u +%Y%m%d_%H%M%S)"
+PROVISION_LOG_DIR="${PROVISION_LOG_DIR:-${SCRIPT_DIR}/provision_logs/run_${RUN_STAMP}_$$}"
+mkdir -p "$PROVISION_LOG_DIR"
+
+# Default: fan out all hosts. Optional: MAX_PARALLEL_PROVISION=N throttle.
+if [ -n "${MAX_PARALLEL_PROVISION+x}" ] && [ -n "$MAX_PARALLEL_PROVISION" ]; then
+    max_jobs="$MAX_PARALLEL_PROVISION"
+else
+    max_jobs="${#HOSTS[@]}"
+fi
+if [ "$max_jobs" -lt 1 ]; then
+    max_jobs="${#HOSTS[@]}"
+fi
+
+log_info "Starting provisioning for ${#HOSTS[@]} hosts (max_parallel=${max_jobs}, logs=${PROVISION_LOG_DIR})..."
+
+declare -a pids=()
+declare -a metas=()
+declare -a fail_entries=()
+
+for entry in "${HOSTS[@]}"; do
+    safe=$(sanitize_log_id "$entry")
+    logf="${PROVISION_LOG_DIR}/provision_host_${safe}.log"
+
+    while [ "${#pids[@]}" -ge "$max_jobs" ]; do
+        if ! wait "${pids[0]}"; then
+            fail_entries+=("${metas[0]}")
+        fi
+        pids=("${pids[@]:1}")
+        metas=("${metas[@]:1}")
+    done
+
+    (
+        provision_single_host "$entry"
+    ) >"$logf" 2>&1 &
+    pids+=("$!")
+    metas+=("$entry|$logf")
 done
 
-log_success "All hosts provisioned successfully!"
+while [ "${#pids[@]}" -gt 0 ]; do
+    if ! wait "${pids[0]}"; then
+        fail_entries+=("${metas[0]}")
+    fi
+    pids=("${pids[@]:1}")
+    metas=("${metas[@]:1}")
+done
+
+log_info "=== Provisioning summary (${#HOSTS[@]} hosts) ==="
+log_info "Log directory: $PROVISION_LOG_DIR"
+
+fail_count="${#fail_entries[@]}"
+if [ "$fail_count" -eq 0 ]; then
+    log_success "All hosts provisioned successfully."
+    exit 0
+fi
+
+log_error "$fail_count host(s) failed:"
+for fe in "${fail_entries[@]}"; do
+    e="${fe%%|*}"
+    lf="${fe#*|}"
+    log_error "  - $e (log: $lf)"
+done
+exit 1
