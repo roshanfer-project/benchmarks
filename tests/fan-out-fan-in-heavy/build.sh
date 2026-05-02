@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 TAG=${1:-${TAG:-latest}}
 STATUS_FILE=${2:-}
 REGISTRY=${REGISTRY:-farzad1132}
@@ -33,29 +33,28 @@ if [ -n "$SIDECAR_DIR" ]; then
   docker build -f "$SIDECAR_DIR/Dockerfile" -t "${REGISTRY}/sidecar-sidecar:${TAG}" "$SIDECAR_DIR"
 fi
 
-echo "Building backend1..."
-docker build --build-arg SERVICE=services/backend1 -f Dockerfile -t "${REGISTRY}/${BENCH}-backend1:${TAG}" .
-echo "Building backend2..."
-docker build --build-arg SERVICE=services/backend2 -f Dockerfile -t "${REGISTRY}/${BENCH}-backend2:${TAG}" .
-echo "Building frontend..."
-docker build --build-arg SERVICE=services/frontend -f Dockerfile -t "${REGISTRY}/${BENCH}-frontend:${TAG}" .
-echo "Building shared..."
-docker build --build-arg SERVICE=services/shared -f Dockerfile -t "${REGISTRY}/${BENCH}-shared:${TAG}" .
-echo "Building frontend-grpc..."
-docker build --build-arg SERVICE=services/frontend-grpc -f Dockerfile -t "${REGISTRY}/${BENCH}-frontend-grpc:${TAG}" .
-echo "Building rajomon-client..."
-docker build --build-arg SERVICE=services/rajomon-client -f Dockerfile -t "${REGISTRY}/${BENCH}-rajomon-client:${TAG}" .
+echo "Building workload images (docker buildx bake)..."
+REGISTRY="${REGISTRY}" TAG="${TAG}" BENCH="${BENCH}" docker buildx bake -f docker-bake.hcl
 
 echo "Pushing images..."
+PUSH_IMAGES=()
 if [ -n "$SIDECAR_DIR" ]; then
-  docker push "${REGISTRY}/sidecar-sidecar:${TAG}"
+  PUSH_IMAGES+=("${REGISTRY}/sidecar-sidecar:${TAG}")
 fi
-docker push "${REGISTRY}/${BENCH}-backend1:${TAG}"
-docker push "${REGISTRY}/${BENCH}-backend2:${TAG}"
-docker push "${REGISTRY}/${BENCH}-frontend:${TAG}"
-docker push "${REGISTRY}/${BENCH}-shared:${TAG}"
-docker push "${REGISTRY}/${BENCH}-frontend-grpc:${TAG}"
-docker push "${REGISTRY}/${BENCH}-rajomon-client:${TAG}"
+
+PUSH_IMAGES+=("${REGISTRY}/${BENCH}-backend1:${TAG}")
+
+PUSH_IMAGES+=("${REGISTRY}/${BENCH}-backend2:${TAG}")
+
+PUSH_IMAGES+=("${REGISTRY}/${BENCH}-frontend:${TAG}")
+
+PUSH_IMAGES+=("${REGISTRY}/${BENCH}-shared:${TAG}")
+
+PUSH_IMAGES+=("${REGISTRY}/${BENCH}-frontend-grpc:${TAG}")
+
+PUSH_IMAGES+=("${REGISTRY}/${BENCH}-rajomon-client:${TAG}")
+
+printf '%s\0' "${PUSH_IMAGES[@]}" | xargs -0 -P "$(nproc)" -n1 docker push
 
 if [ -n "$STATUS_FILE" ]; then
   mkdir -p "$(dirname "$STATUS_FILE")"

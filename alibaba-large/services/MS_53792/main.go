@@ -6,8 +6,12 @@ import (
 	"net"
 	"alibabalarge/pkg"
 	pb "alibabalarge/protobuf"
+	dagor "alibabalarge/dagor"
+	dagorinit "alibabalarge/dagor_init"
+	rajomoninit "alibabalarge/rajomon_init"
 	"alibabalarge/utils"
 
+	"github.com/pennsail/rajomon"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/reflection"
@@ -27,7 +31,20 @@ func (s *Server) Run() error {
 	log.Info("Initializing gRPC server...")
 	opts := pkg.GetServerOptions()
 	sidecar := utils.GetEnvVar("sidecar", false) == "true"
+	useRajomon := utils.GetEnvVar("rajomon", false) == "true"
+	useDagor := utils.GetEnvVar("dagor", false) == "true"
 	queuingExport := utils.GetEnvVar("queuing_export", false) == "true"
+	if !sidecar && useRajomon && useDagor {
+		panic("rajomon and dagor cannot both be enabled")
+	}
+	var priceTable *rajomon.PriceTable
+	var dagorNode *dagor.Dagor
+	if useRajomon && !sidecar {
+		priceTable = rajomoninit.GetPriceTable(serviceName, false)
+	}
+	if useDagor && !sidecar {
+		dagorNode = dagorinit.GetDagorNode(serviceName, false, false)
+	}
 	if sidecar {
 		if queuingExport {
 			opts = append(opts, grpc.ChainUnaryInterceptor(
@@ -36,6 +53,16 @@ func (s *Server) Run() error {
 		} else {
 			opts = append(opts, grpc.UnaryInterceptor(utils.ContextPropagationInterceptor()))
 		}
+	} else if useRajomon {
+		opts = append(opts, grpc.ChainUnaryInterceptor(
+			utils.ContextPropagationInterceptor(),
+			utils.NewCounterState(serviceName).GetInterceptor(),
+			priceTable.UnaryInterceptor))
+	} else if useDagor {
+		opts = append(opts, grpc.ChainUnaryInterceptor(
+			utils.ContextPropagationInterceptor(),
+			utils.NewCounterState(serviceName).GetInterceptor(),
+			dagorNode.UnaryInterceptorServer))
 	} else {
 		opts = append(opts, grpc.ChainUnaryInterceptor(
 			utils.ContextPropagationInterceptor(),
@@ -48,11 +75,25 @@ func (s *Server) Run() error {
 		conn = pkg.GetConn(utils.GetEnvVar("MS_53792_EGRESS", true))
 	}
 	if !sidecar {
-		conn = pkg.GetConn(utils.GetEnvVar("MS_41667_ADDR", true))
+		addr := utils.GetEnvVar("MS_41667_ADDR", true)
+		if useRajomon {
+			conn = pkg.GetRajomonClient(addr, grpc.WithUnaryInterceptor(priceTable.UnaryInterceptorClient))
+		} else if useDagor {
+			conn = pkg.GetConn(addr, grpc.WithUnaryInterceptor(dagorNode.UnaryInterceptorClient))
+		} else {
+			conn = pkg.GetConn(addr)
+		}
 	}
 	s.MS_41667Client = pb.NewMS_41667Client(conn)
 	if !sidecar {
-		conn = pkg.GetConn(utils.GetEnvVar("MS_5720_ADDR", true))
+		addr := utils.GetEnvVar("MS_5720_ADDR", true)
+		if useRajomon {
+			conn = pkg.GetRajomonClient(addr, grpc.WithUnaryInterceptor(priceTable.UnaryInterceptorClient))
+		} else if useDagor {
+			conn = pkg.GetConn(addr, grpc.WithUnaryInterceptor(dagorNode.UnaryInterceptorClient))
+		} else {
+			conn = pkg.GetConn(addr)
+		}
 	}
 	s.MS_5720Client = pb.NewMS_5720Client(conn)
 

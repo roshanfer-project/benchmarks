@@ -1,0 +1,14 @@
+# Trims workload image build context; keep anything required for Go compile.
+.git/
+callgraph.json
+k8s/
+deploy.sh
+destroy.sh
+collect_logs.sh
+docker-bake.hcl
+run-plain.sh
+run.sh
+entry_path.txt
+*.pdf
+out/
+out-*
