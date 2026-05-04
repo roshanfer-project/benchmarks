@@ -124,7 +124,7 @@ func (s *Server) Run() error {
 
 
 func (s *Server) RypaFB4PfJ(ctx context.Context, req *pb.Request) (*pb.Response, error) {
-	utils.BusyLoop(358)
+	utils.BusyLoop(256)
 
 	md, _ := metadata.FromIncomingContext(ctx)
 	api := ""
@@ -134,22 +134,17 @@ func (s *Server) RypaFB4PfJ(ctx context.Context, req *pb.Request) (*pb.Response,
 	switch api {
 	case "Z8trRkp4mp":
 		var err error
-		_, err = s.MS_25806Client.M0PIREyu4Tb(ctx, req)
-		if err != nil {
-			log.Error("downstream call failed", "error", err)
-			return nil, err
-		}
 		_, err = s.MS_44246Client.NRLDYEHBqx(ctx, req)
 		if err != nil {
 			log.Error("downstream call failed", "error", err)
 			return nil, err
 		}
-		_, err = s.MS_56113Client.M0PIREyu4Tb(ctx, req)
+		_, err = s.MS_56113Client.KuU4P3BCru(ctx, req)
 		if err != nil {
 			log.Error("downstream call failed", "error", err)
 			return nil, err
 		}
-		_, err = s.MS_56113Client.KuU4P3BCru(ctx, req)
+		_, err = s.MS_25806Client.FQN3ARekoW(ctx, req)
 		if err != nil {
 			log.Error("downstream call failed", "error", err)
 			return nil, err

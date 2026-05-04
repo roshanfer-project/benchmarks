@@ -83,7 +83,7 @@ func (s *Server) Run() error {
 
 
 func (s *Server) MuJZ40NDv(ctx context.Context, req *pb.Request) (*pb.Response, error) {
-	utils.BusyLoop(640)
+	utils.BusyLoop(256)
 
 	md, _ := metadata.FromIncomingContext(ctx)
 	api := ""

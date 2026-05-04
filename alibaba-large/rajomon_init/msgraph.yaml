@@ -11,8 +11,7 @@ applications:
     - MS_25806
     MS_25781:
     - MS_7103
-    MS_25806:
-    - MS_56113
+    MS_25806: []
     MS_2687: []
     MS_33572: []
     MS_38190: []
@@ -35,7 +34,6 @@ applications:
     - MS_33572
     MS_58796:
     - MS_38190
-    - MS_7103
     MS_62039:
     - MS_18750
     MS_66921:
@@ -63,7 +61,6 @@ applications:
     - MS_66921
     - MS_67465
     - MS_70124
-    - MS_7103
     - MS_9105
   entrypoint: ms-64512-grpc
   interface: Z8trRkp4mp

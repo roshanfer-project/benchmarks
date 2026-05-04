@@ -90,7 +90,6 @@ service MS_53792 {
 
 service MS_56113 {
   rpc M0PIREyu4tb(Request) returns (Response);
-  rpc F0bDDol0sG(Request) returns (Response);
   rpc KuU4P3BCru(Request) returns (Response);
 }
 

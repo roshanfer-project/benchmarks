@@ -100,7 +100,7 @@ func (s *Server) Run() error {
 
 
 func (s *Server) Te9DKpWLH7(ctx context.Context, req *pb.Request) (*pb.Response, error) {
-	utils.BusyLoop(553)
+	utils.BusyLoop(192)
 
 	md, _ := metadata.FromIncomingContext(ctx)
 	api := ""
@@ -116,7 +116,7 @@ func (s *Server) Te9DKpWLH7(ctx context.Context, req *pb.Request) (*pb.Response,
 }
 
 func (s *Server) QRB35KFger(ctx context.Context, req *pb.Request) (*pb.Response, error) {
-	utils.BusyLoop(480)
+	utils.BusyLoop(192)
 
 	md, _ := metadata.FromIncomingContext(ctx)
 	api := ""

@@ -105,7 +105,7 @@ if [ "$MODE" = "sidecar" ]; then
   kubectl_wait_ready_or_fail prometheus-pushgateway 60
   kubectl_wait_ready_or_fail prometheus 60
 
-  for SVC in ms-14758 ms-12657 ms-45067 ms-7103 ms-19439 ms-56113 ms-25806 ms-21298 ms-25781 ms-2687 ms-40087 ms-43032 ms-51783 ms-44246 ms-51787 ms-41667 ms-33572 ms-5720 ms-53792 ms-38190 ms-58796 ms-18750 ms-62039 ms-43754 ms-66921 ms-67465 ms-70124 ms-9105 ms-64512; do
+  for SVC in ms-14758 ms-12657 ms-45067 ms-7103 ms-19439 ms-25806 ms-21298 ms-25781 ms-2687 ms-40087 ms-43032 ms-51783 ms-44246 ms-56113 ms-51787 ms-41667 ms-33572 ms-5720 ms-53792 ms-38190 ms-58796 ms-18750 ms-62039 ms-43754 ms-66921 ms-67465 ms-70124 ms-9105 ms-64512; do
     sed "s|sidecar-sidecar:latest|${REGISTRY}/sidecar-sidecar:${TAG}|g" "k8s/manifests/${SVC}-sidecar.yaml" | \
     sed "s|${BENCH}-${SVC}:latest|${REGISTRY}/${BENCH}-${SVC}:${TAG}|g" > "$TMP_DIR/${SVC}-sidecar.yaml"
     if [ "$SIDECAR_DEBUG" = "1" ]; then
@@ -152,7 +152,7 @@ elif [ "$MODE" = "rajomon" ]; then
   done
   deploy_fail=0
   declare -a deploy_pids=()
-  for SVC in ms-14758 ms-12657 ms-45067 ms-7103 ms-19439 ms-56113 ms-25806 ms-21298 ms-25781 ms-2687 ms-40087 ms-43032 ms-51783 ms-44246 ms-51787 ms-41667 ms-33572 ms-5720 ms-53792 ms-38190 ms-58796 ms-18750 ms-62039 ms-43754 ms-66921 ms-67465 ms-70124 ms-9105 ms-64512-grpc rajomon-client; do
+  for SVC in ms-14758 ms-12657 ms-45067 ms-7103 ms-19439 ms-25806 ms-21298 ms-25781 ms-2687 ms-40087 ms-43032 ms-51783 ms-44246 ms-56113 ms-51787 ms-41667 ms-33572 ms-5720 ms-53792 ms-38190 ms-58796 ms-18750 ms-62039 ms-43754 ms-66921 ms-67465 ms-70124 ms-9105 ms-64512-grpc rajomon-client; do
     (
       kubectl apply -f "$TMP_DIR/app-grpc.yaml" -l app="${SVC}"
       kubectl_wait_ready_or_fail "${SVC}" "${WAIT_TIMEOUT}"
@@ -191,7 +191,7 @@ elif [ "$MODE" = "dagor" ]; then
   done
   deploy_fail=0
   declare -a deploy_pids=()
-  for SVC in ms-14758 ms-12657 ms-45067 ms-7103 ms-19439 ms-56113 ms-25806 ms-21298 ms-25781 ms-2687 ms-40087 ms-43032 ms-51783 ms-44246 ms-51787 ms-41667 ms-33572 ms-5720 ms-53792 ms-38190 ms-58796 ms-18750 ms-62039 ms-43754 ms-66921 ms-67465 ms-70124 ms-9105 ms-64512-grpc rajomon-client; do
+  for SVC in ms-14758 ms-12657 ms-45067 ms-7103 ms-19439 ms-25806 ms-21298 ms-25781 ms-2687 ms-40087 ms-43032 ms-51783 ms-44246 ms-56113 ms-51787 ms-41667 ms-33572 ms-5720 ms-53792 ms-38190 ms-58796 ms-18750 ms-62039 ms-43754 ms-66921 ms-67465 ms-70124 ms-9105 ms-64512-grpc rajomon-client; do
     (
       kubectl apply -f "$TMP_DIR/app-grpc.yaml" -l app="${SVC}"
       kubectl_wait_ready_or_fail "${SVC}" "${WAIT_TIMEOUT}"
@@ -215,7 +215,7 @@ else
 
   deploy_fail=0
   declare -a deploy_pids=()
-  for SVC in ms-14758 ms-12657 ms-45067 ms-7103 ms-19439 ms-56113 ms-25806 ms-21298 ms-25781 ms-2687 ms-40087 ms-43032 ms-51783 ms-44246 ms-51787 ms-41667 ms-33572 ms-5720 ms-53792 ms-38190 ms-58796 ms-18750 ms-62039 ms-43754 ms-66921 ms-67465 ms-70124 ms-9105 ms-64512; do
+  for SVC in ms-14758 ms-12657 ms-45067 ms-7103 ms-19439 ms-25806 ms-21298 ms-25781 ms-2687 ms-40087 ms-43032 ms-51783 ms-44246 ms-56113 ms-51787 ms-41667 ms-33572 ms-5720 ms-53792 ms-38190 ms-58796 ms-18750 ms-62039 ms-43754 ms-66921 ms-67465 ms-70124 ms-9105 ms-64512; do
     (
       sed "s|${BENCH}-${SVC}:latest|${REGISTRY}/${BENCH}-${SVC}:${TAG}|g" "k8s/manifests/${SVC}.yaml" > "$TMP_DIR/${SVC}.yaml"
       kubectl apply -f "$TMP_DIR/${SVC}.yaml"

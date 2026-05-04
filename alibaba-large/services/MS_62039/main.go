@@ -100,7 +100,7 @@ func (s *Server) Run() error {
 
 
 func (s *Server) NK4Gw2Phix(ctx context.Context, req *pb.Request) (*pb.Response, error) {
-	utils.BusyLoop(934)
+	utils.BusyLoop(256)
 
 	md, _ := metadata.FromIncomingContext(ctx)
 	api := ""

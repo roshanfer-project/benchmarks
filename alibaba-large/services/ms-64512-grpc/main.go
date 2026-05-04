@@ -36,7 +36,6 @@ type Server struct {
 	MS_66921Client pb.MS_66921Client
 	MS_67465Client pb.MS_67465Client
 	MS_70124Client pb.MS_70124Client
-	MS_7103Client pb.MS_7103Client
 	MS_9105Client pb.MS_9105Client
 }
 
@@ -229,16 +228,6 @@ func (s *Server) Run() error {
 		s.MS_70124Client = pb.NewMS_70124Client(conn)
 	}
 	{
-		addr := utils.GetEnvVar("MS_7103_ADDR", true)
-		var conn *grpc.ClientConn
-		if useRajomon {
-			conn = pkg.GetRajomonClient(addr, grpc.WithUnaryInterceptor(pt.UnaryInterceptorClient))
-		} else {
-			conn = pkg.GetConn(addr, grpc.WithUnaryInterceptor(dn.UnaryInterceptorClient))
-		}
-		s.MS_7103Client = pb.NewMS_7103Client(conn)
-	}
-	{
 		addr := utils.GetEnvVar("MS_9105_ADDR", true)
 		var conn *grpc.ClientConn
 		if useRajomon {
@@ -260,7 +249,7 @@ func (s *Server) Run() error {
 
 
 func (s *Server) Z8TrRkp4Mp(ctx context.Context, req *pb.Request) (*pb.Response, error) {
-	utils.BusyLoop(288)
+	utils.BusyLoop(160)
 
 	md, _ := metadata.FromIncomingContext(ctx)
 	api := ""
@@ -296,11 +285,6 @@ func (s *Server) Z8TrRkp4Mp(ctx context.Context, req *pb.Request) (*pb.Response,
 			return nil, err
 		}
 		_, err = s.MS_25806Client.M0PIREyu4Tb(ctx, req)
-		if err != nil {
-			log.Error("downstream call failed", "error", err)
-			return nil, err
-		}
-		_, err = s.MS_25806Client.FQN3ARekoW(ctx, req)
 		if err != nil {
 			log.Error("downstream call failed", "error", err)
 			return nil, err
@@ -361,11 +345,6 @@ func (s *Server) Z8TrRkp4Mp(ctx context.Context, req *pb.Request) (*pb.Response,
 			return nil, err
 		}
 		_, err = s.MS_70124Client.V0Gqd6H7Nw(ctx, req)
-		if err != nil {
-			log.Error("downstream call failed", "error", err)
-			return nil, err
-		}
-		_, err = s.MS_7103Client.RswWe4AhfE(ctx, req)
 		if err != nil {
 			log.Error("downstream call failed", "error", err)
 			return nil, err

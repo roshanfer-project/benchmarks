@@ -1915,7 +1915,6 @@ var MS_53792_ServiceDesc = grpc.ServiceDesc{
 
 const (
 	MS_56113_M0PIREyu4Tb_FullMethodName = "/benchmark.MS_56113/M0PIREyu4tb"
-	MS_56113_F0BDDol0SG_FullMethodName  = "/benchmark.MS_56113/F0bDDol0sG"
 	MS_56113_KuU4P3BCru_FullMethodName  = "/benchmark.MS_56113/KuU4P3BCru"
 )
 
@@ -1924,7 +1923,6 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type MS_56113Client interface {
 	M0PIREyu4Tb(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error)
-	F0BDDol0SG(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error)
 	KuU4P3BCru(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error)
 }
 
@@ -1945,15 +1943,6 @@ func (c *mS_56113Client) M0PIREyu4Tb(ctx context.Context, in *Request, opts ...g
 	return out, nil
 }
 
-func (c *mS_56113Client) F0BDDol0SG(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error) {
-	out := new(Response)
-	err := c.cc.Invoke(ctx, MS_56113_F0BDDol0SG_FullMethodName, in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *mS_56113Client) KuU4P3BCru(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error) {
 	out := new(Response)
 	err := c.cc.Invoke(ctx, MS_56113_KuU4P3BCru_FullMethodName, in, out, opts...)
@@ -1968,7 +1957,6 @@ func (c *mS_56113Client) KuU4P3BCru(ctx context.Context, in *Request, opts ...gr
 // for forward compatibility
 type MS_56113Server interface {
 	M0PIREyu4Tb(context.Context, *Request) (*Response, error)
-	F0BDDol0SG(context.Context, *Request) (*Response, error)
 	KuU4P3BCru(context.Context, *Request) (*Response, error)
 	mustEmbedUnimplementedMS_56113Server()
 }
@@ -1979,9 +1967,6 @@ type UnimplementedMS_56113Server struct {
 
 func (UnimplementedMS_56113Server) M0PIREyu4Tb(context.Context, *Request) (*Response, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method M0PIREyu4Tb not implemented")
-}
-func (UnimplementedMS_56113Server) F0BDDol0SG(context.Context, *Request) (*Response, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method F0BDDol0SG not implemented")
 }
 func (UnimplementedMS_56113Server) KuU4P3BCru(context.Context, *Request) (*Response, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method KuU4P3BCru not implemented")
@@ -2017,24 +2002,6 @@ func _MS_56113_M0PIREyu4Tb_Handler(srv interface{}, ctx context.Context, dec fun
 	return interceptor(ctx, in, info, handler)
 }
 
-func _MS_56113_F0BDDol0SG_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(Request)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(MS_56113Server).F0BDDol0SG(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: MS_56113_F0BDDol0SG_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(MS_56113Server).F0BDDol0SG(ctx, req.(*Request))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _MS_56113_KuU4P3BCru_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(Request)
 	if err := dec(in); err != nil {
@@ -2063,10 +2030,6 @@ var MS_56113_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "M0PIREyu4tb",
 			Handler:    _MS_56113_M0PIREyu4Tb_Handler,
-		},
-		{
-			MethodName: "F0bDDol0sG",
-			Handler:    _MS_56113_F0BDDol0SG_Handler,
 		},
 		{
 			MethodName: "KuU4P3BCru",

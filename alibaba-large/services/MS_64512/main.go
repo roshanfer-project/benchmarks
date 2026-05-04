@@ -30,7 +30,6 @@ type Server struct {
 	MS_66921Client pb.MS_66921Client
 	MS_67465Client pb.MS_67465Client
 	MS_70124Client pb.MS_70124Client
-	MS_7103Client pb.MS_7103Client
 	MS_9105Client pb.MS_9105Client
 }
 
@@ -109,10 +108,6 @@ func (s *Server) Run() error {
 	}
 	s.MS_70124Client = pb.NewMS_70124Client(conn)
 	if !sidecar {
-		conn = pkg.GetConn(utils.GetEnvVar("MS_7103_ADDR", true))
-	}
-	s.MS_7103Client = pb.NewMS_7103Client(conn)
-	if !sidecar {
 		conn = pkg.GetConn(utils.GetEnvVar("MS_9105_ADDR", true))
 	}
 	s.MS_9105Client = pb.NewMS_9105Client(conn)
@@ -155,7 +150,7 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 	switch path {
 	case "Z8trRkp4mp":
 		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "Z8trRkp4mp", "rpc-id", rpcID))
-		utils.BusyLoop(288)
+		utils.BusyLoop(160)
 
 		req := &pb.Request{}
 		var err error
@@ -190,12 +185,6 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		_, err = s.MS_25806Client.M0PIREyu4Tb(ctx, req)
-		if err != nil {
-			log.Error("downstream call failed", "error", err)
-			http.Error(w, err.Error(), 500)
-			return
-		}
-		_, err = s.MS_25806Client.FQN3ARekoW(ctx, req)
 		if err != nil {
 			log.Error("downstream call failed", "error", err)
 			http.Error(w, err.Error(), 500)
@@ -268,12 +257,6 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		_, err = s.MS_70124Client.V0Gqd6H7Nw(ctx, req)
-		if err != nil {
-			log.Error("downstream call failed", "error", err)
-			http.Error(w, err.Error(), 500)
-			return
-		}
-		_, err = s.MS_7103Client.RswWe4AhfE(ctx, req)
 		if err != nil {
 			log.Error("downstream call failed", "error", err)
 			http.Error(w, err.Error(), 500)
