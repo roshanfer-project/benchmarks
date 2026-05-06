@@ -83,7 +83,7 @@ func (s *Server) Run() error {
 
 
 func (s *Server) M0PIREyu4Tb(ctx context.Context, req *pb.Request) (*pb.Response, error) {
-	utils.BusyLoop(256)
+	utils.BusyLoop(640)
 
 	md, _ := metadata.FromIncomingContext(ctx)
 	api := ""
@@ -99,7 +99,7 @@ func (s *Server) M0PIREyu4Tb(ctx context.Context, req *pb.Request) (*pb.Response
 }
 
 func (s *Server) KuU4P3BCru(ctx context.Context, req *pb.Request) (*pb.Response, error) {
-	utils.BusyLoop(256)
+	utils.BusyLoop(640)
 
 	md, _ := metadata.FromIncomingContext(ctx)
 	api := ""

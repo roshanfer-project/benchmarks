@@ -35,11 +35,11 @@
       "interfaces": [
         {
           "name": "KvuxGZYcwm",
-          "avg_rt": 0.8
+          "avg_rt": 2
         },
         {
           "name": "ufXkUzqEz3",
-          "avg_rt": 0.8
+          "avg_rt": 2
         }
       ],
       "cpu": 5,
@@ -76,15 +76,15 @@
       "interfaces": [
         {
           "name": "0PIREyu4tb",
-          "avg_rt": 0.8
+          "avg_rt": 1.5
         },
         {
           "name": "FQN3ARekoW",
-          "avg_rt": 0.8
+          "avg_rt": 2
         },
         {
           "name": "qQqbn5h_pP",
-          "avg_rt": 0.8
+          "avg_rt": 2
         }
       ],
       "cpu": 8
@@ -104,7 +104,7 @@
       "interfaces": [
         {
           "name": "NdwV_io91H",
-          "avg_rt": 0.8
+          "avg_rt": 2
         }
       ],
       "cpu": 4
@@ -220,11 +220,11 @@
       "interfaces": [
         {
           "name": "0PIREyu4tb",
-          "avg_rt": 0.8
+          "avg_rt": 2
         },
         {
           "name": "KuU4P3BCru",
-          "avg_rt": 0.8
+          "avg_rt": 2
         }
       ],
       "cpu": 8
@@ -234,7 +234,7 @@
       "interfaces": [
         {
           "name": "4Cgy9S6B5O",
-          "avg_rt": 0.8
+          "avg_rt": 1.5
         }
       ],
       "cpu": 4,
@@ -323,11 +323,11 @@
       "interfaces": [
         {
           "name": "hnZO60j2rH",
-          "avg_rt": 0.8
+          "avg_rt": 2
         },
         {
           "name": "rswWe4AhfE",
-          "avg_rt": 0.8
+          "avg_rt": 1.5
         }
       ],
       "cpu": 7

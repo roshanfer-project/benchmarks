@@ -100,7 +100,7 @@ func (s *Server) Run() error {
 
 
 func (s *Server) M4Cgy9S6B5O(ctx context.Context, req *pb.Request) (*pb.Response, error) {
-	utils.BusyLoop(256)
+	utils.BusyLoop(480)
 
 	md, _ := metadata.FromIncomingContext(ctx)
 	api := ""
