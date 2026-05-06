@@ -105,7 +105,7 @@ if [ "$MODE" = "sidecar" ]; then
   kubectl_wait_ready_or_fail prometheus-pushgateway 60
   kubectl_wait_ready_or_fail prometheus 60
 
-  for SVC in backend5 backend6 backend4 backend2 backend3 backend1 frontend; do
+  for SVC in backend5 backend6 backend4 backend2 backend7 backend8 backend3 backend1 frontend; do
     sed "s|sidecar-sidecar:latest|${REGISTRY}/sidecar-sidecar:${TAG}|g" "k8s/manifests/${SVC}-sidecar.yaml" | \
     sed "s|${BENCH}-${SVC}:latest|${REGISTRY}/${BENCH}-${SVC}:${TAG}|g" > "$TMP_DIR/${SVC}-sidecar.yaml"
     if [ "$SIDECAR_DEBUG" = "1" ]; then
@@ -147,12 +147,12 @@ elif [ "$MODE" = "rajomon" ]; then
   kubectl_wait_ready_or_fail prometheus 60
 
   cp k8s/manifests/app-grpc.yaml "$TMP_DIR/app-grpc.yaml"
-  for IMG in backend1 backend2 backend3 backend4 backend5 backend6 frontend-grpc rajomon-client; do
+  for IMG in backend1 backend2 backend3 backend4 backend5 backend6 backend7 backend8 frontend-grpc rajomon-client; do
     sed -i "s|${BENCH}-${IMG}:latest|${REGISTRY}/${BENCH}-${IMG}:${TAG}|g" "$TMP_DIR/app-grpc.yaml"
   done
   deploy_fail=0
   declare -a deploy_pids=()
-  for SVC in backend5 backend6 backend4 backend2 backend3 backend1 frontend-grpc rajomon-client; do
+  for SVC in backend5 backend6 backend4 backend2 backend7 backend8 backend3 backend1 frontend-grpc rajomon-client; do
     (
       kubectl apply -f "$TMP_DIR/app-grpc.yaml" -l app="${SVC}"
       kubectl_wait_ready_or_fail "${SVC}" "${WAIT_TIMEOUT}"
@@ -186,12 +186,12 @@ elif [ "$MODE" = "dagor" ]; then
   kubectl_wait_ready_or_fail prometheus 60
 
   cp k8s/manifests/app-grpc.yaml "$TMP_DIR/app-grpc.yaml"
-  for IMG in backend1 backend2 backend3 backend4 backend5 backend6 frontend-grpc rajomon-client; do
+  for IMG in backend1 backend2 backend3 backend4 backend5 backend6 backend7 backend8 frontend-grpc rajomon-client; do
     sed -i "s|${BENCH}-${IMG}:latest|${REGISTRY}/${BENCH}-${IMG}:${TAG}|g" "$TMP_DIR/app-grpc.yaml"
   done
   deploy_fail=0
   declare -a deploy_pids=()
-  for SVC in backend5 backend6 backend4 backend2 backend3 backend1 frontend-grpc rajomon-client; do
+  for SVC in backend5 backend6 backend4 backend2 backend7 backend8 backend3 backend1 frontend-grpc rajomon-client; do
     (
       kubectl apply -f "$TMP_DIR/app-grpc.yaml" -l app="${SVC}"
       kubectl_wait_ready_or_fail "${SVC}" "${WAIT_TIMEOUT}"
@@ -215,7 +215,7 @@ else
 
   deploy_fail=0
   declare -a deploy_pids=()
-  for SVC in backend5 backend6 backend4 backend2 backend3 backend1 frontend; do
+  for SVC in backend5 backend6 backend4 backend2 backend7 backend8 backend3 backend1 frontend; do
     (
       sed "s|${BENCH}-${SVC}:latest|${REGISTRY}/${BENCH}-${SVC}:${TAG}|g" "k8s/manifests/${SVC}.yaml" > "$TMP_DIR/${SVC}.yaml"
       kubectl apply -f "$TMP_DIR/${SVC}.yaml"

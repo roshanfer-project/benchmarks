@@ -19,10 +19,10 @@ import (
 
 
 type Server struct {
-	pb.UnimplementedBackend7Server
+	pb.UnimplementedBackend8Server
 }
 
-const serviceName = "backend7"
+const serviceName = "backend8"
 var log = utils.GetLogger(serviceName)
 
 func (s *Server) Run() error {
@@ -67,12 +67,12 @@ func (s *Server) Run() error {
 			utils.NewCounterState(serviceName).GetInterceptor()))
 	}
 	srv := grpc.NewServer(opts...)
-	pb.RegisterBackend7Server(srv, s)
+	pb.RegisterBackend8Server(srv, s)
 
 	reflection.Register(srv)
 	port := 2000
 	if sidecar {
-		port = utils.StrToInt(utils.GetEnvVar("backend7_PORT", true))
+		port = utils.StrToInt(utils.GetEnvVar("backend8_PORT", true))
 	}
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
@@ -82,8 +82,8 @@ func (s *Server) Run() error {
 }
 
 
-func (s *Server) F8(ctx context.Context, req *pb.Request) (*pb.Response, error) {
-	utils.BusyLoop(320)
+func (s *Server) F9(ctx context.Context, req *pb.Request) (*pb.Response, error) {
+	utils.BusyLoop(960)
 
 	md, _ := metadata.FromIncomingContext(ctx)
 	api := ""

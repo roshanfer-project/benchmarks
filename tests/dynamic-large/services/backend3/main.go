@@ -20,6 +20,8 @@ import (
 
 type Server struct {
 	pb.UnimplementedBackend3Server
+	Backend7Client pb.Backend7Client
+	Backend8Client pb.Backend8Client
 }
 
 const serviceName = "backend3"
@@ -68,6 +70,33 @@ func (s *Server) Run() error {
 	}
 	srv := grpc.NewServer(opts...)
 	pb.RegisterBackend3Server(srv, s)
+	var conn *grpc.ClientConn
+	if sidecar {
+		conn = pkg.GetConn(utils.GetEnvVar("backend3_EGRESS", true))
+	}
+	if !sidecar {
+		addr := utils.GetEnvVar("backend7_ADDR", true)
+		if useRajomon {
+			conn = pkg.GetRajomonClient(addr, grpc.WithUnaryInterceptor(priceTable.UnaryInterceptorClient))
+		} else if useDagor {
+			conn = pkg.GetConn(addr, grpc.WithUnaryInterceptor(dagorNode.UnaryInterceptorClient))
+		} else {
+			conn = pkg.GetConn(addr)
+		}
+	}
+	s.Backend7Client = pb.NewBackend7Client(conn)
+	if !sidecar {
+		addr := utils.GetEnvVar("backend8_ADDR", true)
+		if useRajomon {
+			conn = pkg.GetRajomonClient(addr, grpc.WithUnaryInterceptor(priceTable.UnaryInterceptorClient))
+		} else if useDagor {
+			conn = pkg.GetConn(addr, grpc.WithUnaryInterceptor(dagorNode.UnaryInterceptorClient))
+		} else {
+			conn = pkg.GetConn(addr)
+		}
+	}
+	s.Backend8Client = pb.NewBackend8Client(conn)
+
 
 	reflection.Register(srv)
 	port := 2000
@@ -92,6 +121,18 @@ func (s *Server) F4(ctx context.Context, req *pb.Request) (*pb.Response, error) 
 	}
 	switch api {
 	case "f1":
+		var err error
+		_, err = s.Backend7Client.F8(ctx, req)
+		if err != nil {
+			log.Error("downstream call failed", "error", err)
+			return nil, err
+		}
+		_, err = s.Backend8Client.F9(ctx, req)
+		if err != nil {
+			log.Error("downstream call failed", "error", err)
+			return nil, err
+		}
+
 
 	default:
 	}

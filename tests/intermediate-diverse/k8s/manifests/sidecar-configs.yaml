@@ -96,19 +96,19 @@ data:
         upstream:
           host: intermediate-diverse-frontend
           port: 3000
-        slo: 30
+        slo: 29
         priority: 0
       f2:
         upstream:
           host: intermediate-diverse-frontend
           port: 3000
-        slo: 40
+        slo: 38
         priority: 0
       f3:
         upstream:
           host: intermediate-diverse-frontend
           port: 3000
-        slo: 50
+        slo: 48
         priority: 0
     mapping:
       f1:

@@ -5,12 +5,16 @@ applications:
     - backend3
     backend2:
     - backend4
-    backend3: []
+    backend3:
+    - backend7
+    - backend8
     backend4:
     - backend5
     - backend6
     backend5: []
     backend6: []
+    backend7: []
+    backend8: []
     frontend-grpc:
     - backend1
   entrypoint: frontend-grpc

@@ -28,13 +28,13 @@ data:
         upstream:
           host: leaf-diverse-frontend
           port: 3000
-        slo: 80
+        slo: 76
         priority: 0
       f2:
         upstream:
           host: leaf-diverse-frontend
           port: 3000
-        slo: 160
+        slo: 152
         priority: 0
     mapping:
       f1:

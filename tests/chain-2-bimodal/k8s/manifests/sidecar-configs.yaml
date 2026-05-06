@@ -50,7 +50,7 @@ data:
         upstream:
           host: chain-2-bimodal-frontend
           port: 3000
-        slo: 25
+        slo: 24
         priority: 0
     mapping:
       f1:

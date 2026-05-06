@@ -5,7 +5,7 @@ cd "$ROOT_DIR"
 
 fail=0
 declare -a pids=()
-for kn in "backend1" "backend2" "backend3" "backend4" "backend5" "backend6" "frontend"; do
+for kn in "backend1" "backend2" "backend3" "backend4" "backend5" "backend6" "backend7" "backend8" "frontend"; do
   (
     kubectl delete pod -l app="$kn" --ignore-not-found --wait=true
     kubectl delete service -l app="$kn" --ignore-not-found

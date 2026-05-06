@@ -16,6 +16,8 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 	mkdir -p /out/backend4 && CGO_ENABLED=0 go build -ldflags="-s -w" -o /out/backend4/main ./services/backend4 && \
 	mkdir -p /out/backend5 && CGO_ENABLED=0 go build -ldflags="-s -w" -o /out/backend5/main ./services/backend5 && \
 	mkdir -p /out/backend6 && CGO_ENABLED=0 go build -ldflags="-s -w" -o /out/backend6/main ./services/backend6 && \
+	mkdir -p /out/backend7 && CGO_ENABLED=0 go build -ldflags="-s -w" -o /out/backend7/main ./services/backend7 && \
+	mkdir -p /out/backend8 && CGO_ENABLED=0 go build -ldflags="-s -w" -o /out/backend8/main ./services/backend8 && \
 	mkdir -p /out/frontend && CGO_ENABLED=0 go build -ldflags="-s -w" -o /out/frontend/main ./services/frontend && \
 	mkdir -p /out/frontend-grpc && CGO_ENABLED=0 go build -ldflags="-s -w" -o /out/frontend-grpc/main ./services/frontend-grpc && \
 	mkdir -p /out/rajomon-client && CGO_ENABLED=0 go build -ldflags="-s -w" -o /out/rajomon-client/main ./services/rajomon-client
@@ -63,6 +65,22 @@ CMD ["./main"]
 FROM alpine:latest AS svc-backend6
 WORKDIR /root/
 COPY --from=builder /out/backend6/main .
+COPY --from=builder /app/rajomon_init /rajomon_init
+COPY --from=builder /app/dagor_init /dagor_init
+EXPOSE 2000
+CMD ["./main"]
+
+FROM alpine:latest AS svc-backend7
+WORKDIR /root/
+COPY --from=builder /out/backend7/main .
+COPY --from=builder /app/rajomon_init /rajomon_init
+COPY --from=builder /app/dagor_init /dagor_init
+EXPOSE 2000
+CMD ["./main"]
+
+FROM alpine:latest AS svc-backend8
+WORKDIR /root/
+COPY --from=builder /out/backend8/main .
 COPY --from=builder /app/rajomon_init /rajomon_init
 COPY --from=builder /app/dagor_init /dagor_init
 EXPOSE 2000

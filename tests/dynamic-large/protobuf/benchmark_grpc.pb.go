@@ -559,6 +559,186 @@ var Backend6_ServiceDesc = grpc.ServiceDesc{
 }
 
 const (
+	Backend7_F8_FullMethodName = "/benchmark.backend7/f8"
+)
+
+// Backend7Client is the client API for Backend7 service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+type Backend7Client interface {
+	F8(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error)
+}
+
+type backend7Client struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewBackend7Client(cc grpc.ClientConnInterface) Backend7Client {
+	return &backend7Client{cc}
+}
+
+func (c *backend7Client) F8(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error) {
+	out := new(Response)
+	err := c.cc.Invoke(ctx, Backend7_F8_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// Backend7Server is the server API for Backend7 service.
+// All implementations must embed UnimplementedBackend7Server
+// for forward compatibility
+type Backend7Server interface {
+	F8(context.Context, *Request) (*Response, error)
+	mustEmbedUnimplementedBackend7Server()
+}
+
+// UnimplementedBackend7Server must be embedded to have forward compatible implementations.
+type UnimplementedBackend7Server struct {
+}
+
+func (UnimplementedBackend7Server) F8(context.Context, *Request) (*Response, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method F8 not implemented")
+}
+func (UnimplementedBackend7Server) mustEmbedUnimplementedBackend7Server() {}
+
+// UnsafeBackend7Server may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to Backend7Server will
+// result in compilation errors.
+type UnsafeBackend7Server interface {
+	mustEmbedUnimplementedBackend7Server()
+}
+
+func RegisterBackend7Server(s grpc.ServiceRegistrar, srv Backend7Server) {
+	s.RegisterService(&Backend7_ServiceDesc, srv)
+}
+
+func _Backend7_F8_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Request)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(Backend7Server).F8(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Backend7_F8_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(Backend7Server).F8(ctx, req.(*Request))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+// Backend7_ServiceDesc is the grpc.ServiceDesc for Backend7 service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var Backend7_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "benchmark.backend7",
+	HandlerType: (*Backend7Server)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "f8",
+			Handler:    _Backend7_F8_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "proto/benchmark.proto",
+}
+
+const (
+	Backend8_F9_FullMethodName = "/benchmark.backend8/f9"
+)
+
+// Backend8Client is the client API for Backend8 service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+type Backend8Client interface {
+	F9(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error)
+}
+
+type backend8Client struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewBackend8Client(cc grpc.ClientConnInterface) Backend8Client {
+	return &backend8Client{cc}
+}
+
+func (c *backend8Client) F9(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error) {
+	out := new(Response)
+	err := c.cc.Invoke(ctx, Backend8_F9_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// Backend8Server is the server API for Backend8 service.
+// All implementations must embed UnimplementedBackend8Server
+// for forward compatibility
+type Backend8Server interface {
+	F9(context.Context, *Request) (*Response, error)
+	mustEmbedUnimplementedBackend8Server()
+}
+
+// UnimplementedBackend8Server must be embedded to have forward compatible implementations.
+type UnimplementedBackend8Server struct {
+}
+
+func (UnimplementedBackend8Server) F9(context.Context, *Request) (*Response, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method F9 not implemented")
+}
+func (UnimplementedBackend8Server) mustEmbedUnimplementedBackend8Server() {}
+
+// UnsafeBackend8Server may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to Backend8Server will
+// result in compilation errors.
+type UnsafeBackend8Server interface {
+	mustEmbedUnimplementedBackend8Server()
+}
+
+func RegisterBackend8Server(s grpc.ServiceRegistrar, srv Backend8Server) {
+	s.RegisterService(&Backend8_ServiceDesc, srv)
+}
+
+func _Backend8_F9_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Request)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(Backend8Server).F9(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Backend8_F9_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(Backend8Server).F9(ctx, req.(*Request))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+// Backend8_ServiceDesc is the grpc.ServiceDesc for Backend8 service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var Backend8_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "benchmark.backend8",
+	HandlerType: (*Backend8Server)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "f9",
+			Handler:    _Backend8_F9_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "proto/benchmark.proto",
+}
+
+const (
 	Frontend_F1_FullMethodName = "/benchmark.frontend/f1"
 )
 
