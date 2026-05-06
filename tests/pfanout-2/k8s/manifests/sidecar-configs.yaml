@@ -72,7 +72,7 @@ data:
         upstream:
           host: pfanout-2-frontend
           port: 3000
-        slo: 8
+        slo: 10
         priority: 0
     mapping:
       api:

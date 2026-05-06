@@ -162,18 +162,21 @@ func populatePosts(s *Server, numOfUsers int, numOfPosts int) {
 
 func (s *Server) composeHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
-	var rpc_id string
+	var rpc_id, rpcLocalID string
 	if sidecar {
 		rpc_id = r.Header.Get("rpc-id")
 		if rpc_id == "" {
 			http.Error(w, "Please specify rpc-id", http.StatusBadRequest)
 			return
 		}
-	} else {
-		rpc_id = ""
+		rpcLocalID = r.Header.Get("rpc-local-id")
+		if rpcLocalID == "" {
+			http.Error(w, "rpc-local-id header required", http.StatusBadRequest)
+			return
+		}
 	}
 	ctx := r.Context()
-	ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("method", "compose-post", "rpc-id", rpc_id))
+	ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("method", "compose-post", "rpc-id", rpc_id, "rpc-local-id", rpcLocalID))
 
 	log.Debug("Start composeHandler")
 
@@ -206,18 +209,21 @@ func (s *Server) composeHandler(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) userHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
-	var rpc_id string
+	var rpc_id, rpcLocalID string
 	if sidecar {
 		rpc_id = r.Header.Get("rpc-id")
 		if rpc_id == "" {
 			http.Error(w, "Please specify rpc-id", http.StatusBadRequest)
 			return
 		}
-	} else {
-		rpc_id = ""
+		rpcLocalID = r.Header.Get("rpc-local-id")
+		if rpcLocalID == "" {
+			http.Error(w, "rpc-local-id header required", http.StatusBadRequest)
+			return
+		}
 	}
 	ctx := r.Context()
-	ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("method", "read-user-timeline", "rpc-id", rpc_id))
+	ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("method", "read-user-timeline", "rpc-id", rpc_id, "rpc-local-id", rpcLocalID))
 
 	log.Debug("Start userHandler")
 
@@ -245,18 +251,21 @@ func (s *Server) userHandler(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) homeHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
-	var rpc_id string
+	var rpc_id, rpcLocalID string
 	if sidecar {
 		rpc_id = r.Header.Get("rpc-id")
 		if rpc_id == "" {
 			http.Error(w, "Please specify rpc-id", http.StatusBadRequest)
 			return
 		}
-	} else {
-		rpc_id = ""
+		rpcLocalID = r.Header.Get("rpc-local-id")
+		if rpcLocalID == "" {
+			http.Error(w, "rpc-local-id header required", http.StatusBadRequest)
+			return
+		}
 	}
 	ctx := r.Context()
-	ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("method", "read-home-timeline", "rpc-id", rpc_id))
+	ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("method", "read-home-timeline", "rpc-id", rpc_id, "rpc-local-id", rpcLocalID))
 
 	log.Debug("Start homeHandler")
 

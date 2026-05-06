@@ -104,13 +104,13 @@ data:
         upstream:
           host: fan-out-fan-in-frontend
           port: 3000
-        slo: 28
+        slo: 35
         priority: 0
       g1:
         upstream:
           host: fan-out-fan-in-frontend
           port: 3000
-        slo: 16
+        slo: 20
         priority: 0
     mapping:
       f1:

@@ -146,19 +146,22 @@ func (s *Server) Run() error {
 
 func (s *Server) searchHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
-	var rpc_id string
+	var rpc_id, rpcLocalID string
 	if sidecar {
 		rpc_id = r.Header.Get("rpc-id")
 		if rpc_id == "" {
 			http.Error(w, "Please specify rpc-id", http.StatusBadRequest)
 			return
 		}
-	} else {
-		rpc_id = ""
+		rpcLocalID = r.Header.Get("rpc-local-id")
+		if rpcLocalID == "" {
+			http.Error(w, "rpc-local-id header required", http.StatusBadRequest)
+			return
+		}
 	}
 	ctx := r.Context()
 	// add method to context
-	ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("method", "search-hotel", "rpc-id", rpc_id))
+	ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("method", "search-hotel", "rpc-id", rpc_id, "rpc-local-id", rpcLocalID))
 
 	log.Debug("starts searchHandler")
 
@@ -252,18 +255,21 @@ func (s *Server) searchHandler(w http.ResponseWriter, r *http.Request) {
 func (s *Server) reservationHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	ctx := r.Context()
-	var rpc_id string
+	var rpc_id, rpcLocalID string
 	if sidecar {
 		rpc_id = r.Header.Get("rpc-id")
 		if rpc_id == "" {
 			http.Error(w, "Please specify rpc-id", http.StatusBadRequest)
 			return
 		}
-	} else {
-		rpc_id = ""
+		rpcLocalID = r.Header.Get("rpc-local-id")
+		if rpcLocalID == "" {
+			http.Error(w, "rpc-local-id header required", http.StatusBadRequest)
+			return
+		}
 	}
 	// add method to context
-	ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("method", "reserve-hotel", "rpc-id", rpc_id))
+	ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("method", "reserve-hotel", "rpc-id", rpc_id, "rpc-local-id", rpcLocalID))
 
 	inDate, outDate := r.URL.Query().Get("inDate"), r.URL.Query().Get("outDate")
 	if inDate == "" || outDate == "" {
