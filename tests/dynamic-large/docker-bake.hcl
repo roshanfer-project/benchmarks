@@ -9,7 +9,7 @@ variable "BENCH" {
 }
 
 group "default" {
-  targets = ["backend1", "backend2", "backend3", "backend4", "backend5", "backend6", "frontend", "frontend-grpc", "rajomon-client"]
+  targets = ["backend1", "backend2", "backend3", "backend4", "backend5", "backend6", "backend7", "backend8", "frontend", "frontend-grpc", "rajomon-client"]
 }
 
 target "backend1" {
@@ -52,6 +52,20 @@ target "backend6" {
   dockerfile = "Dockerfile"
   target = "svc-backend6"
   tags = ["${REGISTRY}/${BENCH}-backend6:${TAG}"]
+}
+
+target "backend7" {
+  context = "."
+  dockerfile = "Dockerfile"
+  target = "svc-backend7"
+  tags = ["${REGISTRY}/${BENCH}-backend7:${TAG}"]
+}
+
+target "backend8" {
+  context = "."
+  dockerfile = "Dockerfile"
+  target = "svc-backend8"
+  tags = ["${REGISTRY}/${BENCH}-backend8:${TAG}"]
 }
 
 target "frontend" {

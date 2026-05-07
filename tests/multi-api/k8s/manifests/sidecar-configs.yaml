@@ -76,19 +76,19 @@ data:
         upstream:
           host: multi-api-frontend
           port: 3000
-        slo: 30
+        slo: 29
         priority: 0
       f2:
         upstream:
           host: multi-api-frontend
           port: 3000
-        slo: 35
+        slo: 33
         priority: 0
       f3:
         upstream:
           host: multi-api-frontend
           port: 3000
-        slo: 40
+        slo: 38
         priority: 0
     mapping:
       f1:

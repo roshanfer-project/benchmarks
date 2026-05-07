@@ -29,7 +29,7 @@ data:
     ingress_upstream_port: 2000
     report_latency: True
     name: backend1
-    cpu_count: 4
+    cpu_count: 5
     over_commitment: 0.0
     
   backend2.yaml: |
@@ -56,8 +56,20 @@ data:
     over_commitment: 0.0
     
   backend3.yaml: |
+    routing:
+      benchmark.backend7/f8:
+        upstream:
+          host: dynamic-large-backend7
+          port: 3000
+      benchmark.backend8/f9:
+        upstream:
+          host: dynamic-large-backend8
+          port: 3000
     mapping:
       benchmark.backend3/f4:
+        downstreams:
+          - benchmark.backend7/f8
+          - benchmark.backend8/f9
     ring_size: 1000
     buffer_count: 1024
     buffer_size: 80000
@@ -68,7 +80,7 @@ data:
     ingress_upstream_port: 2000
     report_latency: True
     name: backend3
-    cpu_count: 2
+    cpu_count: 3
     over_commitment: 0.0
     
   backend4.yaml: |
@@ -132,6 +144,38 @@ data:
     cpu_count: 1
     over_commitment: 0.0
     
+  backend7.yaml: |
+    mapping:
+      benchmark.backend7/f8:
+    ring_size: 1000
+    buffer_count: 1024
+    buffer_size: 80000
+    num_threads: 1
+    egress_listener_port: 4000
+    ingress_listener_port: 3000
+    ingress_upstream_host: localhost
+    ingress_upstream_port: 2000
+    report_latency: True
+    name: backend7
+    cpu_count: 1
+    over_commitment: 0.0
+    
+  backend8.yaml: |
+    mapping:
+      benchmark.backend8/f9:
+    ring_size: 1000
+    buffer_count: 1024
+    buffer_size: 80000
+    num_threads: 1
+    egress_listener_port: 4000
+    ingress_listener_port: 3000
+    ingress_upstream_host: localhost
+    ingress_upstream_port: 2000
+    report_latency: True
+    name: backend8
+    cpu_count: 2
+    over_commitment: 0.0
+    
   frontend.yaml: |
     routing:
       benchmark.backend1/f2:
@@ -163,7 +207,7 @@ data:
         upstream:
           host: dynamic-large-frontend
           port: 3000
-        slo: 55
+        slo: 52
         priority: 0
     mapping:
       f1:

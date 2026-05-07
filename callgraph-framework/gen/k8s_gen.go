@@ -585,8 +585,8 @@ func buildIngressConfig(pg *ParsedGraph, prefix, entrySvc string) string {
 	numThreads := pg.UserEntryCount()
 	var routing, mapping strings.Builder
 	for i, n := range pg.EntryInterfaces() {
-		// Ingress routing slo matches the graph entry interface slo.
-		ingressSLO := *n.SLO
+		// Ingress routing slo: tighter budget before frontend (95% of graph entry slo, nearest int).
+		ingressSLO := (*n.SLO*95 + 50) / 100
 		priority := *n.Priority
 		listenPort := sidecarIngressBasePort + i
 		routing.WriteString(fmt.Sprintf("  %s:\n    upstream:\n      host: %s\n      port: %d\n    slo: %d\n    priority: %d\n", n.Interface, entryHost, sidecarIngressPort, ingressSLO, priority))

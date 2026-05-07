@@ -54,6 +54,10 @@ PUSH_IMAGES+=("${REGISTRY}/${BENCH}-backend5:${TAG}")
 
 PUSH_IMAGES+=("${REGISTRY}/${BENCH}-backend6:${TAG}")
 
+PUSH_IMAGES+=("${REGISTRY}/${BENCH}-backend7:${TAG}")
+
+PUSH_IMAGES+=("${REGISTRY}/${BENCH}-backend8:${TAG}")
+
 PUSH_IMAGES+=("${REGISTRY}/${BENCH}-frontend:${TAG}")
 
 PUSH_IMAGES+=("${REGISTRY}/${BENCH}-frontend-grpc:${TAG}")

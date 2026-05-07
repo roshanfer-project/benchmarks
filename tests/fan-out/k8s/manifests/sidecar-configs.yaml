@@ -71,7 +71,7 @@ data:
         upstream:
           host: fan-out-frontend
           port: 3000
-        slo: 30
+        slo: 29
         priority: 0
     mapping:
       f1:
