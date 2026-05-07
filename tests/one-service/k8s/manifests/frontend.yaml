@@ -10,12 +10,12 @@ spec:
     image: one-service-frontend:latest
     resources:
       requests:
-        cpu: "1"
+        cpu: "3"
       limits:
-        cpu: "1"
+        cpu: "3"
     env:
     - name: GOMAXPROCS
-      value: "1"
+      value: "3"
     envFrom:
     - configMapRef:
         name: one-service-config

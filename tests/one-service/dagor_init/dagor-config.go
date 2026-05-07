@@ -14,6 +14,8 @@ var dagorParams = dagor.DagorParam{
 	NodeName:                     "",
 	BusinessMap:                  map[string]int{
 		"f1": 1,
+		"f2": 2,
+		"f3": 3,
 	},
 	EntryService:                 false,
 	IsEnduser:                    false,
@@ -22,7 +24,7 @@ var dagorParams = dagor.DagorParam{
 	Alpha:                        0.45,
 	Beta:                         0.01,
 	Umax:                         15,
-	Bmax:                         2,
+	Bmax:                         3,
 	Debug:                        false,
 	NumUsers:                     200,
 	UseSyncMap:                   true,

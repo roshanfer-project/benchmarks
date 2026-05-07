@@ -62,7 +62,7 @@ func (s *Server) Run() error {
 
 
 func (s *Server) F1(ctx context.Context, req *pb.Request) (*pb.Response, error) {
-	utils.BusyLoop(160)
+	utils.BusyLoop(320)
 
 	md, _ := metadata.FromIncomingContext(ctx)
 	api := ""
@@ -71,6 +71,38 @@ func (s *Server) F1(ctx context.Context, req *pb.Request) (*pb.Response, error) 
 	}
 	switch api {
 	case "f1":
+
+	default:
+	}
+	return &pb.Response{}, nil
+}
+
+func (s *Server) F2(ctx context.Context, req *pb.Request) (*pb.Response, error) {
+	utils.BusyLoop(480)
+
+	md, _ := metadata.FromIncomingContext(ctx)
+	api := ""
+	if v := md.Get("api"); len(v) == 1 {
+		api = v[0]
+	}
+	switch api {
+	case "f2":
+
+	default:
+	}
+	return &pb.Response{}, nil
+}
+
+func (s *Server) F3(ctx context.Context, req *pb.Request) (*pb.Response, error) {
+	utils.BusyLoop(640)
+
+	md, _ := metadata.FromIncomingContext(ctx)
+	api := ""
+	if v := md.Get("api"); len(v) == 1 {
+		api = v[0]
+	}
+	switch api {
+	case "f3":
 
 	default:
 	}
