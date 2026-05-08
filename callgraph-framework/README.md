@@ -25,11 +25,21 @@ go run ./cmd/viz <callgraph.json> [-o callgraph.pdf]
 
 Requires [graphviz](https://graphviz.org/) (`dot` on PATH): `apt install graphviz` / `brew install graphviz`
 
+**Service-level paper figure** (unlabeled circles, directed edges, ACM quarter-column PDF; microservices with weighted (dynamic) fan-out get distinct fill colors):
+
+```bash
+# From repo root (e.g. roshanfer-experiments): use .venv for matplotlib
+go run ./cmd/viz -paper path/to/callgraph.json [-o callgraph-service.pdf]
+```
+
+With `-paper`, `viz` runs `render_service_pdf.py` using **the repository root `.venv` only** (`$REPO_ROOT/.venv/bin/python3`). Missing venv is an error with install hints. Create at repo root: `python3 -m venv .venv` then `.venv/bin/pip install -r requirements.txt` (see repo root [`requirements.txt`](../../requirements.txt)).
+
 ## Requirements
 
 - Go 1.25+
 - protoc with protoc-gen-go and protoc-gen-go-grpc plugins
-- graphviz (for viz tool and `gen -v`)
+- graphviz (for viz tool and `gen -v`; also used by `viz -paper` for layout)
+- For `viz -paper`: Python **must** be repo root **`.venv`** with matplotlib (`pip install -r requirements.txt` from repo root)
 - Docker with [Buildx](https://docs.docker.com/build/) enabled (`docker buildx` / `docker buildx bake`) for generated benchmark images
 
 ## Scripts
