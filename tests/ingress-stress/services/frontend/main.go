@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-	"oneservice/utils"
+	"ingressstress/utils"
 
 	"google.golang.org/grpc/metadata"
 )
@@ -33,8 +33,6 @@ func (s *Server) Run() error {
 		baseHandler = counter.GetHTTP1Middleware()(baseHandler)
 	}
 	mux.Handle("/f1", baseHandler)
-	mux.Handle("/f2", baseHandler)
-	mux.Handle("/f3", baseHandler)
 
 	srv := &http.Server{
 		Addr:    fmt.Sprintf(":%d", port),
@@ -64,17 +62,7 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 	switch path {
 	case "f1":
 		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "f1", "rpc-id", rpcID, "rpc-local-id", rpcLocalID))
-		utils.BusyLoop(320)
-
-
-	case "f2":
-		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "f2", "rpc-id", rpcID, "rpc-local-id", rpcLocalID))
-		utils.BusyLoop(480)
-
-
-	case "f3":
-		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "f3", "rpc-id", rpcID, "rpc-local-id", rpcLocalID))
-		utils.BusyLoop(640)
+		utils.BusyLoop(1)
 
 
 	default:

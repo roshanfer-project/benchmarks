@@ -1,11 +1,11 @@
 package dagorinit
 
 import (
-	"oneservice/utils"
+	"ingressstress/utils"
 	"strings"
 	"time"
 
-	dagor "oneservice/dagor"
+	dagor "ingressstress/dagor"
 )
 
 var log = utils.GetLogger("dagor-init")
@@ -14,8 +14,6 @@ var dagorParams = dagor.DagorParam{
 	NodeName:                     "",
 	BusinessMap:                  map[string]int{
 		"f1": 1,
-		"f2": 2,
-		"f3": 3,
 	},
 	EntryService:                 false,
 	IsEnduser:                    false,
@@ -24,7 +22,7 @@ var dagorParams = dagor.DagorParam{
 	Alpha:                        0.45,
 	Beta:                         0.01,
 	Umax:                         15,
-	Bmax:                         3,
+	Bmax:                         2,
 	Debug:                        false,
 	NumUsers:                     200,
 	UseSyncMap:                   true,

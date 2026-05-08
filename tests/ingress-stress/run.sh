@@ -20,10 +20,6 @@ if [ "$protocol" == "grpc" ]; then
 else
     if [ "$API" = "f1" ]; then
         url="http://$address:3000/f1"
-    elif [ "$API" = "f2" ]; then
-        url="http://$address:3001/f2"
-    elif [ "$API" = "f3" ]; then
-        url="http://$address:3002/f3"
     else
         echo "Unknown API: $API"
         exit 1

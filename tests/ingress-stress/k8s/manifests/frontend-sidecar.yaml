@@ -7,7 +7,7 @@ metadata:
 spec:
   containers:
   - name: app
-    image: one-service-frontend:latest
+    image: ingress-stress-frontend:latest
     resources:
       requests:
         cpu: "3"
@@ -18,7 +18,7 @@ spec:
       value: "3"
     envFrom:
     - configMapRef:
-        name: one-service-config
+        name: ingress-stress-config
     ports:
     - containerPort: 2000
   - name: sidecar
@@ -52,7 +52,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: one-service-frontend
+  name: ingress-stress-frontend
   labels:
     app: frontend
 spec:

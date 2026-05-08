@@ -20,8 +20,6 @@ const _ = grpc.SupportPackageIsVersion7
 
 const (
 	Frontend_F1_FullMethodName = "/benchmark.frontend/f1"
-	Frontend_F2_FullMethodName = "/benchmark.frontend/f2"
-	Frontend_F3_FullMethodName = "/benchmark.frontend/f3"
 )
 
 // FrontendClient is the client API for Frontend service.
@@ -29,8 +27,6 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type FrontendClient interface {
 	F1(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error)
-	F2(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error)
-	F3(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error)
 }
 
 type frontendClient struct {
@@ -50,31 +46,11 @@ func (c *frontendClient) F1(ctx context.Context, in *Request, opts ...grpc.CallO
 	return out, nil
 }
 
-func (c *frontendClient) F2(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error) {
-	out := new(Response)
-	err := c.cc.Invoke(ctx, Frontend_F2_FullMethodName, in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *frontendClient) F3(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error) {
-	out := new(Response)
-	err := c.cc.Invoke(ctx, Frontend_F3_FullMethodName, in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 // FrontendServer is the server API for Frontend service.
 // All implementations must embed UnimplementedFrontendServer
 // for forward compatibility
 type FrontendServer interface {
 	F1(context.Context, *Request) (*Response, error)
-	F2(context.Context, *Request) (*Response, error)
-	F3(context.Context, *Request) (*Response, error)
 	mustEmbedUnimplementedFrontendServer()
 }
 
@@ -84,12 +60,6 @@ type UnimplementedFrontendServer struct {
 
 func (UnimplementedFrontendServer) F1(context.Context, *Request) (*Response, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method F1 not implemented")
-}
-func (UnimplementedFrontendServer) F2(context.Context, *Request) (*Response, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method F2 not implemented")
-}
-func (UnimplementedFrontendServer) F3(context.Context, *Request) (*Response, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method F3 not implemented")
 }
 func (UnimplementedFrontendServer) mustEmbedUnimplementedFrontendServer() {}
 
@@ -122,42 +92,6 @@ func _Frontend_F1_Handler(srv interface{}, ctx context.Context, dec func(interfa
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Frontend_F2_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(Request)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(FrontendServer).F2(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: Frontend_F2_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(FrontendServer).F2(ctx, req.(*Request))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Frontend_F3_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(Request)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(FrontendServer).F3(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: Frontend_F3_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(FrontendServer).F3(ctx, req.(*Request))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 // Frontend_ServiceDesc is the grpc.ServiceDesc for Frontend service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -168,14 +102,6 @@ var Frontend_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "f1",
 			Handler:    _Frontend_F1_Handler,
-		},
-		{
-			MethodName: "f2",
-			Handler:    _Frontend_F2_Handler,
-		},
-		{
-			MethodName: "f3",
-			Handler:    _Frontend_F3_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

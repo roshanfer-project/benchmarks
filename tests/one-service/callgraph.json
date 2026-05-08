@@ -13,18 +13,38 @@
             "interfaces": [
                 {
                     "name": "f1",
-                    "avg_rt": 0.5,
+                    "avg_rt": 1,
                     "slo": 20,
+                    "priority": 0
+                },
+                {
+                    "name": "f2",
+                    "avg_rt": 1.5,
+                    "slo": 30,
+                    "priority": 0
+                },
+                {
+                    "name": "f3",
+                    "avg_rt": 2,
+                    "slo": 35,
                     "priority": 0
                 }
             ],
-            "cpu": 1
+            "cpu": 3
         }
     ],
     "edges": [
         {
             "source": "USER",
             "target": "frontend:f1"
+        },
+        {
+            "source": "USER",
+            "target": "frontend:f2"
+        },
+        {
+            "source": "USER",
+            "target": "frontend:f3"
         }
     ]
 }

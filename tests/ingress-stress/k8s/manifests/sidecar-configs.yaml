@@ -6,8 +6,6 @@ data:
   frontend.yaml: |
     mapping:
       f1:
-      f2:
-      f3:
     ring_size: 1000
     buffer_count: 4096
     buffer_size: 80000
@@ -27,39 +25,19 @@ data:
     routing:
       f1:
         upstream:
-          host: one-service-frontend
+          host: ingress-stress-frontend
           port: 3000
-        slo: 19
-        priority: 0
-      f2:
-        upstream:
-          host: one-service-frontend
-          port: 3000
-        slo: 29
-        priority: 0
-      f3:
-        upstream:
-          host: one-service-frontend
-          port: 3000
-        slo: 33
+        slo: 48
         priority: 0
     mapping:
       f1:
         downstreams:
           - f1
         listen_port: 3000
-      f2:
-        downstreams:
-          - f2
-        listen_port: 3001
-      f3:
-        downstreams:
-          - f3
-        listen_port: 3002
     ring_size: 4000
     buffer_count: 16384
     buffer_size: 10000
-    num_threads: 3
+    num_threads: 1
     ingress_pool_connections: 200
     egress_listener_port: 3000
     ingress_listener_port: 4000

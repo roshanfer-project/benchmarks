@@ -8,7 +8,7 @@ spec:
   restartPolicy: Never
   containers:
   - name: app
-    image: one-service-frontend-grpc:latest
+    image: ingress-stress-frontend-grpc:latest
     resources:
       requests:
         cpu: "3"
@@ -19,14 +19,14 @@ spec:
       value: "3"
     envFrom:
     - configMapRef:
-        name: one-service-config
+        name: ingress-stress-config
     ports:
     - containerPort: 2000
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: one-service-frontend-grpc
+  name: ingress-stress-frontend-grpc
   labels:
     app: frontend-grpc
 spec:
@@ -49,7 +49,7 @@ spec:
   restartPolicy: Never
   containers:
   - name: app
-    image: one-service-rajomon-client:latest
+    image: ingress-stress-rajomon-client:latest
     resources:
       requests:
         cpu: "4"
@@ -60,14 +60,14 @@ spec:
       value: "4"
     envFrom:
     - configMapRef:
-        name: one-service-config
+        name: ingress-stress-config
     ports:
     - containerPort: 2007
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: one-service-entry
+  name: ingress-stress-entry
   labels:
     app: rajomon-client
 spec:
