@@ -188,36 +188,49 @@ apply_service() {
     # kubectl wait --for=condition=ready pod -l app=$service --timeout=60s
 }
 
+WAIT_TIMEOUT=${WAIT_TIMEOUT:-60}
+
 if [ -f "$TMP_DIR/app.yaml" ]; then
-    # Leaves
-    for SVC in "geo" "rate" "profile" "reservation" "user"; do
-        apply_service $SVC "$TMP_DIR/app.yaml"
-    done
-    echo "Waiting for Leaf services to be ready..."
-    kubectl wait --for=condition=ready pod/geo --timeout=30s
-    kubectl wait --for=condition=ready pod/rate --timeout=30s
-    kubectl wait --for=condition=ready pod/profile --timeout=30s
-    kubectl wait --for=condition=ready pod/reservation --timeout=30s
-    kubectl wait --for=condition=ready pod/user --timeout=30s
-    
-    # Intermediate
-    apply_service "search" "$TMP_DIR/app.yaml"
-    echo "Waiting for Search service to be ready..."
-    kubectl wait --for=condition=ready pod/search --timeout=30s
-    
-    # Root
-    if [ "$MODE" == "rajomon" ] || [ "$MODE" == "dagor" ]; then
-         apply_service "frontend-grpc" "$TMP_DIR/app.yaml"
-         echo "Waiting for Frontend GRPC..."
-         kubectl wait --for=condition=ready pod/frontend-grpc --timeout=30s
-         
-         apply_service "rajomon-client" "$TMP_DIR/app.yaml"
-         echo "Waiting for Rajomon Client..."
-         kubectl wait --for=condition=ready pod/rajomon-client --timeout=30s
+    if [ "$MODE" == "sidecar" ]; then
+        for SVC in "geo" "rate" "profile" "reservation" "user"; do
+            apply_service $SVC "$TMP_DIR/app.yaml"
+        done
+        echo "Waiting for Leaf services to be ready..."
+        kubectl wait --for=condition=ready pod/geo --timeout=30s
+        kubectl wait --for=condition=ready pod/rate --timeout=30s
+        kubectl wait --for=condition=ready pod/profile --timeout=30s
+        kubectl wait --for=condition=ready pod/reservation --timeout=30s
+        kubectl wait --for=condition=ready pod/user --timeout=30s
+
+        apply_service "search" "$TMP_DIR/app.yaml"
+        echo "Waiting for Search service to be ready..."
+        kubectl wait --for=condition=ready pod/search --timeout=30s
+
+        apply_service "frontend" "$TMP_DIR/app.yaml"
+        echo "Waiting for Frontend service to be ready..."
+        kubectl wait --for=condition=ready pod/frontend --timeout=30s
     else
-         apply_service "frontend" "$TMP_DIR/app.yaml"
-         echo "Waiting for Frontend service to be ready..."
-         kubectl wait --for=condition=ready pod/frontend --timeout=30s
+        deploy_fail=0
+        declare -a deploy_pids=()
+        if [ "$MODE" == "rajomon" ] || [ "$MODE" == "dagor" ]; then
+            PARALLEL_SVCS=(geo rate profile reservation user search frontend-grpc rajomon-client)
+        else
+            PARALLEL_SVCS=(geo rate profile reservation user search frontend)
+        fi
+        for SVC in "${PARALLEL_SVCS[@]}"; do
+            (
+                kubectl apply -f "$TMP_DIR/app.yaml" -l app="$SVC"
+                kubectl wait --for=condition=Ready pod -l "app=${SVC}" --timeout="${WAIT_TIMEOUT}s"
+            ) &
+            deploy_pids+=($!)
+        done
+        for pid in "${deploy_pids[@]}"; do
+            wait "$pid" || deploy_fail=1
+        done
+        if [ "$deploy_fail" -ne 0 ]; then
+            echo "deploy.sh (${MODE}): one or more workloads failed readiness" >&2
+            exit 1
+        fi
     fi
 fi
 
