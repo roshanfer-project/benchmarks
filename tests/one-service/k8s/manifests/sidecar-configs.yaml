@@ -35,13 +35,13 @@ data:
         upstream:
           host: one-service-frontend
           port: 3000
-        slo: 30
+        slo: 29
         priority: 0
       f3:
         upstream:
           host: one-service-frontend
           port: 3000
-        slo: 35
+        slo: 33
         priority: 0
     mapping:
       f1:
