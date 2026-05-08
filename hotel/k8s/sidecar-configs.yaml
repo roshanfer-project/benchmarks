@@ -10,13 +10,13 @@ data:
         upstream:
           host: hotel-frontend
           port: 3007
-        slo: 22
+        slo: 26
         priority: 0
       reservation:
         upstream:
           host: hotel-frontend
           port: 3007
-        slo: 18
+        slo: 23
         priority: 0
     mapping:
       hotels:
