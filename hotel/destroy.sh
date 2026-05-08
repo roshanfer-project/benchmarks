@@ -2,21 +2,28 @@
 
 echo "Destroying Hotel Benchmark deployment..."
 
-# Delete Pods
-kubectl delete pod frontend search profile geo rate reservation user ingress \
-    frontend-grpc rajomon-client \
-    mongodb-geo mongodb-profile mongodb-rate mongodb-reservation mongodb-user \
-    memcached-rate memcached-profile memcached-reserve --ignore-not-found
+fail=0
+declare -a pids=()
 
-kubectl delete deployment prometheus prometheus-pushgateway --ignore-not-found
+for kn in \
+  frontend search profile geo rate reservation user ingress frontend-grpc rajomon-client \
+  mongodb-geo mongodb-profile mongodb-rate mongodb-reservation mongodb-user \
+  memcached-profile memcached-rate memcached-reserve
+do
+  (
+    kubectl delete pod -l app="$kn" --ignore-not-found --wait=true
+    kubectl delete service -l app="$kn" --ignore-not-found
+  ) &
+  pids+=($!)
+done
 
-# Delete Services
-kubectl delete service hotel-frontend hotel-search hotel-profile hotel-geo hotel-rate hotel-reservation hotel-user ingress \
-    frontend-grpc \
-    mongodb-geo mongodb-profile mongodb-rate mongodb-reservation mongodb-user \
-    memcached-rate memcached-profile memcached-reserve prometheus prometheus-pushgateway prometheus-external --ignore-not-found
+for pid in "${pids[@]}"; do
+  wait "$pid" || fail=1
+done
 
-# Delete ConfigMaps
+kubectl delete deployment prometheus prometheus-pushgateway --ignore-not-found --wait=true
+kubectl delete service prometheus prometheus-pushgateway prometheus-external --ignore-not-found
 kubectl delete configmap hotel-config sidecar-configs prometheus-config --ignore-not-found
 
 echo "Cleanup complete."
+exit "$fail"

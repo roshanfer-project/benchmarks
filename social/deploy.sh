@@ -162,36 +162,49 @@ apply_service() {
     kubectl apply -f "$file" -l app=$service
 }
 
+WAIT_TIMEOUT=${WAIT_TIMEOUT:-60}
+
 if [ -f "$TMP_DIR/app.yaml" ]; then
-    # Leaves
-    for SVC in "graph" "posts" "user"; do
-        apply_service $SVC "$TMP_DIR/app.yaml"
-    done
-    echo "Waiting for Leaf services to be ready..."
-    kubectl wait --for=condition=ready pod/graph --timeout=60s || true
-    kubectl wait --for=condition=ready pod/posts --timeout=60s || true
-    kubectl wait --for=condition=ready pod/user --timeout=60s || true
-    
-    # Intermediate
-    apply_service "home" "$TMP_DIR/app.yaml"
-    apply_service "compose" "$TMP_DIR/app.yaml"
-    echo "Waiting for Intermediate services to be ready..."
-    kubectl wait --for=condition=ready pod/home --timeout=60s || true
-    kubectl wait --for=condition=ready pod/compose --timeout=60s || true
-    
-    # Root
-    if [ "$MODE" == "rajomon" ] || [ "$MODE" == "dagor" ]; then
-         apply_service "nginx-grpc" "$TMP_DIR/app.yaml"
-         echo "Waiting for Nginx GRPC..."
-         kubectl wait --for=condition=ready pod/nginx-grpc --timeout=60s || true
-         
-         apply_service "rajomon-client" "$TMP_DIR/app.yaml"
-         echo "Waiting for Rajomon Client..."
-         kubectl wait --for=condition=ready pod/rajomon-client --timeout=60s || true
+    if [ "$MODE" == "sidecar" ]; then
+        for SVC in "graph" "posts" "user"; do
+            apply_service $SVC "$TMP_DIR/app.yaml"
+        done
+        echo "Waiting for Leaf services to be ready..."
+        kubectl wait --for=condition=ready pod/graph --timeout=60s || true
+        kubectl wait --for=condition=ready pod/posts --timeout=60s || true
+        kubectl wait --for=condition=ready pod/user --timeout=60s || true
+
+        apply_service "home" "$TMP_DIR/app.yaml"
+        apply_service "compose" "$TMP_DIR/app.yaml"
+        echo "Waiting for Intermediate services to be ready..."
+        kubectl wait --for=condition=ready pod/home --timeout=60s || true
+        kubectl wait --for=condition=ready pod/compose --timeout=60s || true
+
+        apply_service "nginx" "$TMP_DIR/app.yaml"
+        echo "Waiting for Nginx service to be ready..."
+        kubectl wait --for=condition=ready pod/nginx --timeout=60s || true
     else
-         apply_service "nginx" "$TMP_DIR/app.yaml"
-         echo "Waiting for Nginx service to be ready..."
-         kubectl wait --for=condition=ready pod/nginx --timeout=60s || true
+        deploy_fail=0
+        declare -a deploy_pids=()
+        if [ "$MODE" == "rajomon" ] || [ "$MODE" == "dagor" ]; then
+            PARALLEL_SVCS=(graph posts user home compose nginx-grpc rajomon-client)
+        else
+            PARALLEL_SVCS=(graph posts user home compose nginx)
+        fi
+        for SVC in "${PARALLEL_SVCS[@]}"; do
+            (
+                kubectl apply -f "$TMP_DIR/app.yaml" -l app="$SVC"
+                kubectl wait --for=condition=Ready pod -l "app=${SVC}" --timeout="${WAIT_TIMEOUT}s"
+            ) &
+            deploy_pids+=($!)
+        done
+        for pid in "${deploy_pids[@]}"; do
+            wait "$pid" || deploy_fail=1
+        done
+        if [ "$deploy_fail" -ne 0 ]; then
+            echo "deploy.sh (${MODE}): one or more workloads failed readiness" >&2
+            exit 1
+        fi
     fi
 fi
 
