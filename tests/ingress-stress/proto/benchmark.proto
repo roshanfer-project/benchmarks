@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package benchmark;
+
+option go_package = "ingressstress/protobuf";
+
+message Request { string payload = 1; }
+message Response { string payload = 1; }
+
+service frontend {
+  rpc f1(Request) returns (Response);
+}
+
