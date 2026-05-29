@@ -10,12 +10,12 @@ spec:
     image: leaf-diverse-frontend:latest
     resources:
       requests:
-        cpu: "4"
+        cpu: "5"
       limits:
-        cpu: "4"
+        cpu: "5"
     env:
     - name: GOMAXPROCS
-      value: "4"
+      value: "5"
     envFrom:
     - configMapRef:
         name: leaf-diverse-config

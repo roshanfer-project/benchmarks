@@ -11,12 +11,12 @@ spec:
     image: leaf-diverse-frontend-grpc:latest
     resources:
       requests:
-        cpu: "4"
+        cpu: "5"
       limits:
-        cpu: "4"
+        cpu: "5"
     env:
     - name: GOMAXPROCS
-      value: "4"
+      value: "5"
     envFrom:
     - configMapRef:
         name: leaf-diverse-config
@@ -52,12 +52,12 @@ spec:
     image: leaf-diverse-rajomon-client:latest
     resources:
       requests:
-        cpu: "5"
+        cpu: "6"
       limits:
-        cpu: "5"
+        cpu: "6"
     env:
     - name: GOMAXPROCS
-      value: "5"
+      value: "6"
     envFrom:
     - configMapRef:
         name: leaf-diverse-config

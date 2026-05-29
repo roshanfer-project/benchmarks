@@ -19,7 +19,7 @@ data:
     name: frontend
     is_frontend: True
     frontend_pool_connections: 200
-    cpu_count: 4
+    cpu_count: 5
     over_commitment: 0.0
     
   ingress.yaml: |
@@ -28,13 +28,13 @@ data:
         upstream:
           host: leaf-diverse-frontend
           port: 3000
-        slo: 76
+        slo: 71
         priority: 0
       f2:
         upstream:
           host: leaf-diverse-frontend
           port: 3000
-        slo: 152
+        slo: 143
         priority: 0
     mapping:
       f1:

@@ -99,7 +99,21 @@ if [ "$MODE" = "sidecar" ]; then
   echo "queuing_export=${queuing_export}" >> "$TMP_DIR/sidecar_merged.env"
   kubectl create configmap leaf-diverse-config --from-env-file="$TMP_DIR/sidecar_merged.env" --dry-run=client -o yaml > "$TMP_DIR/configmap.yaml"
   kubectl apply -f "$TMP_DIR/configmap.yaml"
-  kubectl apply -f k8s/manifests/sidecar-configs.yaml
+  cp k8s/manifests/sidecar-configs.yaml "$TMP_DIR/sidecar-configs.yaml"
+  if [ -n "${SIDECAR_OVER_COMMIT:-}" ]; then
+    echo "deploy.sh: SIDECAR_OVER_COMMIT=${SIDECAR_OVER_COMMIT} (patch all over_commitment in sidecar-configs)"
+    export SIDECAR_OVER_COMMIT
+    perl -i -pe 's/(over_commitment:\s*)[\d.]+/${1}$ENV{SIDECAR_OVER_COMMIT}/g' "$TMP_DIR/sidecar-configs.yaml"
+    awk -v want="$SIDECAR_OVER_COMMIT" '
+      /over_commitment:/ {
+        if ($2 != want) {
+          print "deploy.sh: ERROR expected over_commitment " want " got " $2 > "/dev/stderr"
+          exit 1
+        }
+      }
+    ' "$TMP_DIR/sidecar-configs.yaml"
+  fi
+  kubectl apply -f "$TMP_DIR/sidecar-configs.yaml"
 
   kubectl apply -f k8s/manifests/prometheus.yaml
   kubectl_wait_ready_or_fail prometheus-pushgateway 60

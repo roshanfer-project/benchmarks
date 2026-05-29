@@ -63,12 +63,12 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 	switch path {
 	case "f1":
 		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "f1", "rpc-id", rpcID, "rpc-local-id", rpcLocalID))
-		utils.BusyLoop(3200)
+		utils.BusyLoop(1600)
 
 
 	case "f2":
 		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "f2", "rpc-id", rpcID, "rpc-local-id", rpcLocalID))
-		utils.BusyLoop(6400)
+		utils.BusyLoop(3200)
 
 
 	default:
