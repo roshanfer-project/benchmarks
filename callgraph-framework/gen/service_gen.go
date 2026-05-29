@@ -649,9 +649,13 @@ import (
 	"os"
 	"strconv"
 	"sync"
-	"time"{{else if .NeedParallel}}
+	"sync/atomic"
+	"time"{{else}}
+	"sync/atomic"{{end}}{{if .NeedParallel}}
 	"sync"{{end}}
 )
+
+var envoyRPCSeq uint64
 
 {{if .NeedBenchRng}}var benchRng struct {
 	mu sync.Mutex
@@ -687,18 +691,23 @@ var log = utils.GetLogger(serviceName)
 func (s *Server) Run() error {
 	log.Info("Initializing HTTP server...")
 	sidecar := utils.GetEnvVar("sidecar", false) == "true"
+	envoy := utils.GetEnvVar("envoy", false) == "true"
+	if sidecar && envoy {
+		panic("sidecar and envoy cannot both be enabled")
+	}
+	meshProxy := sidecar || envoy
 {{if .Clients}}	var conn *grpc.ClientConn
-	if sidecar {
+	if meshProxy {
 		conn = pkg.GetConn(utils.GetEnvVar("{{.EgressEnv}}", true))
 	}
-{{range .Clients}}	if !sidecar {
+{{range .Clients}}	if !meshProxy {
 		conn = pkg.GetConn(utils.GetEnvVar("{{.AddrEnv}}", true))
 	}
 	s.{{.ProtoMicroservice}}Client = pb.New{{.ProtoMicroservice}}Client(conn)
 {{end}}
 {{end}}
 	port := {{.Port}}
-	if sidecar {
+	if meshProxy {
 		port = utils.StrToInt(utils.GetEnvVar("{{.PortEnv}}", true))
 	}
 	mux := http.NewServeMux()
@@ -722,6 +731,7 @@ func (s *Server) Run() error {
 func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	sidecar := utils.GetEnvVar("sidecar", false) == "true"
+	envoy := utils.GetEnvVar("envoy", false) == "true"
 	var rpcID, rpcLocalID string
 	if sidecar {
 		rpcID = r.Header.Get("rpc-id")
@@ -733,6 +743,15 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 		if rpcLocalID == "" {
 			http.Error(w, "rpc-local-id header required", http.StatusBadRequest)
 			return
+		}
+	} else if envoy {
+		rpcID = r.Header.Get("rpc-id")
+		rpcLocalID = r.Header.Get("rpc-local-id")
+		if rpcID == "" {
+			rpcID = fmt.Sprintf("%d", atomic.AddUint64(&envoyRPCSeq, 1))
+		}
+		if rpcLocalID == "" {
+			rpcLocalID = rpcID
 		}
 	}
 	path := strings.TrimPrefix(r.URL.Path, "/")
@@ -986,22 +1005,27 @@ func (s *Server) Run() error {
 	log.Info("Initializing gRPC server...")
 	opts := pkg.GetServerOptions()
 	sidecar := utils.GetEnvVar("sidecar", false) == "true"
+	envoy := utils.GetEnvVar("envoy", false) == "true"
+	if sidecar && envoy {
+		panic("sidecar and envoy cannot both be enabled")
+	}
+	meshProxy := sidecar || envoy
 	useRajomon := utils.GetEnvVar("rajomon", false) == "true"
 	useDagor := utils.GetEnvVar("dagor", false) == "true"
 	queuingExport := utils.GetEnvVar("queuing_export", false) == "true"
-	if !sidecar && useRajomon && useDagor {
+	if !meshProxy && useRajomon && useDagor {
 		panic("rajomon and dagor cannot both be enabled")
 	}
 	var priceTable *rajomon.PriceTable
 	var dagorNode *dagor.Dagor
-	if useRajomon && !sidecar {
+	if useRajomon && !meshProxy {
 		priceTable = rajomoninit.GetPriceTable(serviceName, false)
 	}
-	if useDagor && !sidecar {
+	if useDagor && !meshProxy {
 		dagorNode = dagorinit.GetDagorNode(serviceName, false, false)
 	}
-	if sidecar {
-		if queuingExport {
+	if meshProxy {
+		if sidecar && queuingExport {
 			opts = append(opts, grpc.ChainUnaryInterceptor(
 				utils.ContextPropagationInterceptor(),
 				utils.NewCounterState(serviceName).GetInterceptor()))
@@ -1026,10 +1050,10 @@ func (s *Server) Run() error {
 	srv := grpc.NewServer(opts...)
 	pb.Register{{.ProtoServiceName}}Server(srv, s)
 {{if .Clients}}	var conn *grpc.ClientConn
-	if sidecar {
+	if meshProxy {
 		conn = pkg.GetConn(utils.GetEnvVar("{{.EgressEnv}}", true))
 	}
-{{range .Clients}}	if !sidecar {
+{{range .Clients}}	if !meshProxy {
 		addr := utils.GetEnvVar("{{.AddrEnv}}", true)
 		if useRajomon {
 			conn = pkg.GetRajomonClient(addr, grpc.WithUnaryInterceptor(priceTable.UnaryInterceptorClient))
@@ -1044,7 +1068,7 @@ func (s *Server) Run() error {
 {{end}}
 	reflection.Register(srv)
 	port := {{.Port}}
-	if sidecar {
+	if meshProxy {
 		port = utils.StrToInt(utils.GetEnvVar("{{.PortEnv}}", true))
 	}
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", port))

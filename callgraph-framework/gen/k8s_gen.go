@@ -145,6 +145,18 @@ func GenerateK8s(pg *ParsedGraph, benchmarkName string, registry string, outDir 
 	if err := generateIngressYaml(pg, benchmarkName, outDir); err != nil {
 		return err
 	}
+	if err := generateEnvoyConfigs(pg, benchmarkName, svcNames, outDir); err != nil {
+		return err
+	}
+	if err := generateEnvoyEnv(pg, benchmarkName, svcNames, outDir); err != nil {
+		return err
+	}
+	if err := generateAppEnvoyYaml(pg, benchmarkName, svcNames, outDir); err != nil {
+		return err
+	}
+	if err := generateIngressEnvoyYaml(pg, benchmarkName, outDir); err != nil {
+		return err
+	}
 	if err := generateRajomonEnv(pg, benchmarkName, svcNames, outDir); err != nil {
 		return err
 	}
@@ -995,7 +1007,7 @@ while [ -n "$D" ] && [ "$D" != "/" ]; do
   D="$(cd "$D/.." && pwd)"
 done
 
-if [ -n "$SIDECAR_DIR" ]; then
+if [ "${SKIP_SIDECAR_BUILD:-}" != "1" ] && [ -n "$SIDECAR_DIR" ]; then
   echo "Building sidecar..."
   (cd "$SIDECAR_DIR" && ./build.sh Release)
   docker build -f "$SIDECAR_DIR/Dockerfile" -t "${REGISTRY}/sidecar-sidecar:${TAG}" "$SIDECAR_DIR"
@@ -1006,7 +1018,7 @@ REGISTRY="${REGISTRY}" TAG="${TAG}" BENCH="${BENCH}" docker buildx bake -f docke
 
 echo "Pushing images..."
 PUSH_IMAGES=()
-if [ -n "$SIDECAR_DIR" ]; then
+if [ "${SKIP_SIDECAR_BUILD:-}" != "1" ] && [ -n "$SIDECAR_DIR" ]; then
   PUSH_IMAGES+=("${REGISTRY}/sidecar-sidecar:${TAG}")
 fi
 {{range .Entries}}
@@ -1171,6 +1183,38 @@ if [ "$MODE" = "sidecar" ]; then
     sidecar_debug_patch_workload_yaml "$TMP_DIR/ingress.yaml"
   fi
   kubectl apply -f "$TMP_DIR/ingress.yaml"
+  kubectl_wait_ready_or_fail ingress 30
+elif [ "$MODE" = "envoy" ]; then
+  cat k8s/envoy.env > "$TMP_DIR/envoy_merged.env"
+  kubectl create configmap {{.BenchmarkName}}-config --from-env-file="$TMP_DIR/envoy_merged.env" --dry-run=client -o yaml > "$TMP_DIR/configmap.yaml"
+  kubectl apply -f "$TMP_DIR/configmap.yaml"
+  kubectl apply -f k8s/manifests/envoy-configs.yaml
+
+  kubectl apply -f k8s/manifests/prometheus.yaml
+  kubectl_wait_ready_or_fail prometheus-pushgateway 60
+  kubectl_wait_ready_or_fail prometheus 60
+
+  for SVC in {{range $i, $e := .K8sOrder}}{{if $i}} {{end}}{{$e}}{{end}}; do
+    sed "s|${BENCH}-${SVC}:latest|${REGISTRY}/${BENCH}-${SVC}:${TAG}|g" "k8s/manifests/${SVC}-envoy.yaml" > "$TMP_DIR/${SVC}-envoy.yaml"
+  done
+  deploy_fail=0
+  declare -a deploy_pids=()
+  for SVC in {{range $i, $e := .K8sOrder}}{{if $i}} {{end}}{{$e}}{{end}}; do
+    (
+      kubectl apply -f "$TMP_DIR/${SVC}-envoy.yaml"
+      kubectl_wait_ready_or_fail "${SVC}" "${WAIT_TIMEOUT}"
+    ) &
+    deploy_pids+=($!)
+  done
+  for pid in "${deploy_pids[@]}"; do
+    wait "$pid" || deploy_fail=1
+  done
+  if [ "$deploy_fail" -ne 0 ]; then
+    echo "deploy.sh (envoy): one or more workloads failed readiness" >&2
+    exit 1
+  fi
+
+  kubectl apply -f k8s/manifests/ingress-envoy.yaml
   kubectl_wait_ready_or_fail ingress 30
 elif [ "$MODE" = "rajomon" ]; then
   PRICE_UPDATE_RATE=${priceUpdateRate}
@@ -1338,6 +1382,11 @@ if [ "$MODE" = "sidecar" ]; then
   kubectl delete service -l app=ingress --ignore-not-found
   kubectl delete configmap sidecar-configs --ignore-not-found
 fi
+if [ "$MODE" = "envoy" ]; then
+  kubectl delete pod -l app=ingress --ignore-not-found --wait=true
+  kubectl delete service -l app=ingress --ignore-not-found
+  kubectl delete configmap envoy-configs --ignore-not-found
+fi
 if [ "$MODE" = "rajomon" ] || [ "$MODE" = "dagor" ]; then
   kubectl delete pod -l app=rajomon-client --ignore-not-found --wait=true
   kubectl delete service -l app=rajomon-client --ignore-not-found
@@ -1370,6 +1419,9 @@ for svc in ` + trimmed + `; do
       if [ "$MODE" = "sidecar" ]; then
         kubectl logs "$pod" -c sidecar > "$OUTPUT_DIR/${pod}-sidecar.log" 2>&1
       fi
+      if [ "$MODE" = "envoy" ]; then
+        kubectl logs "$pod" -c envoy > "$OUTPUT_DIR/${pod}-envoy.log" 2>&1
+      fi
     ) &
     log_pids+=($!)
   done
@@ -1381,6 +1433,17 @@ if [ "$MODE" = "sidecar" ]; then
   for pod in $(kubectl get pods -l app=ingress -o jsonpath='{.items[*].metadata.name}'); do
     (
       kubectl logs "$pod" -c sidecar > "$OUTPUT_DIR/${pod}-sidecar.log" 2>&1
+    ) &
+    ing_pids+=($!)
+  done
+  for pid in "${ing_pids[@]}"; do wait "$pid" || true; done
+fi
+
+if [ "$MODE" = "envoy" ]; then
+  declare -a ing_pids=()
+  for pod in $(kubectl get pods -l app=ingress -o jsonpath='{.items[*].metadata.name}'); do
+    (
+      kubectl logs "$pod" -c envoy > "$OUTPUT_DIR/${pod}-envoy.log" 2>&1
     ) &
     ing_pids+=($!)
   done
