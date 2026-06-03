@@ -1,0 +1,552 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: envoy-configs
+data:
+  backend1.yaml: |
+    node:
+      id: backend1
+      cluster: local
+    
+    stats_config:
+      stats_matcher:
+        inclusion_list:
+          patterns:
+          - prefix: "http.inbound_"
+    stats_flush_interval: 5s
+    
+    admin:
+      address:
+        socket_address: { address: 0.0.0.0, port_value: 9901 }
+    
+    static_resources:
+      listeners:
+      - name: listener_inbound_f2
+        address:
+          socket_address: { address: 0.0.0.0, port_value: 3000 }
+        filter_chains:
+        - filters:
+          - name: envoy.filters.network.http_connection_manager
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+              stat_prefix: inbound_f2
+              generate_request_id: false
+              http_filters:
+              - name: envoy.filters.http.router
+                typed_config:
+                  "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+              route_config:
+                virtual_hosts:
+                - name: local
+                  domains: ["*"]
+                  routes:
+                  - match: { prefix: "/benchmark.backend1/f2" }
+                    route: { cluster: local_app, timeout: 10s }
+                  - match: { prefix: "/f2" }
+                    route: { cluster: local_app, timeout: 10s }
+                  - match: { prefix: "/" }
+                    direct_response: { status: 404, body: { inline_string: "unknown inbound path" } }
+    
+              http2_protocol_options: {}
+    
+      - name: listener_outbound
+        address:
+          socket_address: { address: 0.0.0.0, port_value: 4000 }
+        filter_chains:
+        - filters:
+          - name: envoy.filters.network.http_connection_manager
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+              stat_prefix: outbound
+              generate_request_id: false
+              http_filters:
+              - name: envoy.filters.http.router
+                typed_config:
+                  "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+              route_config:
+                virtual_hosts:
+                - name: egress
+                  domains: ["*"]
+                  routes:
+                  - match: { prefix: "/" }
+                    direct_response: { status: 404, body: { inline_string: "no egress route" } }
+    
+              http2_protocol_options: {}
+    
+      clusters:
+      - name: local_app
+        connect_timeout: 2s
+        type: STATIC
+        load_assignment:
+          cluster_name: local_app
+          endpoints:
+          - lb_endpoints:
+            - endpoint:
+                address:
+                  socket_address: { address: 127.0.0.1, port_value: 2000 }
+        http2_protocol_options: {}
+    
+    
+  backend2.yaml: |
+    node:
+      id: backend2
+      cluster: local
+    
+    stats_config:
+      stats_matcher:
+        inclusion_list:
+          patterns:
+          - prefix: "http.inbound_"
+    stats_flush_interval: 5s
+    
+    admin:
+      address:
+        socket_address: { address: 0.0.0.0, port_value: 9901 }
+    
+    static_resources:
+      listeners:
+      - name: listener_inbound_f3
+        address:
+          socket_address: { address: 0.0.0.0, port_value: 3000 }
+        filter_chains:
+        - filters:
+          - name: envoy.filters.network.http_connection_manager
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+              stat_prefix: inbound_f3
+              generate_request_id: false
+              http_filters:
+              - name: envoy.filters.http.router
+                typed_config:
+                  "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+              route_config:
+                virtual_hosts:
+                - name: local
+                  domains: ["*"]
+                  routes:
+                  - match: { prefix: "/benchmark.backend2/f3" }
+                    route: { cluster: local_app, timeout: 10s }
+                  - match: { prefix: "/f3" }
+                    route: { cluster: local_app, timeout: 10s }
+                  - match: { prefix: "/" }
+                    direct_response: { status: 404, body: { inline_string: "unknown inbound path" } }
+    
+              http2_protocol_options: {}
+    
+      - name: listener_outbound
+        address:
+          socket_address: { address: 0.0.0.0, port_value: 4000 }
+        filter_chains:
+        - filters:
+          - name: envoy.filters.network.http_connection_manager
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+              stat_prefix: outbound
+              generate_request_id: false
+              http_filters:
+              - name: envoy.filters.http.router
+                typed_config:
+                  "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+              route_config:
+                virtual_hosts:
+                - name: egress
+                  domains: ["*"]
+                  routes:
+                  - match: { prefix: "/" }
+                    direct_response: { status: 404, body: { inline_string: "no egress route" } }
+    
+              http2_protocol_options: {}
+    
+      clusters:
+      - name: local_app
+        connect_timeout: 2s
+        type: STATIC
+        load_assignment:
+          cluster_name: local_app
+          endpoints:
+          - lb_endpoints:
+            - endpoint:
+                address:
+                  socket_address: { address: 127.0.0.1, port_value: 2000 }
+        http2_protocol_options: {}
+    
+    
+  backend3.yaml: |
+    node:
+      id: backend3
+      cluster: local
+    
+    stats_config:
+      stats_matcher:
+        inclusion_list:
+          patterns:
+          - prefix: "http.inbound_"
+    stats_flush_interval: 5s
+    
+    admin:
+      address:
+        socket_address: { address: 0.0.0.0, port_value: 9901 }
+    
+    static_resources:
+      listeners:
+      - name: listener_inbound_f4
+        address:
+          socket_address: { address: 0.0.0.0, port_value: 3000 }
+        filter_chains:
+        - filters:
+          - name: envoy.filters.network.http_connection_manager
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+              stat_prefix: inbound_f4
+              generate_request_id: false
+              http_filters:
+              - name: envoy.filters.http.router
+                typed_config:
+                  "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+              route_config:
+                virtual_hosts:
+                - name: local
+                  domains: ["*"]
+                  routes:
+                  - match: { prefix: "/benchmark.backend3/f4" }
+                    route: { cluster: local_app, timeout: 10s }
+                  - match: { prefix: "/f4" }
+                    route: { cluster: local_app, timeout: 10s }
+                  - match: { prefix: "/" }
+                    direct_response: { status: 404, body: { inline_string: "unknown inbound path" } }
+    
+              http2_protocol_options: {}
+    
+      - name: listener_outbound
+        address:
+          socket_address: { address: 0.0.0.0, port_value: 4000 }
+        filter_chains:
+        - filters:
+          - name: envoy.filters.network.http_connection_manager
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+              stat_prefix: outbound
+              generate_request_id: false
+              http_filters:
+              - name: envoy.filters.http.router
+                typed_config:
+                  "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+              route_config:
+                virtual_hosts:
+                - name: egress
+                  domains: ["*"]
+                  routes:
+                  - match: { prefix: "/" }
+                    direct_response: { status: 404, body: { inline_string: "no egress route" } }
+    
+              http2_protocol_options: {}
+    
+      clusters:
+      - name: local_app
+        connect_timeout: 2s
+        type: STATIC
+        load_assignment:
+          cluster_name: local_app
+          endpoints:
+          - lb_endpoints:
+            - endpoint:
+                address:
+                  socket_address: { address: 127.0.0.1, port_value: 2000 }
+        http2_protocol_options: {}
+    
+    
+  backend4.yaml: |
+    node:
+      id: backend4
+      cluster: local
+    
+    stats_config:
+      stats_matcher:
+        inclusion_list:
+          patterns:
+          - prefix: "http.inbound_"
+    stats_flush_interval: 5s
+    
+    admin:
+      address:
+        socket_address: { address: 0.0.0.0, port_value: 9901 }
+    
+    static_resources:
+      listeners:
+      - name: listener_inbound_f5
+        address:
+          socket_address: { address: 0.0.0.0, port_value: 3000 }
+        filter_chains:
+        - filters:
+          - name: envoy.filters.network.http_connection_manager
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+              stat_prefix: inbound_f5
+              generate_request_id: false
+              http_filters:
+              - name: envoy.filters.http.router
+                typed_config:
+                  "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+              route_config:
+                virtual_hosts:
+                - name: local
+                  domains: ["*"]
+                  routes:
+                  - match: { prefix: "/benchmark.backend4/f5" }
+                    route: { cluster: local_app, timeout: 10s }
+                  - match: { prefix: "/f5" }
+                    route: { cluster: local_app, timeout: 10s }
+                  - match: { prefix: "/" }
+                    direct_response: { status: 404, body: { inline_string: "unknown inbound path" } }
+    
+              http2_protocol_options: {}
+    
+      - name: listener_outbound
+        address:
+          socket_address: { address: 0.0.0.0, port_value: 4000 }
+        filter_chains:
+        - filters:
+          - name: envoy.filters.network.http_connection_manager
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+              stat_prefix: outbound
+              generate_request_id: false
+              http_filters:
+              - name: envoy.filters.http.router
+                typed_config:
+                  "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+              route_config:
+                virtual_hosts:
+                - name: egress
+                  domains: ["*"]
+                  routes:
+                  - match: { prefix: "/" }
+                    direct_response: { status: 404, body: { inline_string: "no egress route" } }
+    
+              http2_protocol_options: {}
+    
+      clusters:
+      - name: local_app
+        connect_timeout: 2s
+        type: STATIC
+        load_assignment:
+          cluster_name: local_app
+          endpoints:
+          - lb_endpoints:
+            - endpoint:
+                address:
+                  socket_address: { address: 127.0.0.1, port_value: 2000 }
+        http2_protocol_options: {}
+    
+    
+  frontend.yaml: |
+    node:
+      id: frontend
+      cluster: local
+    
+    stats_config:
+      stats_matcher:
+        inclusion_list:
+          patterns:
+          - prefix: "http.inbound_"
+    stats_flush_interval: 5s
+    
+    admin:
+      address:
+        socket_address: { address: 0.0.0.0, port_value: 9901 }
+    
+    static_resources:
+      listeners:
+      - name: listener_inbound_f1
+        address:
+          socket_address: { address: 0.0.0.0, port_value: 3000 }
+        filter_chains:
+        - filters:
+          - name: envoy.filters.network.http_connection_manager
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+              stat_prefix: inbound_f1
+              generate_request_id: false
+              http_filters:
+              - name: envoy.filters.http.router
+                typed_config:
+                  "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+              route_config:
+                virtual_hosts:
+                - name: local
+                  domains: ["*"]
+                  routes:
+                  - match: { prefix: "/benchmark.frontend/f1" }
+                    route: { cluster: local_app, timeout: 10s }
+                  - match: { prefix: "/f1" }
+                    route: { cluster: local_app, timeout: 10s }
+                  - match: { prefix: "/" }
+                    direct_response: { status: 404, body: { inline_string: "unknown inbound path" } }
+    
+    
+      - name: listener_outbound
+        address:
+          socket_address: { address: 0.0.0.0, port_value: 4000 }
+        filter_chains:
+        - filters:
+          - name: envoy.filters.network.http_connection_manager
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+              stat_prefix: outbound
+              generate_request_id: false
+              http_filters:
+              - name: envoy.filters.http.router
+                typed_config:
+                  "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+              route_config:
+                virtual_hosts:
+                - name: egress
+                  domains: ["*"]
+                  routes:
+                  - match: { prefix: "/benchmark.backend1/f2" }
+                    route: { cluster: backend1-f2-in, timeout: 10s }
+                  - match: { prefix: "/benchmark.backend2/f3" }
+                    route: { cluster: backend2-f3-in, timeout: 10s }
+                  - match: { prefix: "/benchmark.backend3/f4" }
+                    route: { cluster: backend3-f4-in, timeout: 10s }
+                  - match: { prefix: "/benchmark.backend4/f5" }
+                    route: { cluster: backend4-f5-in, timeout: 10s }
+                  - match: { prefix: "/" }
+                    direct_response: { status: 404, body: { inline_string: "no egress route" } }
+    
+              http2_protocol_options: {}
+    
+      clusters:
+      - name: local_app
+        connect_timeout: 2s
+        type: STATIC
+        load_assignment:
+          cluster_name: local_app
+          endpoints:
+          - lb_endpoints:
+            - endpoint:
+                address:
+                  socket_address: { address: 127.0.0.1, port_value: 2000 }
+    
+      - name: backend1-f2-in
+        connect_timeout: 2s
+        type: STRICT_DNS
+        lb_policy: ROUND_ROBIN
+        load_assignment:
+          cluster_name: backend1-f2-in
+          endpoints:
+          - lb_endpoints:
+            - endpoint:
+                address:
+                  socket_address:
+                    address: pfanout-4-backend1
+                    port_value: 3000
+        http2_protocol_options:
+          max_concurrent_streams: 100
+    
+      - name: backend2-f3-in
+        connect_timeout: 2s
+        type: STRICT_DNS
+        lb_policy: ROUND_ROBIN
+        load_assignment:
+          cluster_name: backend2-f3-in
+          endpoints:
+          - lb_endpoints:
+            - endpoint:
+                address:
+                  socket_address:
+                    address: pfanout-4-backend2
+                    port_value: 3000
+        http2_protocol_options:
+          max_concurrent_streams: 100
+    
+      - name: backend3-f4-in
+        connect_timeout: 2s
+        type: STRICT_DNS
+        lb_policy: ROUND_ROBIN
+        load_assignment:
+          cluster_name: backend3-f4-in
+          endpoints:
+          - lb_endpoints:
+            - endpoint:
+                address:
+                  socket_address:
+                    address: pfanout-4-backend3
+                    port_value: 3000
+        http2_protocol_options:
+          max_concurrent_streams: 100
+    
+      - name: backend4-f5-in
+        connect_timeout: 2s
+        type: STRICT_DNS
+        lb_policy: ROUND_ROBIN
+        load_assignment:
+          cluster_name: backend4-f5-in
+          endpoints:
+          - lb_endpoints:
+            - endpoint:
+                address:
+                  socket_address:
+                    address: pfanout-4-backend4
+                    port_value: 3000
+        http2_protocol_options:
+          max_concurrent_streams: 100
+    
+    
+  ingress.yaml: |
+    node:
+      id: ingress
+      cluster: local
+    
+    stats_config:
+      stats_matcher:
+        inclusion_list:
+          patterns:
+          - prefix: "http.ingress_"
+    stats_flush_interval: 5s
+    
+    admin:
+      address:
+        socket_address: { address: 0.0.0.0, port_value: 9901 }
+    
+    static_resources:
+      listeners:
+      - name: listener_f1
+        address:
+          socket_address: { address: 0.0.0.0, port_value: 3000 }
+        filter_chains:
+        - filters:
+          - name: envoy.filters.network.http_connection_manager
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+              stat_prefix: ingress_f1
+              generate_request_id: false
+              use_remote_address: true
+              http_filters:
+              - name: envoy.filters.http.router
+                typed_config:
+                  "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+              route_config:
+                virtual_hosts:
+                - name: entry
+                  domains: ["*"]
+                  routes:
+                  - match: { prefix: "/f1" }
+                    route: { cluster: entry-f1, timeout: 10s }
+    
+      clusters:
+      - name: entry-f1
+        connect_timeout: 2s
+        type: STRICT_DNS
+        lb_policy: ROUND_ROBIN
+        load_assignment:
+          cluster_name: entry-f1
+          endpoints:
+          - lb_endpoints:
+            - endpoint:
+                address:
+                  socket_address:
+                    address: pfanout-4-frontend
+                    port_value: 3000
+    
+    

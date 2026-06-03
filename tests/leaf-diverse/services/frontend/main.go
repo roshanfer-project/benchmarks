@@ -7,7 +7,10 @@ import (
 	"leafdiverse/utils"
 
 	"google.golang.org/grpc/metadata"
+	"sync/atomic"
 )
+
+var envoyRPCSeq uint64
 
 
 type Server struct {
@@ -19,9 +22,14 @@ var log = utils.GetLogger(serviceName)
 func (s *Server) Run() error {
 	log.Info("Initializing HTTP server...")
 	sidecar := utils.GetEnvVar("sidecar", false) == "true"
+	envoy := utils.GetEnvVar("envoy", false) == "true"
+	if sidecar && envoy {
+		panic("sidecar and envoy cannot both be enabled")
+	}
+	meshProxy := sidecar || envoy
 
 	port := 2000
-	if sidecar {
+	if meshProxy {
 		port = utils.StrToInt(utils.GetEnvVar("frontend_PORT", true))
 	}
 	mux := http.NewServeMux()
@@ -46,6 +54,7 @@ func (s *Server) Run() error {
 func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	sidecar := utils.GetEnvVar("sidecar", false) == "true"
+	envoy := utils.GetEnvVar("envoy", false) == "true"
 	var rpcID, rpcLocalID string
 	if sidecar {
 		rpcID = r.Header.Get("rpc-id")
@@ -57,6 +66,15 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 		if rpcLocalID == "" {
 			http.Error(w, "rpc-local-id header required", http.StatusBadRequest)
 			return
+		}
+	} else if envoy {
+		rpcID = r.Header.Get("rpc-id")
+		rpcLocalID = r.Header.Get("rpc-local-id")
+		if rpcID == "" {
+			rpcID = fmt.Sprintf("%d", atomic.AddUint64(&envoyRPCSeq, 1))
+		}
+		if rpcLocalID == "" {
+			rpcLocalID = rpcID
 		}
 	}
 	path := strings.TrimPrefix(r.URL.Path, "/")

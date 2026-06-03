@@ -37,7 +37,7 @@
       "interfaces": [
         {
           "name": "f3",
-          "avg_rt": 0.6,
+          "avg_rt": 2,
           "priority": 0
         }
       ],

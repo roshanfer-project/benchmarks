@@ -135,6 +135,44 @@ if [ "$MODE" = "sidecar" ]; then
   fi
   kubectl apply -f "$TMP_DIR/ingress.yaml"
   kubectl_wait_ready_or_fail ingress 30
+elif [ "$MODE" = "envoy" ]; then
+  ENVOY_STATS_IMAGE="${REGISTRY}/envoy-stats-exporter:${TAG}"
+
+  cat k8s/envoy.env > "$TMP_DIR/envoy_merged.env"
+  kubectl create configmap fan-out-dynamic-0-9-config --from-env-file="$TMP_DIR/envoy_merged.env" --dry-run=client -o yaml > "$TMP_DIR/configmap.yaml"
+  kubectl apply -f "$TMP_DIR/configmap.yaml"
+  kubectl apply -f k8s/manifests/envoy-configs.yaml
+
+  kubectl apply -f k8s/manifests/prometheus.yaml
+  kubectl_wait_ready_or_fail prometheus-pushgateway 60
+  kubectl_wait_ready_or_fail prometheus 60
+
+  for SVC in backend1 backend2 frontend; do
+    sed -e "s|${BENCH}-${SVC}:latest|${REGISTRY}/${BENCH}-${SVC}:${TAG}|g" \
+        -e "s|envoy-stats-exporter:latest|${ENVOY_STATS_IMAGE}|g" \
+        "k8s/manifests/${SVC}-envoy.yaml" > "$TMP_DIR/${SVC}-envoy.yaml"
+  done
+  deploy_fail=0
+  declare -a deploy_pids=()
+  for SVC in backend1 backend2 frontend; do
+    (
+      kubectl apply -f "$TMP_DIR/${SVC}-envoy.yaml"
+      kubectl_wait_ready_or_fail "${SVC}" "${WAIT_TIMEOUT}"
+    ) &
+    deploy_pids+=($!)
+  done
+  for pid in "${deploy_pids[@]}"; do
+    wait "$pid" || deploy_fail=1
+  done
+  if [ "$deploy_fail" -ne 0 ]; then
+    echo "deploy.sh (envoy): one or more workloads failed readiness" >&2
+    exit 1
+  fi
+
+  sed -e "s|envoy-stats-exporter:latest|${ENVOY_STATS_IMAGE}|g" \
+      k8s/manifests/ingress-envoy.yaml > "$TMP_DIR/ingress-envoy.yaml"
+  kubectl apply -f "$TMP_DIR/ingress-envoy.yaml"
+  kubectl_wait_ready_or_fail ingress 30
 elif [ "$MODE" = "rajomon" ]; then
   PRICE_UPDATE_RATE=${priceUpdateRate}
   LATENCY_THRESHOLD=${latencyThreshold}

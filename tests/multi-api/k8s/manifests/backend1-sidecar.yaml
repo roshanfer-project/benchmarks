@@ -10,12 +10,12 @@ spec:
     image: multi-api-backend1:latest
     resources:
       requests:
-        cpu: "3"
+        cpu: "2"
       limits:
-        cpu: "3"
+        cpu: "2"
     env:
     - name: GOMAXPROCS
-      value: "3"
+      value: "2"
     envFrom:
     - configMapRef:
         name: multi-api-config

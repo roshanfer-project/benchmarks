@@ -16,6 +16,12 @@ protocol=$1
 BASE=$2
 RATE=$3
 DURATION=$4
+
+# Resolve RWG phases (legacy 2-phase or RWG_RATES/RWG_DURATIONS from exec)
+# shellcheck source=/dev/null
+source "$(dirname "${BASH_SOURCE[0]}")/rwg_phases.sh"
+resolve_rwg_phases "$BASE" "$RATE" "$DURATION"
+
 API=$5
 output_dir="$6/out-$API.csv"
 address="${TARGET_ADDR:-192.168.1.100}"
@@ -34,10 +40,10 @@ else
     fi
     echo "url: $url"
     if [ "$ignore_errors" = true ]; then
-        "$RWG_BINARY" run --url $url -d exp -D 2,$DURATION -r $BASE,$RATE -w 10000 -o $output_dir -t 30 --ignore-errors
+        "$RWG_BINARY" run --url $url -d exp -D $RESOLVED_DURATIONS -r $RESOLVED_RATES -w 10000 -o $output_dir -t 30 --ignore-errors
         exit 0
     else
-        "$RWG_BINARY" run --url $url -d exp -D 2,$DURATION -r $BASE,$RATE -w 10000 -o $output_dir -t 30
+        "$RWG_BINARY" run --url $url -d exp -D $RESOLVED_DURATIONS -r $RESOLVED_RATES -w 10000 -o $output_dir -t 30
         exit "$?"
     fi
 fi

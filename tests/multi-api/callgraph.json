@@ -30,7 +30,7 @@
           "priority": 0
         }
       ],
-      "cpu": 2,
+      "cpu": 3,
       "over_commitment": 1
     },
     {
@@ -42,7 +42,7 @@
           "priority": 0
         }
       ],
-      "cpu": 3
+      "cpu": 2
     },
     {
       "id": "backend2",
@@ -53,7 +53,7 @@
           "priority": 0
         }
       ],
-      "cpu": 3
+      "cpu": 2
     }
   ],
   "edges": [

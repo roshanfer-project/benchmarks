@@ -27,10 +27,28 @@ while [ -n "$D" ] && [ "$D" != "/" ]; do
   D="$(cd "$D/.." && pwd)"
 done
 
-if [ -n "$SIDECAR_DIR" ]; then
+if [ "${SKIP_SIDECAR_BUILD:-}" != "1" ] && [ -n "$SIDECAR_DIR" ]; then
   echo "Building sidecar..."
   (cd "$SIDECAR_DIR" && ./build.sh Release)
   docker build -f "$SIDECAR_DIR/Dockerfile" -t "${REGISTRY}/sidecar-sidecar:${TAG}" "$SIDECAR_DIR"
+fi
+
+ENVOY_STATS_DIR=""
+D="$ROOT_DIR"
+while [ -n "$D" ] && [ "$D" != "/" ]; do
+  if [ -d "$D/callgraph-framework/envoy-stats-exporter" ]; then
+    ENVOY_STATS_DIR="$D/callgraph-framework/envoy-stats-exporter"
+    break
+  fi
+  D="$(cd "$D/.." && pwd)"
+done
+if [ "${SKIP_SIDECAR_BUILD:-}" = "1" ]; then
+  if [ -z "$ENVOY_STATS_DIR" ]; then
+    echo "build.sh: callgraph-framework/envoy-stats-exporter not found (walk up from $ROOT_DIR)" >&2
+    exit 1
+  fi
+  echo "Building envoy-stats-exporter..."
+  REGISTRY="${REGISTRY}" TAG="${TAG}" bash "$ENVOY_STATS_DIR/build.sh"
 fi
 
 echo "Building workload images (docker buildx bake)..."
@@ -38,7 +56,7 @@ REGISTRY="${REGISTRY}" TAG="${TAG}" BENCH="${BENCH}" docker buildx bake -f docke
 
 echo "Pushing images..."
 PUSH_IMAGES=()
-if [ -n "$SIDECAR_DIR" ]; then
+if [ "${SKIP_SIDECAR_BUILD:-}" != "1" ] && [ -n "$SIDECAR_DIR" ]; then
   PUSH_IMAGES+=("${REGISTRY}/sidecar-sidecar:${TAG}")
 fi
 

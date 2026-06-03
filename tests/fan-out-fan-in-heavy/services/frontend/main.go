@@ -10,7 +10,10 @@ import (
 	"fanoutfaninheavy/pkg"
 	pb "fanoutfaninheavy/protobuf"
 	"google.golang.org/grpc"
+	"sync/atomic"
 )
+
+var envoyRPCSeq uint64
 
 
 type Server struct {
@@ -24,22 +27,27 @@ var log = utils.GetLogger(serviceName)
 func (s *Server) Run() error {
 	log.Info("Initializing HTTP server...")
 	sidecar := utils.GetEnvVar("sidecar", false) == "true"
+	envoy := utils.GetEnvVar("envoy", false) == "true"
+	if sidecar && envoy {
+		panic("sidecar and envoy cannot both be enabled")
+	}
+	meshProxy := sidecar || envoy
 	var conn *grpc.ClientConn
-	if sidecar {
+	if meshProxy {
 		conn = pkg.GetConn(utils.GetEnvVar("frontend_EGRESS", true))
 	}
-	if !sidecar {
+	if !meshProxy {
 		conn = pkg.GetConn(utils.GetEnvVar("backend1_ADDR", true))
 	}
 	s.Backend1Client = pb.NewBackend1Client(conn)
-	if !sidecar {
+	if !meshProxy {
 		conn = pkg.GetConn(utils.GetEnvVar("backend2_ADDR", true))
 	}
 	s.Backend2Client = pb.NewBackend2Client(conn)
 
 
 	port := 2000
-	if sidecar {
+	if meshProxy {
 		port = utils.StrToInt(utils.GetEnvVar("frontend_PORT", true))
 	}
 	mux := http.NewServeMux()
@@ -63,6 +71,7 @@ func (s *Server) Run() error {
 func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	sidecar := utils.GetEnvVar("sidecar", false) == "true"
+	envoy := utils.GetEnvVar("envoy", false) == "true"
 	var rpcID, rpcLocalID string
 	if sidecar {
 		rpcID = r.Header.Get("rpc-id")
@@ -74,6 +83,15 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 		if rpcLocalID == "" {
 			http.Error(w, "rpc-local-id header required", http.StatusBadRequest)
 			return
+		}
+	} else if envoy {
+		rpcID = r.Header.Get("rpc-id")
+		rpcLocalID = r.Header.Get("rpc-local-id")
+		if rpcID == "" {
+			rpcID = fmt.Sprintf("%d", atomic.AddUint64(&envoyRPCSeq, 1))
+		}
+		if rpcLocalID == "" {
+			rpcLocalID = rpcID
 		}
 	}
 	path := strings.TrimPrefix(r.URL.Path, "/")
