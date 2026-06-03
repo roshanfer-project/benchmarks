@@ -8,10 +8,41 @@ import (
 )
 
 const (
-	envoyImage              = "envoyproxy/envoy:v1.32-latest"
-	envoyIngressConcurrency = 1
+	envoyImage                = "envoyproxy/envoy:v1.32-latest"
+	envoyIngressConcurrency   = 1
 	envoyMaxConcurrentStreams = 100
+	envoyAdminPort            = 9901
 )
+
+func envoyServiceStatsConfig() string {
+	return `stats_config:
+  stats_matcher:
+    inclusion_list:
+      patterns:
+      - prefix: "http.inbound.downstream_rq"
+stats_flush_interval: 5s
+
+`
+}
+
+func envoyIngressStatsConfig() string {
+	return `stats_config:
+  stats_matcher:
+    inclusion_list:
+      patterns:
+      - prefix: "http.ingress_"
+stats_flush_interval: 5s
+
+`
+}
+
+func envoyAdminBlock() string {
+	return fmt.Sprintf(`admin:
+  address:
+    socket_address: { address: 0.0.0.0, port_value: %d }
+
+`, envoyAdminPort)
+}
 
 func generateEnvoyConfigs(pg *ParsedGraph, benchmarkName string, svcNames []string, outDir string) error {
 	prefix := benchmarkName + "-"
@@ -41,14 +72,9 @@ func buildEnvoyServiceConfig(pg *ParsedGraph, prefix, svcName, kn, entrySvc stri
 	isEntry := svcName == entrySvc
 	var b strings.Builder
 	fmt.Fprintf(&b, "node:\n  id: %s\n  cluster: local\n\n", kn)
-	b.WriteString(`stats_config:
-  stats_matcher:
-    reject_all: true
-stats_flush_interval: 30s
-
-static_resources:
-  listeners:
-`)
+	b.WriteString(envoyServiceStatsConfig())
+	b.WriteString(envoyAdminBlock())
+	b.WriteString("static_resources:\n  listeners:\n")
 	b.WriteString(envoyInboundListener(isEntry))
 	b.WriteString(envoyOutboundListener(pg, prefix, svcName, isEntry))
 	b.WriteString("  clusters:\n")
@@ -204,14 +230,9 @@ func buildEnvoyIngressConfig(pg *ParsedGraph, prefix, entrySvc string) string {
 	entryKn := k8sName(entrySvc)
 	var b strings.Builder
 	fmt.Fprintf(&b, "node:\n  id: ingress\n  cluster: local\n\n")
-	b.WriteString(`stats_config:
-  stats_matcher:
-    reject_all: true
-stats_flush_interval: 30s
-
-static_resources:
-  listeners:
-`)
+	b.WriteString(envoyIngressStatsConfig())
+	b.WriteString(envoyAdminBlock())
+	b.WriteString("static_resources:\n  listeners:\n")
 	for i, n := range pg.EntryInterfaces() {
 		p := sidecarIngressBasePort + i
 		b.WriteString(envoyIngressListener(p, n.Interface))
@@ -313,6 +334,7 @@ spec:
     ports:
     - containerPort: %d
     - containerPort: %d
+    - containerPort: %d
   volumes:
   - name: config-volume
     configMap:
@@ -339,7 +361,7 @@ spec:
 `,
 			kn, kn, imgName, cpuStr, cpuStr, cpuStr, benchmarkName, sidecarAppPort,
 			envoyImage, concurrency, envoyCpuStr, envoyCpuStr, kn,
-			sidecarIngressPort, sidecarEgressPort,
+			sidecarIngressPort, sidecarEgressPort, envoyAdminPort,
 			prefix, kn, kn, kn,
 			sidecarIngressPort, sidecarIngressPort,
 			sidecarEgressPort, sidecarEgressPort)
@@ -360,6 +382,7 @@ func generateIngressEnvoyYaml(pg *ParsedGraph, benchmarkName string, outDir stri
 	for i := 0; i < nApis; i++ {
 		p := sidecarIngressBasePort + i
 		portSpecs = append(portSpecs, fmt.Sprintf("    - containerPort: %d", p))
+	portSpecs = append(portSpecs, fmt.Sprintf("    - containerPort: %d", envoyAdminPort))
 		svcPorts = append(svcPorts, fmt.Sprintf(`  - name: envoy-%d
     port: %d
     targetPort: %d
