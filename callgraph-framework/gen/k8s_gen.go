@@ -591,6 +591,28 @@ func buildSidecarServiceConfig(pg *ParsedGraph, prefix, svcName, kn, entrySvc st
 
 const sidecarIngressBasePort = 3000
 
+const rwgPhasesSh = `#!/bin/bash
+# Resolve RWG rate/duration lists. Uses RWG_RATES/RWG_DURATIONS when set; else legacy 2-phase.
+
+resolve_rwg_phases() {
+    local base=$1 rate=$2 duration=$3
+    if [ -n "$RWG_RATES" ] && [ -n "$RWG_DURATIONS" ]; then
+        RESOLVED_RATES="$RWG_RATES"
+        RESOLVED_DURATIONS="$RWG_DURATIONS"
+    else
+        RESOLVED_RATES="$base,$rate"
+        RESOLVED_DURATIONS="2,$duration"
+    fi
+}
+`
+
+const rwgPhasesSnippet = `
+# Resolve RWG phases (legacy 2-phase or RWG_RATES/RWG_DURATIONS from exec)
+# shellcheck source=/dev/null
+source "$(dirname "${BASH_SOURCE[0]}")/rwg_phases.sh"
+resolve_rwg_phases "$BASE" "$RATE" "$DURATION"
+`
+
 func buildIngressConfig(pg *ParsedGraph, prefix, entrySvc string) string {
 	entryKn := k8sName(entrySvc)
 	entryHost := prefix + entryKn
@@ -1013,6 +1035,24 @@ if [ "${SKIP_SIDECAR_BUILD:-}" != "1" ] && [ -n "$SIDECAR_DIR" ]; then
   docker build -f "$SIDECAR_DIR/Dockerfile" -t "${REGISTRY}/sidecar-sidecar:${TAG}" "$SIDECAR_DIR"
 fi
 
+ENVOY_STATS_DIR=""
+D="$ROOT_DIR"
+while [ -n "$D" ] && [ "$D" != "/" ]; do
+  if [ -d "$D/callgraph-framework/envoy-stats-exporter" ]; then
+    ENVOY_STATS_DIR="$D/callgraph-framework/envoy-stats-exporter"
+    break
+  fi
+  D="$(cd "$D/.." && pwd)"
+done
+if [ "${SKIP_SIDECAR_BUILD:-}" = "1" ]; then
+  if [ -z "$ENVOY_STATS_DIR" ]; then
+    echo "build.sh: callgraph-framework/envoy-stats-exporter not found (walk up from $ROOT_DIR)" >&2
+    exit 1
+  fi
+  echo "Building envoy-stats-exporter..."
+  REGISTRY="${REGISTRY}" TAG="${TAG}" bash "$ENVOY_STATS_DIR/build.sh"
+fi
+
 echo "Building workload images (docker buildx bake)..."
 REGISTRY="${REGISTRY}" TAG="${TAG}" BENCH="${BENCH}" docker buildx bake -f docker-bake.hcl
 
@@ -1185,6 +1225,8 @@ if [ "$MODE" = "sidecar" ]; then
   kubectl apply -f "$TMP_DIR/ingress.yaml"
   kubectl_wait_ready_or_fail ingress 30
 elif [ "$MODE" = "envoy" ]; then
+  ENVOY_STATS_IMAGE="${REGISTRY}/envoy-stats-exporter:${TAG}"
+
   cat k8s/envoy.env > "$TMP_DIR/envoy_merged.env"
   kubectl create configmap {{.BenchmarkName}}-config --from-env-file="$TMP_DIR/envoy_merged.env" --dry-run=client -o yaml > "$TMP_DIR/configmap.yaml"
   kubectl apply -f "$TMP_DIR/configmap.yaml"
@@ -1195,7 +1237,9 @@ elif [ "$MODE" = "envoy" ]; then
   kubectl_wait_ready_or_fail prometheus 60
 
   for SVC in {{range $i, $e := .K8sOrder}}{{if $i}} {{end}}{{$e}}{{end}}; do
-    sed "s|${BENCH}-${SVC}:latest|${REGISTRY}/${BENCH}-${SVC}:${TAG}|g" "k8s/manifests/${SVC}-envoy.yaml" > "$TMP_DIR/${SVC}-envoy.yaml"
+    sed -e "s|${BENCH}-${SVC}:latest|${REGISTRY}/${BENCH}-${SVC}:${TAG}|g" \
+        -e "s|envoy-stats-exporter:latest|${ENVOY_STATS_IMAGE}|g" \
+        "k8s/manifests/${SVC}-envoy.yaml" > "$TMP_DIR/${SVC}-envoy.yaml"
   done
   deploy_fail=0
   declare -a deploy_pids=()
@@ -1214,7 +1258,9 @@ elif [ "$MODE" = "envoy" ]; then
     exit 1
   fi
 
-  kubectl apply -f k8s/manifests/ingress-envoy.yaml
+  sed -e "s|envoy-stats-exporter:latest|${ENVOY_STATS_IMAGE}|g" \
+      k8s/manifests/ingress-envoy.yaml > "$TMP_DIR/ingress-envoy.yaml"
+  kubectl apply -f "$TMP_DIR/ingress-envoy.yaml"
   kubectl_wait_ready_or_fail ingress 30
 elif [ "$MODE" = "rajomon" ]; then
   PRICE_UPDATE_RATE=${priceUpdateRate}
@@ -1450,6 +1496,22 @@ if [ "$MODE" = "envoy" ]; then
   for pid in "${ing_pids[@]}"; do wait "$pid" || true; done
 fi
 
+if [ "$MODE" = "envoy" ]; then
+  ENVOY_METRICS_DIR=${ENVOY_METRICS_DIR:-./metrics/envoy}
+  mkdir -p "$ENVOY_METRICS_DIR"
+  declare -a stats_pids=()
+  for svc in ` + trimmed + ` ingress; do
+    for pod in $(kubectl get pods -l app=$svc -o jsonpath='{.items[*].metadata.name}' 2>/dev/null); do
+      [ -z "$pod" ] && continue
+      app=$(kubectl get pod "$pod" -o jsonpath='{.metadata.labels.app}' 2>/dev/null)
+      [ -z "$app" ] && continue
+      ( kubectl cp "$pod:/tmp/envoy_stats.csv" "$ENVOY_METRICS_DIR/${app}.csv" -c envoy-stats 2>/dev/null || true ) &
+      stats_pids+=($!)
+    done
+  done
+  for pid in "${stats_pids[@]}"; do wait "$pid" || true; done
+fi
+
 if [ "$MODE" = "sidecar" ] && [ "${COLLECT_SIDECAR_NANOLOG:-}" = "1" ]; then
   declare -a cp_pids=()
   for svc in ` + trimmed + `; do
@@ -1504,6 +1566,10 @@ func generateWrapperScripts(pg *ParsedGraph, outDir string) error {
 	}
 	apiCasesPlain += "    else\n        echo \"Unknown API: $API\"\n        exit 1\n    fi"
 
+	if err := os.WriteFile(filepath.Join(outDir, "rwg_phases.sh"), []byte(rwgPhasesSh), 0755); err != nil {
+		return err
+	}
+
 	runSh := `#!/bin/bash
 # Usage: $0 PROTOCOL BASE RATE DURATION API OUTPUT_DIR
 if [ -z "$2" ] || [ -z "$3" ] || [ -z "$4" ] || [ -z "$5" ] || [ -z "$6" ]; then
@@ -1516,6 +1582,7 @@ protocol=$1
 BASE=$2
 RATE=$3
 DURATION=$4
+` + rwgPhasesSnippet + `
 API=$5
 output_dir="$6/out-$API.csv"
 address="${TARGET_ADDR:-192.168.1.100}"
@@ -1526,7 +1593,7 @@ if [ "$protocol" == "grpc" ]; then
 else
 ` + apiCasesSidecar + `
     echo "url: $url"
-    "$RWG_BINARY" run --url $url -d exp -D 2,$DURATION -r $BASE,$RATE -w 5000 -o $output_dir -t 15
+    "$RWG_BINARY" run --url $url -d exp -D $RESOLVED_DURATIONS -r $RESOLVED_RATES -w 5000 -o $output_dir -t 15
     exit "$?"
 fi
 `
@@ -1552,6 +1619,7 @@ protocol=$1
 BASE=$2
 RATE=$3
 DURATION=$4
+` + rwgPhasesSnippet + `
 API=$5
 output_dir="$6/out-$API.csv"
 address="${TARGET_ADDR:-192.168.1.100}"
@@ -1563,10 +1631,10 @@ else
 ` + apiCasesPlain + `
     echo "url: $url"
     if [ "$ignore_errors" = true ]; then
-        "$RWG_BINARY" run --url $url -d exp -D 2,$DURATION -r $BASE,$RATE -w 10000 -o $output_dir -t 30 --ignore-errors
+        "$RWG_BINARY" run --url $url -d exp -D $RESOLVED_DURATIONS -r $RESOLVED_RATES -w 10000 -o $output_dir -t 30 --ignore-errors
         exit 0
     else
-        "$RWG_BINARY" run --url $url -d exp -D 2,$DURATION -r $BASE,$RATE -w 10000 -o $output_dir -t 30
+        "$RWG_BINARY" run --url $url -d exp -D $RESOLVED_DURATIONS -r $RESOLVED_RATES -w 10000 -o $output_dir -t 30
         exit "$?"
     fi
 fi

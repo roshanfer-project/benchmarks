@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -12,14 +13,36 @@ const (
 	envoyIngressConcurrency   = 1
 	envoyMaxConcurrentStreams = 100
 	envoyAdminPort            = 9901
+	envoyRouteTimeout         = "10s"
+	envoyConnectTimeout       = "2s"
 )
+
+const envoyStatsContainerYAML = `  - name: envoy-stats
+    image: envoy-stats-exporter:latest
+    env:
+    - name: APP_NAME
+      valueFrom:
+        fieldRef:
+          fieldPath: metadata.labels['app']
+    - name: POLL_INTERVAL_MS
+      value: "200"
+    - name: OUTPUT_PATH
+      value: "/tmp/envoy_stats.csv"
+    resources:
+      requests:
+        memory: 16Mi
+        cpu: 10m
+      limits:
+        memory: 32Mi
+        cpu: 50m
+`
 
 func envoyServiceStatsConfig() string {
 	return `stats_config:
   stats_matcher:
     inclusion_list:
       patterns:
-      - prefix: "http.inbound.downstream_rq"
+      - prefix: "http.inbound_"
 stats_flush_interval: 5s
 
 `
@@ -75,7 +98,7 @@ func buildEnvoyServiceConfig(pg *ParsedGraph, prefix, svcName, kn, entrySvc stri
 	b.WriteString(envoyServiceStatsConfig())
 	b.WriteString(envoyAdminBlock())
 	b.WriteString("static_resources:\n  listeners:\n")
-	b.WriteString(envoyInboundListener(isEntry))
+	b.WriteString(envoyInboundListeners(pg, svcName, isEntry))
 	b.WriteString(envoyOutboundListener(pg, prefix, svcName, isEntry))
 	b.WriteString("  clusters:\n")
 	b.WriteString(envoyLocalAppCluster(isEntry))
@@ -85,12 +108,54 @@ func buildEnvoyServiceConfig(pg *ParsedGraph, prefix, svcName, kn, entrySvc stri
 	return b.String()
 }
 
-func envoyInboundListener(isEntry bool) string {
+func inboundPortForHandler(pg *ParsedGraph, svcName, iface string) int {
+	for i, n := range pg.Services[svcName] {
+		if n.Interface == iface {
+			return sidecarIngressBasePort + i
+		}
+	}
+	return sidecarIngressPort
+}
+
+func envoyRPCInboundClusterName(microservice, iface string) string {
+	return k8sName(microservice) + "-" + iface + "-in"
+}
+
+func envoyInboundListeners(pg *ParsedGraph, svcName string, isEntry bool) string {
+	var b strings.Builder
+	for i, n := range pg.Services[svcName] {
+		b.WriteString(envoyInboundHandlerListener(n, sidecarIngressBasePort+i, isEntry))
+	}
+	return b.String()
+}
+
+func envoyInboundHandlerListener(n *Node, port int, isEntry bool) string {
 	h2 := ""
 	if !isEntry {
 		h2 = "\n          http2_protocol_options: {}"
 	}
-	return fmt.Sprintf(`  - name: listener_inbound
+	iface := n.Interface
+	statPrefix := "inbound_" + iface
+	type routeSpec struct {
+		prefix string
+	}
+	routes := []routeSpec{
+		{"/" + n.FullRPCName()},
+		{"/" + iface},
+	}
+	sort.Slice(routes, func(i, j int) bool {
+		return len(routes[i].prefix) > len(routes[j].prefix)
+	})
+	var routeYAML strings.Builder
+	for _, r := range routes {
+		fmt.Fprintf(&routeYAML, `              - match: { prefix: "%s" }
+                route: { cluster: local_app, timeout: %s }
+`, r.prefix, envoyRouteTimeout)
+	}
+	fmt.Fprintf(&routeYAML, `              - match: { prefix: "/" }
+                direct_response: { status: 404, body: { inline_string: "unknown inbound path" } }
+`)
+	return fmt.Sprintf(`  - name: listener_inbound_%s
     address:
       socket_address: { address: 0.0.0.0, port_value: %d }
     filter_chains:
@@ -98,7 +163,7 @@ func envoyInboundListener(isEntry bool) string {
       - name: envoy.filters.network.http_connection_manager
         typed_config:
           "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
-          stat_prefix: inbound
+          stat_prefix: %s
           generate_request_id: false
           http_filters:
           - name: envoy.filters.http.router
@@ -109,10 +174,9 @@ func envoyInboundListener(isEntry bool) string {
             - name: local
               domains: ["*"]
               routes:
-              - match: { prefix: "/" }
-                route: { cluster: local_app, timeout: 2s }%s
+%s%s
 
-`, sidecarIngressPort, h2)
+`, iface, port, statPrefix, routeYAML.String(), h2)
 }
 
 func envoyOutboundListener(pg *ParsedGraph, prefix, svcName string, isEntry bool) string {
@@ -126,10 +190,10 @@ func envoyOutboundListener(pg *ParsedGraph, prefix, svcName string, isEntry bool
 				continue
 			}
 			seen[key] = true
-			cluster := envoyClusterName(tn.Microservice)
+			cluster := envoyRPCInboundClusterName(tn.Microservice, tn.Interface)
 			fmt.Fprintf(&routes, `              - match: { prefix: "/%s" }
-                route: { cluster: %s, timeout: 2s }
-`, key, cluster)
+                route: { cluster: %s, timeout: %s }
+`, key, cluster, envoyRouteTimeout)
 		}
 	}
 	routes.WriteString(`              - match: { prefix: "/" }
@@ -160,17 +224,13 @@ func envoyOutboundListener(pg *ParsedGraph, prefix, svcName string, isEntry bool
 `, sidecarEgressPort, routes.String(), h2Listener)
 }
 
-func envoyClusterName(microservice string) string {
-	return k8sName(microservice) + "-service"
-}
-
 func envoyLocalAppCluster(isEntry bool) string {
 	h2 := ""
 	if !isEntry {
 		h2 = "\n    http2_protocol_options: {}"
 	}
 	return fmt.Sprintf(`  - name: local_app
-    connect_timeout: 2s
+    connect_timeout: %s
     type: STATIC
     load_assignment:
       cluster_name: local_app
@@ -180,10 +240,10 @@ func envoyLocalAppCluster(isEntry bool) string {
             address:
               socket_address: { address: 127.0.0.1, port_value: %d }%s
 
-`, sidecarAppPort, h2)
+`, envoyConnectTimeout, sidecarAppPort, h2)
 }
 
-func envoyUpstreamCluster(prefix, targetKn, clusterName string, h2Streams bool) string {
+func envoyUpstreamCluster(prefix, targetKn, clusterName string, port int, h2Streams bool) string {
 	h2 := ""
 	if h2Streams {
 		h2 = fmt.Sprintf(`
@@ -192,7 +252,7 @@ func envoyUpstreamCluster(prefix, targetKn, clusterName string, h2Streams bool) 
 	}
 	host := prefix + targetKn
 	return fmt.Sprintf(`  - name: %s
-    connect_timeout: 2s
+    connect_timeout: %s
     type: STRICT_DNS
     lb_policy: ROUND_ROBIN
     load_assignment:
@@ -205,7 +265,7 @@ func envoyUpstreamCluster(prefix, targetKn, clusterName string, h2Streams bool) 
                 address: %s
                 port_value: %d%s
 
-`, clusterName, clusterName, host, sidecarIngressPort, h2)
+`, clusterName, envoyConnectTimeout, clusterName, host, port, h2)
 }
 
 func envoyUpstreamClusters(pg *ParsedGraph, prefix, svcName string) []string {
@@ -214,13 +274,13 @@ func envoyUpstreamClusters(pg *ParsedGraph, prefix, svcName string) []string {
 	for _, n := range pg.Services[svcName] {
 		for _, targetID := range pg.Downstream(n.ID) {
 			tn := pg.Nodes[targetID]
-			ms := tn.Microservice
-			if seen[ms] {
+			cn := envoyRPCInboundClusterName(tn.Microservice, tn.Interface)
+			if seen[cn] {
 				continue
 			}
-			seen[ms] = true
-			targetKn := k8sName(ms)
-			out = append(out, envoyUpstreamCluster(prefix, targetKn, envoyClusterName(ms), true))
+			seen[cn] = true
+			port := inboundPortForHandler(pg, tn.Microservice, tn.Interface)
+			out = append(out, envoyUpstreamCluster(prefix, k8sName(tn.Microservice), cn, port, true))
 		}
 	}
 	return out
@@ -235,14 +295,19 @@ func buildEnvoyIngressConfig(pg *ParsedGraph, prefix, entrySvc string) string {
 	b.WriteString("static_resources:\n  listeners:\n")
 	for i, n := range pg.EntryInterfaces() {
 		p := sidecarIngressBasePort + i
-		b.WriteString(envoyIngressListener(p, n.Interface))
+		cn := "entry-" + n.Interface
+		b.WriteString(envoyIngressListener(p, n.Interface, cn))
 	}
 	b.WriteString("  clusters:\n")
-	b.WriteString(envoyUpstreamCluster(prefix, entryKn, "entry-service", false))
+	for _, n := range pg.EntryInterfaces() {
+		cn := "entry-" + n.Interface
+		port := inboundPortForHandler(pg, entrySvc, n.Interface)
+		b.WriteString(envoyUpstreamCluster(prefix, entryKn, cn, port, false))
+	}
 	return b.String()
 }
 
-func envoyIngressListener(port int, apiPath string) string {
+func envoyIngressListener(port int, apiPath, clusterName string) string {
 	return fmt.Sprintf(`  - name: listener_%s
     address:
       socket_address: { address: 0.0.0.0, port_value: %d }
@@ -264,9 +329,9 @@ func envoyIngressListener(port int, apiPath string) string {
               domains: ["*"]
               routes:
               - match: { prefix: "/%s" }
-                route: { cluster: entry-service, timeout: 2s }
+                route: { cluster: %s, timeout: %s }
 
-`, apiPath, port, apiPath, apiPath)
+`, apiPath, port, apiPath, apiPath, clusterName, envoyRouteTimeout)
 }
 
 func generateEnvoyEnv(pg *ParsedGraph, benchmarkName string, svcNames []string, outDir string) error {
@@ -289,6 +354,19 @@ func generateAppEnvoyYaml(pg *ParsedGraph, benchmarkName string, svcNames []stri
 		cpuStr := fmt.Sprintf("%d", cpu)
 		concurrency := pg.SidecarCPUForService(name)
 		envoyCpuStr := fmt.Sprintf("%d", concurrency)
+		nHandlers := len(pg.Services[name])
+		var envoyPortSpecs, svcIngressPorts []string
+		for i := 0; i < nHandlers; i++ {
+			p := sidecarIngressBasePort + i
+			envoyPortSpecs = append(envoyPortSpecs, fmt.Sprintf("    - containerPort: %d", p))
+			svcIngressPorts = append(svcIngressPorts, fmt.Sprintf(`  - name: envoy-ingress-%d
+    port: %d
+    targetPort: %d
+    protocol: TCP`, p, p, p))
+		}
+		envoyPortSpecs = append(envoyPortSpecs,
+			fmt.Sprintf("    - containerPort: %d", sidecarEgressPort),
+			fmt.Sprintf("    - containerPort: %d", envoyAdminPort))
 		svcYaml := fmt.Sprintf(`apiVersion: v1
 kind: Pod
 metadata:
@@ -332,10 +410,8 @@ spec:
       mountPath: /etc/envoy/envoy.yaml
       subPath: %s.yaml
     ports:
-    - containerPort: %d
-    - containerPort: %d
-    - containerPort: %d
-  volumes:
+%s
+%s  volumes:
   - name: config-volume
     configMap:
       name: envoy-configs
@@ -350,10 +426,7 @@ spec:
   selector:
     app: %s
   ports:
-  - name: envoy-ingress
-    port: %d
-    targetPort: %d
-    protocol: TCP
+%s
   - name: envoy-egress
     port: %d
     targetPort: %d
@@ -361,9 +434,10 @@ spec:
 `,
 			kn, kn, imgName, cpuStr, cpuStr, cpuStr, benchmarkName, sidecarAppPort,
 			envoyImage, concurrency, envoyCpuStr, envoyCpuStr, kn,
-			sidecarIngressPort, sidecarEgressPort, envoyAdminPort,
+			strings.Join(envoyPortSpecs, "\n"),
+			envoyStatsContainerYAML,
 			prefix, kn, kn, kn,
-			sidecarIngressPort, sidecarIngressPort,
+			strings.Join(svcIngressPorts, "\n"),
 			sidecarEgressPort, sidecarEgressPort)
 		outPath := filepath.Join(manifestsDir, kn+"-envoy.yaml")
 		if err := os.WriteFile(outPath, []byte(svcYaml), 0644); err != nil {
@@ -419,7 +493,7 @@ spec:
       subPath: ingress.yaml
     ports:
 %s
-  volumes:
+%s  volumes:
   - name: config-volume
     configMap:
       name: envoy-configs
@@ -437,6 +511,7 @@ spec:
   ports:
 %s
 `, envoyImage, envoyIngressConcurrency, envoyCpu, envoyCpu, strings.Join(portSpecs, "\n"),
+		envoyStatsContainerYAML,
 		benchmarkName, strings.Join(svcPorts, "\n"))
 	return os.WriteFile(filepath.Join(manifestsDir, "ingress-envoy.yaml"), []byte(yaml), 0644)
 }
