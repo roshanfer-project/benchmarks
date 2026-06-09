@@ -17,6 +17,8 @@ import (
 type ContainerStats struct {
 	ContainerID      string `json:"container_id"`
 	CPUUsageNanosecs int64  `json:"cpu_usage_nanoseconds"`
+	NrThrottled      int64  `json:"nr_throttled"`
+	NrPeriods        int64  `json:"nr_periods"`
 }
 
 // MetricsResponse is the JSON response structure
@@ -129,9 +131,12 @@ func collectCgroupV2(root string) []ContainerStats {
 				continue
 			}
 
+			nrThrottled, nrPeriods := readCPUThrottle(cgroupPath)
 			containers = append(containers, ContainerStats{
 				ContainerID:      containerID,
 				CPUUsageNanosecs: cpuUsage,
+				NrThrottled:      nrThrottled,
+				NrPeriods:        nrPeriods,
 			})
 		}
 	}
@@ -179,9 +184,12 @@ func collectCgroupV1(root string) []ContainerStats {
 					continue
 				}
 
+				nrThrottled, nrPeriods := readCPUThrottle(cgroupPath)
 				containers = append(containers, ContainerStats{
 					ContainerID:      containerID,
 					CPUUsageNanosecs: cpuUsage,
+					NrThrottled:      nrThrottled,
+					NrPeriods:        nrPeriods,
 				})
 			}
 		}
@@ -251,4 +259,31 @@ func readCPUUsageV1(cgroupPath string) int64 {
 	}
 
 	return usage
+}
+
+func readCPUThrottle(cgroupPath string) (int64, int64) {
+	statFile := filepath.Join(cgroupPath, "cpu.stat")
+	data, err := ioutil.ReadFile(statFile)
+	if err != nil {
+		return 0, 0
+	}
+
+	var nrThrottled, nrPeriods int64
+	for _, line := range strings.Split(string(data), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) != 2 {
+			continue
+		}
+		val, err := strconv.ParseInt(fields[1], 10, 64)
+		if err != nil {
+			continue
+		}
+		switch fields[0] {
+		case "nr_throttled":
+			nrThrottled = val
+		case "nr_periods":
+			nrPeriods = val
+		}
+	}
+	return nrThrottled, nrPeriods
 }
