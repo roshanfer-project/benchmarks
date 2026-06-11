@@ -351,7 +351,7 @@ func generateAppEnvoyYaml(pg *ParsedGraph, benchmarkName string, svcNames []stri
 		kn := k8sName(name)
 		imgName := prefix + kn
 		cpu := pg.CPUForService(name)
-		cpuStr := fmt.Sprintf("%d", cpu)
+		cpuStr := fmt.Sprintf("%d", int(cpu))
 		concurrency := pg.SidecarCPUForService(name)
 		envoyCpuStr := fmt.Sprintf("%d", concurrency)
 		nHandlers := len(pg.Services[name])

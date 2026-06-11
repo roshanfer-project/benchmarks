@@ -164,10 +164,37 @@ func Check(pg *ParsedGraph) error {
 	if len(pg.Nodes) == 0 {
 		errs = append(errs, "no nodes defined")
 	}
+	switch pg.LoadBalancingPolicy {
+	case "weighted_round_robin", "round_robin":
+	default:
+		errs = append(errs, fmt.Sprintf("load_balancing_policy %q: want weighted_round_robin or round_robin", pg.LoadBalancingPolicy))
+	}
+	if pg.DagorQueuingThreshMs <= 0 {
+		errs = append(errs, fmt.Sprintf("dagor.queuing_thresh_ms must be > 0, got %g", pg.DagorQueuingThreshMs))
+	}
+	if pg.DagorAlpha <= 0 {
+		errs = append(errs, fmt.Sprintf("dagor.alpha must be > 0, got %g", pg.DagorAlpha))
+	}
+	if pg.DagorBeta <= 0 {
+		errs = append(errs, fmt.Sprintf("dagor.beta must be > 0, got %g", pg.DagorBeta))
+	}
 	ocChecked := make(map[string]bool)
 	for id, n := range pg.Nodes {
 		if n.Interface == "" {
 			errs = append(errs, fmt.Sprintf("node %s: empty interface name", id))
+		}
+		modes := 0
+		if n.Bimodal {
+			modes++
+		}
+		if n.Exponential {
+			modes++
+		}
+		if !n.Bimodal && !n.Exponential {
+			modes++
+		}
+		if modes != 1 {
+			errs = append(errs, fmt.Sprintf("node %s: exactly one service-time mode required", id))
 		}
 		if n.Bimodal {
 			if n.BimodalRT0 <= 0 || n.BimodalRT1 <= 0 {
@@ -181,6 +208,10 @@ func Check(pg *ParsedGraph) error {
 			if sum < 1-weightEpsilon || sum > 1+weightEpsilon {
 				errs = append(errs, fmt.Sprintf("node %s: bimodal prob sum is %g, want 1", id, sum))
 			}
+		} else if n.Exponential {
+			if n.ExponentialMean <= 0 {
+				errs = append(errs, fmt.Sprintf("node %s: exponential mean must be > 0", id))
+			}
 		} else if n.AvgRT < 0 {
 			errs = append(errs, fmt.Sprintf("node %s: negative avg_rt", id))
 		}
@@ -192,6 +223,20 @@ func Check(pg *ParsedGraph) error {
 			if n.OverCommitment < 0 || n.OverCommitment > 1 {
 				errs = append(errs, fmt.Sprintf("service %s: over_commitment must be between 0 and 1", n.Microservice))
 			}
+		}
+	}
+
+	svcChecked := make(map[string]bool)
+	for _, n := range pg.Nodes {
+		if svcChecked[n.Microservice] {
+			continue
+		}
+		svcChecked[n.Microservice] = true
+		if n.Replicas < 1 {
+			errs = append(errs, fmt.Sprintf("service %s: replicas must be >= 1", n.Microservice))
+		}
+		if PerReplicaCPU(n.CPU, n.Replicas) <= 0 {
+			errs = append(errs, fmt.Sprintf("service %s: cpu=%g too small for replicas=%d", n.Microservice, n.CPU, n.Replicas))
 		}
 	}
 

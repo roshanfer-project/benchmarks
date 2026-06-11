@@ -133,6 +133,12 @@ func GenerateK8s(pg *ParsedGraph, benchmarkName string, registry string, outDir 
 	if err := generatePlainEnv(pg, benchmarkName, svcNames, outDir); err != nil {
 		return err
 	}
+	if err := generateAppLbYaml(pg, benchmarkName, svcNames, outDir); err != nil {
+		return err
+	}
+	if err := generatePlainLbEnv(pg, benchmarkName, svcNames, outDir); err != nil {
+		return err
+	}
 	if err := generateSidecarConfigs(pg, benchmarkName, svcNames, outDir); err != nil {
 		return err
 	}
@@ -163,7 +169,16 @@ func GenerateK8s(pg *ParsedGraph, benchmarkName string, registry string, outDir 
 	if err := generateDagorEnv(pg, benchmarkName, svcNames, outDir); err != nil {
 		return err
 	}
+	if err := generateDagorLbEnv(pg, benchmarkName, svcNames, outDir); err != nil {
+		return err
+	}
+	if err := generateRajomonLbEnv(pg, benchmarkName, svcNames, outDir); err != nil {
+		return err
+	}
 	if err := generateAppGrpcYaml(pg, benchmarkName, svcNames, outDir); err != nil {
+		return err
+	}
+	if err := generateAppGrpcLbYaml(pg, benchmarkName, svcNames, outDir); err != nil {
 		return err
 	}
 	return generatePrometheusYaml(outDir)
@@ -190,7 +205,7 @@ func generateAppYaml(pg *ParsedGraph, benchmarkName string, svcNames []string, o
 		podName := k8sName(name)
 		imgName := prefix + podName
 		cpu := pg.CPUForService(name)
-		cpuStr := fmt.Sprintf("%d", cpu)
+		cpuStr := fmt.Sprintf("%d", int(cpu))
 		svcYaml := fmt.Sprintf(`apiVersion: v1
 kind: Pod
 metadata:
@@ -261,6 +276,165 @@ spec:
 	return nil
 }
 
+func generateAppLbYaml(pg *ParsedGraph, benchmarkName string, svcNames []string, outDir string) error {
+	prefix := benchmarkName + "-"
+	entrySvc := pg.EntryMicroservice()
+	entryPodName := k8sName(entrySvc)
+	manifestsDir := filepath.Join(outDir, "k8s", "manifests")
+	if err := os.MkdirAll(manifestsDir, 0755); err != nil {
+		return err
+	}
+	for _, name := range svcNames {
+		podName := k8sName(name)
+		imgName := prefix + podName
+		cpu := pg.CPUForService(name)
+		replicas := pg.ReplicasForService(name)
+		perCPU := PerReplicaCPU(cpu, replicas)
+		k8sCPUStr := FormatK8sCPU(perCPU)
+		gomaxprocsStr := fmt.Sprintf("%d", GOMAXPROCSForPerReplicaCPU(perCPU))
+		svcYaml := fmt.Sprintf(`apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: %s
+  labels:
+    app: %s
+spec:
+  replicas: %d
+  selector:
+    matchLabels:
+      app: %s
+  template:
+    metadata:
+      labels:
+        app: %s
+    spec:
+      containers:
+      - name: app
+        image: %s:latest
+        resources:
+          requests:
+            cpu: "%s"
+          limits:
+            cpu: "%s"
+        env:
+        - name: GOMAXPROCS
+          value: "%s"
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        envFrom:
+        - configMapRef:
+            name: %s-config
+        ports:
+        - containerPort: %d
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: %s%s
+  labels:
+    app: %s
+spec:
+  clusterIP: None
+  selector:
+    app: %s
+  ports:
+  - name: http
+    port: %d
+    targetPort: %d
+    protocol: TCP
+`,
+			podName, podName, replicas, podName, podName, imgName, k8sCPUStr, k8sCPUStr, gomaxprocsStr, benchmarkName, port,
+			prefix, podName, podName, podName, port, port)
+		if err := os.WriteFile(filepath.Join(manifestsDir, podName+"-lb.yaml"), []byte(svcYaml), 0644); err != nil {
+			return err
+		}
+	}
+	entryCPU := pg.CPUForService(entrySvc)
+	entryReplicas := pg.ReplicasForService(entrySvc)
+	entryPerCPU := PerReplicaCPU(entryCPU, entryReplicas)
+	entryK8sCPUStr := FormatK8sCPU(entryPerCPU)
+	entryGomaxprocsStr := fmt.Sprintf("%d", GOMAXPROCSForPerReplicaCPU(entryPerCPU))
+	entryImg := prefix + entryPodName
+	entryLb := fmt.Sprintf(`apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: %s
+  labels:
+    app: %s
+spec:
+  replicas: %d
+  selector:
+    matchLabels:
+      app: %s
+  template:
+    metadata:
+      labels:
+        app: %s
+    spec:
+      containers:
+      - name: app
+        image: %s:latest
+        resources:
+          requests:
+            cpu: "%s"
+          limits:
+            cpu: "%s"
+        env:
+        - name: GOMAXPROCS
+          value: "%s"
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        envFrom:
+        - configMapRef:
+            name: %s-config
+        ports:
+        - containerPort: %d
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: %s
+  labels:
+    app: %s
+spec:
+  type: NodePort
+  selector:
+    app: %s
+  ports:
+  - name: http
+    port: %d
+    targetPort: %d
+    nodePort: 3000
+    protocol: TCP
+`,
+		entryPodName, entryPodName, entryReplicas, entryPodName, entryPodName,
+		entryImg, entryK8sCPUStr, entryK8sCPUStr, entryGomaxprocsStr, benchmarkName, port,
+		prefix+"entry", entryPodName, entryPodName, port, port)
+	return os.WriteFile(filepath.Join(manifestsDir, "entry-lb.yaml"), []byte(entryLb), 0644)
+}
+
+func generatePlainLbEnv(pg *ParsedGraph, benchmarkName string, svcNames []string, outDir string) error {
+	prefix := benchmarkName + "-"
+	lines := []string{
+		"plain_lb=true",
+		"load_balancing_policy=" + pg.LoadBalancingPolicy,
+		"",
+	}
+	for _, name := range svcNames {
+		podName := k8sName(name)
+		svcDNS := prefix + podName + ":" + fmt.Sprintf("%d", port)
+		lines = append(lines, name+"_ADDR="+svcDNS)
+	}
+	lines = append(lines, "PORT="+fmt.Sprintf("%d", port))
+	lines = append(lines, "", "PROM_ADDR=prometheus-pushgateway:9091")
+	k8sDir := filepath.Join(outDir, "k8s")
+	return os.WriteFile(filepath.Join(k8sDir, "plain-lb.env"), []byte(strings.Join(lines, "\n")), 0644)
+}
+
 func generatePlainEnv(pg *ParsedGraph, benchmarkName string, svcNames []string, outDir string) error {
 	prefix := benchmarkName + "-"
 	lines := []string{"plain=true", ""}
@@ -327,6 +501,62 @@ func generateDagorEnv(pg *ParsedGraph, benchmarkName string, svcNames []string, 
 	return os.WriteFile(filepath.Join(outDir, "k8s", "dagor.env"), []byte(strings.Join(lines, "\n")), 0644)
 }
 
+func generateDagorLbEnv(pg *ParsedGraph, benchmarkName string, svcNames []string, outDir string) error {
+	prefix := benchmarkName + "-"
+	ek := EntryGrpcK8s(pg)
+	entryMS := pg.EntryMicroservice()
+	lines := []string{
+		"deployment=" + benchmarkName,
+		"dagor=true",
+		"plain_lb=true",
+		"load_balancing_policy=" + pg.LoadBalancingPolicy,
+		"",
+		"EntryGRPCPort=" + fmt.Sprintf("%d", port),
+		"ClientPort=2007",
+		"EntryGRPCAddr=" + prefix + ek + ":" + fmt.Sprintf("%d", port),
+		"",
+	}
+	for _, name := range svcNames {
+		var podKn string
+		if name == entryMS {
+			podKn = ek
+		} else {
+			podKn = k8sName(name)
+		}
+		lines = append(lines, name+"_ADDR="+prefix+podKn+":"+fmt.Sprintf("%d", port))
+	}
+	lines = append(lines, "", "PROM_ADDR=prometheus-pushgateway:9091")
+	return os.WriteFile(filepath.Join(outDir, "k8s", "dagor-lb.env"), []byte(strings.Join(lines, "\n")), 0644)
+}
+
+func generateRajomonLbEnv(pg *ParsedGraph, benchmarkName string, svcNames []string, outDir string) error {
+	prefix := benchmarkName + "-"
+	ek := EntryGrpcK8s(pg)
+	entryMS := pg.EntryMicroservice()
+	lines := []string{
+		"deployment=" + benchmarkName,
+		"rajomon=true",
+		"plain_lb=true",
+		"load_balancing_policy=" + pg.LoadBalancingPolicy,
+		"",
+		"EntryGRPCPort=" + fmt.Sprintf("%d", port),
+		"ClientPort=2007",
+		"EntryGRPCAddr=" + prefix + ek + ":" + fmt.Sprintf("%d", port),
+		"",
+	}
+	for _, name := range svcNames {
+		var podKn string
+		if name == entryMS {
+			podKn = ek
+		} else {
+			podKn = k8sName(name)
+		}
+		lines = append(lines, name+"_ADDR="+prefix+podKn+":"+fmt.Sprintf("%d", port))
+	}
+	lines = append(lines, "", "PROM_ADDR=prometheus-pushgateway:9091")
+	return os.WriteFile(filepath.Join(outDir, "k8s", "rajomon-lb.env"), []byte(strings.Join(lines, "\n")), 0644)
+}
+
 func generateAppGrpcYaml(pg *ParsedGraph, benchmarkName string, svcNames []string, outDir string) error {
 	prefix := benchmarkName + "-"
 	entryMS := pg.EntryMicroservice()
@@ -345,7 +575,7 @@ func generateAppGrpcYaml(pg *ParsedGraph, benchmarkName string, svcNames []strin
 		}
 		imgName := prefix + kn
 		cpu := pg.CPUForService(name)
-		cpuStr := fmt.Sprintf("%d", cpu)
+		cpuStr := fmt.Sprintf("%d", int(cpu))
 		doc := fmt.Sprintf(`apiVersion: v1
 kind: Pod
 metadata:
@@ -389,7 +619,7 @@ spec:
 			prefix, kn, kn, kn, port, port)
 		docs = append(docs, doc)
 	}
-	rcCPU := pg.CPUForService(entryMS) + 1
+	rcCPU := int(pg.CPUForService(entryMS)) + 1
 	rcStr := fmt.Sprintf("%d", rcCPU)
 	rcImg := prefix + "rajomon-client"
 	rcDoc := fmt.Sprintf(`apiVersion: v1
@@ -437,6 +667,148 @@ spec:
 	docs = append(docs, rcDoc)
 	// --- between chunks: each chunk is Pod+Service; without this, the next Pod merges into the prior Service doc.
 	return os.WriteFile(filepath.Join(manifestsDir, "app-grpc.yaml"), []byte(strings.Join(docs, "\n---\n")), 0644)
+}
+
+func generateAppGrpcLbYaml(pg *ParsedGraph, benchmarkName string, svcNames []string, outDir string) error {
+	prefix := benchmarkName + "-"
+	entryMS := pg.EntryMicroservice()
+	ek := EntryGrpcK8s(pg)
+	manifestsDir := filepath.Join(outDir, "k8s", "manifests")
+	if err := os.MkdirAll(manifestsDir, 0755); err != nil {
+		return err
+	}
+	var docs []string
+	for _, name := range svcNames {
+		var kn string
+		if name == entryMS {
+			kn = ek
+		} else {
+			kn = k8sName(name)
+		}
+		imgName := prefix + kn
+		cpu := pg.CPUForService(name)
+		replicas := pg.ReplicasForService(name)
+		perCPU := PerReplicaCPU(cpu, replicas)
+		k8sCPUStr := FormatK8sCPU(perCPU)
+		gomaxprocsStr := fmt.Sprintf("%d", GOMAXPROCSForPerReplicaCPU(perCPU))
+		doc := fmt.Sprintf(`apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: %s
+  labels:
+    app: %s
+spec:
+  replicas: %d
+  selector:
+    matchLabels:
+      app: %s
+  template:
+    metadata:
+      labels:
+        app: %s
+    spec:
+      containers:
+      - name: app
+        image: %s:latest
+        resources:
+          requests:
+            cpu: "%s"
+          limits:
+            cpu: "%s"
+        env:
+        - name: GOMAXPROCS
+          value: "%s"
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        envFrom:
+        - configMapRef:
+            name: %s-config
+        ports:
+        - containerPort: %d
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: %s%s
+  labels:
+    app: %s
+spec:
+  clusterIP: None
+  selector:
+    app: %s
+  ports:
+  - name: grpc
+    port: %d
+    targetPort: %d
+    protocol: TCP
+`, kn, kn, replicas, kn, kn, imgName, k8sCPUStr, k8sCPUStr, gomaxprocsStr, benchmarkName, port,
+			prefix, kn, kn, kn, port, port)
+		docs = append(docs, doc)
+	}
+	entryCPU := pg.CPUForService(entryMS)
+	entryReplicas := pg.ReplicasForService(entryMS)
+	entryPerCPU := PerReplicaCPU(entryCPU, entryReplicas)
+	entryK8sCPUStr := FormatK8sCPU(entryPerCPU)
+	entryGomaxprocsStr := fmt.Sprintf("%d", GOMAXPROCSForPerReplicaCPU(entryPerCPU))
+	rcImg := prefix + "rajomon-client"
+	rcDoc := fmt.Sprintf(`apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rajomon-client
+  labels:
+    app: rajomon-client
+spec:
+  replicas: %d
+  selector:
+    matchLabels:
+      app: rajomon-client
+  template:
+    metadata:
+      labels:
+        app: rajomon-client
+    spec:
+      containers:
+      - name: app
+        image: %s:latest
+        resources:
+          requests:
+            cpu: "%s"
+          limits:
+            cpu: "%s"
+        env:
+        - name: GOMAXPROCS
+          value: "%s"
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        envFrom:
+        - configMapRef:
+            name: %s-config
+        ports:
+        - containerPort: 2007
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: %sentry
+  labels:
+    app: rajomon-client
+spec:
+  type: NodePort
+  selector:
+    app: rajomon-client
+  ports:
+  - name: http
+    port: 2007
+    targetPort: 2007
+    nodePort: 3000
+    protocol: TCP
+`, entryReplicas, rcImg, entryK8sCPUStr, entryK8sCPUStr, entryGomaxprocsStr, benchmarkName, prefix)
+	docs = append(docs, rcDoc)
+	return os.WriteFile(filepath.Join(manifestsDir, "app-grpc-lb.yaml"), []byte(strings.Join(docs, "\n---\n")), 0644)
 }
 
 func rajomonDeployK8sOrder(pg *ParsedGraph) []string {
@@ -585,7 +957,7 @@ func buildSidecarServiceConfig(pg *ParsedGraph, prefix, svcName, kn, entrySvc st
 	if isEntry {
 		b.WriteString(fmt.Sprintf("is_frontend: True\nfrontend_pool_connections: %d\n", pg.EffectiveConnectionPoolSize()))
 	}
-	b.WriteString(fmt.Sprintf("cpu_count: %d\nover_commitment: %.1f\n", cpuCount, overCommitment))
+	b.WriteString(fmt.Sprintf("cpu_count: %d\nover_commitment: %.1f\n", int(cpuCount), overCommitment))
 	return b.String()
 }
 
@@ -667,7 +1039,7 @@ func generateAppSidecarYaml(pg *ParsedGraph, benchmarkName string, svcNames []st
 		kn := k8sName(name)
 		imgName := prefix + kn
 		cpu := pg.CPUForService(name)
-		cpuStr := fmt.Sprintf("%d", cpu)
+		cpuStr := fmt.Sprintf("%d", int(cpu))
 		sidecarCPU := pg.SidecarCPUForService(name)
 		sidecarCpuK8s := sidecarCPU * 2
 		sidecarCpuStr := fmt.Sprintf("%d", sidecarCpuK8s)
@@ -1100,12 +1472,16 @@ if [ "$MODE" = "plain" ] && [ "$ARG2" = "debug" ]; then
   echo "deploy.sh: debug only with sidecar; use ./deploy.sh sidecar debug" >&2
   exit 1
 fi
+if [ "$MODE" = "plain-lb" ] && [ -n "$ARG2" ]; then
+  echo "deploy.sh: plain-lb mode does not take a second argument" >&2
+  exit 1
+fi
 if [ "$MODE" = "sidecar" ] && [ -n "$ARG2" ] && [ "$ARG2" != "debug" ]; then
   echo "deploy.sh: unknown second argument: $ARG2 (expected: debug)" >&2
   exit 1
 fi
-if { [ "$MODE" = "rajomon" ] || [ "$MODE" = "dagor" ]; } && [ -n "$ARG2" ]; then
-  echo "deploy.sh: rajomon and dagor modes do not take a second argument" >&2
+if { [ "$MODE" = "rajomon" ] || [ "$MODE" = "dagor" ] || [ "$MODE" = "dagor-lb" ] || [ "$MODE" = "rajomon-lb" ]; } && [ -n "$ARG2" ]; then
+  echo "deploy.sh: rajomon, dagor, dagor-lb, and rajomon-lb modes do not take a second argument" >&2
   exit 1
 fi
 SIDECAR_DEBUG=0
@@ -1346,6 +1722,117 @@ elif [ "$MODE" = "dagor" ]; then
     echo "deploy.sh (dagor): one or more workloads failed readiness" >&2
     exit 1
   fi
+elif [ "$MODE" = "dagor-lb" ]; then
+  cat k8s/dagor-lb.env > "$TMP_DIR/dagor_lb_merged.env"
+  echo "" >> "$TMP_DIR/dagor_lb_merged.env"
+  if [ -n "$Alpha" ]; then
+    echo "Alpha=$Alpha" >> "$TMP_DIR/dagor_lb_merged.env"
+  fi
+  if [ -n "$Beta" ]; then
+    echo "Beta=$Beta" >> "$TMP_DIR/dagor_lb_merged.env"
+  fi
+  K8S_NS=${K8S_NS:-$(kubectl config view --minify -o jsonpath='{..namespace}' 2>/dev/null)}
+  K8S_NS=${K8S_NS:-default}
+  sed -i "s|=${BENCH}-\([^=]*\):2000|=${BENCH}-\1.${K8S_NS}.svc.cluster.local:2000|g" "$TMP_DIR/dagor_lb_merged.env"
+  kubectl create configmap {{.BenchmarkName}}-config --from-env-file="$TMP_DIR/dagor_lb_merged.env" --dry-run=client -o yaml > "$TMP_DIR/configmap.yaml"
+  kubectl apply -f "$TMP_DIR/configmap.yaml"
+
+  kubectl apply -f k8s/manifests/prometheus.yaml
+  kubectl_wait_ready_or_fail prometheus-pushgateway 60
+  kubectl_wait_ready_or_fail prometheus 60
+
+  cp k8s/manifests/app-grpc-lb.yaml "$TMP_DIR/app-grpc-lb.yaml"
+  for IMG in {{range $i, $e := .RajomonImgK8s}}{{if $i}} {{end}}{{$e}}{{end}}; do
+    sed -i "s|${BENCH}-${IMG}:latest|${REGISTRY}/${BENCH}-${IMG}:${TAG}|g" "$TMP_DIR/app-grpc-lb.yaml"
+  done
+  deploy_fail=0
+  declare -a deploy_pids=()
+  for SVC in {{range $i, $e := .RajomonDeployOrder}}{{if $i}} {{end}}{{$e}}{{end}}; do
+    (
+      kubectl apply -f "$TMP_DIR/app-grpc-lb.yaml" -l app="${SVC}"
+      kubectl_wait_ready_or_fail "${SVC}" "${WAIT_TIMEOUT}"
+    ) &
+    deploy_pids+=($!)
+  done
+  for pid in "${deploy_pids[@]}"; do
+    wait "$pid" || deploy_fail=1
+  done
+  if [ "$deploy_fail" -ne 0 ]; then
+    echo "deploy.sh (dagor-lb): one or more workloads failed readiness" >&2
+    exit 1
+  fi
+elif [ "$MODE" = "rajomon-lb" ]; then
+  PRICE_UPDATE_RATE=${priceUpdateRate}
+  LATENCY_THRESHOLD=${latencyThreshold}
+  TOKEN_UPDATE_RATE=${tokenUpdateRate}
+  PRICE_STEP=${priceStep}
+  TOKEN_UPDATE_STEP=${tokenUpdateStep}
+  echo "Using Rajomon config:"
+  echo "  priceUpdateRate=$PRICE_UPDATE_RATE latencyThreshold=$LATENCY_THRESHOLD tokenUpdateRate=$TOKEN_UPDATE_RATE priceStep=$PRICE_STEP tokenUpdateStep=$TOKEN_UPDATE_STEP"
+  cat k8s/rajomon-lb.env > "$TMP_DIR/rajomon_lb_merged.env"
+  echo "" >> "$TMP_DIR/rajomon_lb_merged.env"
+  echo "priceUpdateRate=$PRICE_UPDATE_RATE" >> "$TMP_DIR/rajomon_lb_merged.env"
+  echo "latencyThreshold=$LATENCY_THRESHOLD" >> "$TMP_DIR/rajomon_lb_merged.env"
+  echo "tokenUpdateRate=$TOKEN_UPDATE_RATE" >> "$TMP_DIR/rajomon_lb_merged.env"
+  echo "priceStep=$PRICE_STEP" >> "$TMP_DIR/rajomon_lb_merged.env"
+  echo "tokenUpdateStep=$TOKEN_UPDATE_STEP" >> "$TMP_DIR/rajomon_lb_merged.env"
+  K8S_NS=${K8S_NS:-$(kubectl config view --minify -o jsonpath='{..namespace}' 2>/dev/null)}
+  K8S_NS=${K8S_NS:-default}
+  sed -i "s|=${BENCH}-\([^=]*\):2000|=${BENCH}-\1.${K8S_NS}.svc.cluster.local:2000|g" "$TMP_DIR/rajomon_lb_merged.env"
+  kubectl create configmap {{.BenchmarkName}}-config --from-env-file="$TMP_DIR/rajomon_lb_merged.env" --dry-run=client -o yaml > "$TMP_DIR/configmap.yaml"
+  kubectl apply -f "$TMP_DIR/configmap.yaml"
+
+  kubectl apply -f k8s/manifests/prometheus.yaml
+  kubectl_wait_ready_or_fail prometheus-pushgateway 60
+  kubectl_wait_ready_or_fail prometheus 60
+
+  cp k8s/manifests/app-grpc-lb.yaml "$TMP_DIR/app-grpc-lb.yaml"
+  for IMG in {{range $i, $e := .RajomonImgK8s}}{{if $i}} {{end}}{{$e}}{{end}}; do
+    sed -i "s|${BENCH}-${IMG}:latest|${REGISTRY}/${BENCH}-${IMG}:${TAG}|g" "$TMP_DIR/app-grpc-lb.yaml"
+  done
+  deploy_fail=0
+  declare -a deploy_pids=()
+  for SVC in {{range $i, $e := .RajomonDeployOrder}}{{if $i}} {{end}}{{$e}}{{end}}; do
+    (
+      kubectl apply -f "$TMP_DIR/app-grpc-lb.yaml" -l app="${SVC}"
+      kubectl_wait_ready_or_fail "${SVC}" "${WAIT_TIMEOUT}"
+    ) &
+    deploy_pids+=($!)
+  done
+  for pid in "${deploy_pids[@]}"; do
+    wait "$pid" || deploy_fail=1
+  done
+  if [ "$deploy_fail" -ne 0 ]; then
+    echo "deploy.sh (rajomon-lb): one or more workloads failed readiness" >&2
+    exit 1
+  fi
+elif [ "$MODE" = "plain-lb" ]; then
+  kubectl create configmap {{.BenchmarkName}}-config --from-env-file=k8s/plain-lb.env --dry-run=client -o yaml > "$TMP_DIR/configmap.yaml"
+  kubectl apply -f "$TMP_DIR/configmap.yaml"
+
+  kubectl apply -f k8s/manifests/prometheus.yaml
+  kubectl_wait_ready_or_fail prometheus-pushgateway 60
+  kubectl_wait_ready_or_fail prometheus 60
+
+  deploy_fail=0
+  declare -a deploy_pids=()
+  for SVC in {{range $i, $e := .K8sOrder}}{{if $i}} {{end}}{{$e}}{{end}}; do
+    (
+      sed "s|${BENCH}-${SVC}:latest|${REGISTRY}/${BENCH}-${SVC}:${TAG}|g" "k8s/manifests/${SVC}-lb.yaml" > "$TMP_DIR/${SVC}-lb.yaml"
+      kubectl apply -f "$TMP_DIR/${SVC}-lb.yaml"
+      kubectl_wait_ready_or_fail "${SVC}" "${WAIT_TIMEOUT}"
+    ) &
+    deploy_pids+=($!)
+  done
+  for pid in "${deploy_pids[@]}"; do
+    wait "$pid" || deploy_fail=1
+  done
+  if [ "$deploy_fail" -ne 0 ]; then
+    echo "deploy.sh (plain-lb): one or more workloads failed readiness" >&2
+    exit 1
+  fi
+
+  kubectl apply -f k8s/manifests/entry-lb.yaml
 else
   kubectl create configmap {{.BenchmarkName}}-config --from-env-file=k8s/plain.env --dry-run=client -o yaml > "$TMP_DIR/configmap.yaml"
   kubectl apply -f "$TMP_DIR/configmap.yaml"
@@ -1408,6 +1895,7 @@ declare -a pids=()
 		}
 		b.WriteString(fmt.Sprintf(`for kn in %s; do
   (
+    kubectl delete deployment -l app="$kn" --ignore-not-found --wait=true
     kubectl delete pod -l app="$kn" --ignore-not-found --wait=true
     kubectl delete service -l app="$kn" --ignore-not-found
   ) &
@@ -1433,12 +1921,17 @@ if [ "$MODE" = "envoy" ]; then
   kubectl delete service -l app=ingress --ignore-not-found
   kubectl delete configmap envoy-configs --ignore-not-found
 fi
-if [ "$MODE" = "rajomon" ] || [ "$MODE" = "dagor" ]; then
+if [ "$MODE" = "rajomon" ] || [ "$MODE" = "dagor" ] || [ "$MODE" = "dagor-lb" ] || [ "$MODE" = "rajomon-lb" ]; then
+  kubectl delete deployment -l app=rajomon-client --ignore-not-found --wait=true
   kubectl delete pod -l app=rajomon-client --ignore-not-found --wait=true
   kubectl delete service -l app=rajomon-client --ignore-not-found
   kubectl delete service ` + benchmarkName + `-entry --ignore-not-found
+  kubectl delete deployment -l app=` + ek + ` --ignore-not-found --wait=true
   kubectl delete pod -l app=` + ek + ` --ignore-not-found --wait=true
   kubectl delete service -l app=` + ek + ` --ignore-not-found
+fi
+if [ "$MODE" = "plain-lb" ]; then
+  kubectl delete service ` + benchmarkName + `-entry --ignore-not-found
 fi
 echo "Destroy complete."
 exit "$fail"

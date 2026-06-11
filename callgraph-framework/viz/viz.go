@@ -43,10 +43,13 @@ func reachableEdgesFrom(pg *gen.ParsedGraph, entryID string) []gen.Edge {
 
 func nodeLabel(n *gen.Node, isEntry bool) string {
 	var rtLine string
-	if n.Bimodal {
+	switch {
+	case n.Bimodal:
 		rtLine = fmt.Sprintf("bimodal:%.2g@%.2g+%.2g@%.2g",
 			n.BimodalRT0, n.BimodalProb0, n.BimodalRT1, n.BimodalProb1)
-	} else {
+	case n.Exponential:
+		rtLine = fmt.Sprintf("exp:mean=%.2g", n.ExponentialMean)
+	default:
 		rtLine = fmt.Sprintf("rt:%.2g", n.AvgRT)
 	}
 	parts := []string{n.Interface, rtLine}
@@ -95,7 +98,7 @@ func Visualize(callgraphPath string, outPath string) error {
 		nodes := pg.Services[svc]
 		cpu := pg.CPUForService(svc)
 		oc := pg.OverCommitmentForService(svc)
-		clusterLabel := fmt.Sprintf("%s\ncpu:%d\nover_commit:%g", svc, cpu, oc)
+		clusterLabel := fmt.Sprintf("%s\ncpu:%g\nover_commit:%g", svc, cpu, oc)
 		b.WriteString("  subgraph cluster_" + dotID(svc) + " {\n")
 		b.WriteString("    label=" + dotLabel(clusterLabel) + ";\n")
 		b.WriteString("    style=rounded;\n")

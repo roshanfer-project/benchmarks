@@ -45,7 +45,7 @@ With `-paper`, `viz` runs `render_service_pdf.py` using **the repository root `.
 ## Scripts
 
 - `build.sh [tag]` — build the sidecar (if present), build all workload images with `docker buildx bake` (shared compile + parallel final stages), then push every image in parallel (`REGISTRY`, `TAG`, `BENCH` env vars behave as before).
-- `deploy.sh [plain|sidecar|rajomon|dagor|envoy]` — deploy to K8s (uses `TAG`, `REGISTRY`). `./deploy.sh sidecar debug` enables workload debug (see below). `debug` is only valid with `sidecar`, not with plain, rajomon, dagor, or envoy. **envoy** uses `envoyproxy/envoy:v1.32-latest` sidecars (no SLO queuing, no `SIDECAR_OVER_COMMIT`). For **sidecar** only: if **`SIDECAR_OVER_COMMIT`** is set (non-empty), every `over_commitment:` field in `sidecar-configs.yaml` is rewritten to that value before apply (needs `perl` on PATH); omit it to keep values from `callgraph.json` codegen.
+- `deploy.sh [plain|plain-lb|sidecar|rajomon|rajomon-lb|dagor|dagor-lb|envoy]` — deploy to K8s (uses `TAG`, `REGISTRY`). `./deploy.sh sidecar debug` enables workload debug (see below). `debug` is only valid with `sidecar`, not with plain, plain-lb, rajomon, rajomon-lb, dagor, dagor-lb, or envoy. **envoy** uses `envoyproxy/envoy:v1.32-latest` sidecars (no SLO queuing, no `SIDECAR_OVER_COMMIT`). For **sidecar** only: if **`SIDECAR_OVER_COMMIT`** is set (non-empty), every `over_commitment:` field in `sidecar-configs.yaml` is rewritten to that value before apply (needs `perl` on PATH); omit it to keep values from `callgraph.json` codegen.
 - `destroy.sh` — tear down
 - `collect_logs.sh` — collect pod logs. If the environment variable `COLLECT_SIDECAR_NANOLOG=1` is set (done by `exec` when `--nanolog-debug` is enabled) and mode is `sidecar`, the script also `kubectl cp`s `/compressedLog` from each sidecar container into `$OUTPUT_DIR` as `*-sidecar.clog` (plus ingress as `*-ingress-sidecar.clog`). Decompression uses `benchmarks/sidecar/external/NanoLog/runtime/decompressor` from the repo checkout that runs the executor.
 
@@ -105,7 +105,8 @@ Same gRPC topology as Rajomon: `k8s/manifests/app-grpc.yaml`, HTTP entry **`rajo
 
 **Tuning (short):**
 
-- **`Alpha` / `Beta`** — global admission-control knobs (see `benchmarks/hotel/dagor`). Defaults are compiled into `dagor_init`; override with env vars **`Alpha`** and **`Beta`**, or add them to `k8s/dagor.env`, or export `Alpha` / `Beta` in the shell before deploy (they are appended to the merged env like `benchmarks/hotel/deploy.sh` dagor branch).
+- **Per-benchmark defaults** — optional `dagor` section in `callgraph.json` sets compile-time defaults in `dagor_init/dagor-config.go` (`queuing_thresh_ms`, `alpha`, `beta`; framework defaults: `2`, `0.45`, `0.01`). Survives `go run ./cmd/gen` regeneration.
+- **`Alpha` / `Beta`** — global admission-control knobs (see `benchmarks/hotel/dagor`). Defaults come from `callgraph.json` `dagor` (or framework defaults); override at deploy time with env vars **`Alpha`** and **`Beta`**, or add them to `k8s/dagor.env`, or export `Alpha` / `Beta` in the shell before deploy (they are appended to the merged env like `benchmarks/hotel/deploy.sh` dagor branch).
 - **`B` / `U`** — per-request integers: **B** from gRPC metadata **`method`** (the entry interface string, same as the HTTP path) via `BusinessMap`; **U** from **`user-id`** (injected by the end-user Dagor client interceptor). Not set via Alpha/Beta.
 
 ```bash
@@ -116,9 +117,49 @@ Same gRPC topology as Rajomon: `k8s/manifests/app-grpc.yaml`, HTTP entry **`rajo
 
 Use **`destroy.sh dagor`** to remove `rajomon-client`, the `*-grpc` entry pod, and related services.
 
+### dagor-lb mode
+
+DAGOR admission control with **plain-lb** replication and client-side gRPC load balancing. Same gRPC topology as **dagor** (`k8s/manifests/app-grpc-lb.yaml`, HTTP entry **`rajomon-client`**, gRPC entry **`<entry>-grpc`**). Env template: **`k8s/dagor-lb.env`** (`dagor=true`, `plain_lb=true`). The `replicas` and `load_balancing_policy` fields in `callgraph.json` apply (Deployments, per-replica CPU, headless internal Services — see **plain-lb**).
+
+**Tuning:** same per-benchmark `dagor` defaults and runtime **`Alpha` / `Beta`** overrides as dagor (shell env or `deploy_env` in experiment JSON).
+
+```bash
+./build.sh
+# Optional: export Alpha=0.5 Beta=0.02
+./deploy.sh dagor-lb
+```
+
+Use **`destroy.sh dagor-lb`** to remove `rajomon-client`, the `*-grpc` entry workloads, and related services. Load tests use the same URLs as plain/dagor: `http://<node>:3000/<interface>` (`run-plain.sh`).
+
+### rajomon-lb mode
+
+Rajomon admission control with **plain-lb** replication and client-side gRPC load balancing. Same gRPC topology as **rajomon** (`k8s/manifests/app-grpc-lb.yaml`, HTTP entry **`rajomon-client`** (single replica), gRPC entry **`<entry>-grpc`**). Env template: **`k8s/rajomon-lb.env`** (`rajomon=true`, `plain_lb=true`). The `replicas` and `load_balancing_policy` fields in `callgraph.json` apply (Deployments, per-replica CPU, headless internal Services — see **plain-lb**).
+
+Each replicated gRPC workload gets a unique Rajomon identity **`serviceName-<podSuffix>`** (from `POD_NAME`) so `priceAggregation: maximal` tracks the max price across all downstream replicas. The end-user **`rajomon-client`** stays a single replica with name **`client`**.
+
+**Tuning:** same Rajomon price env vars as **rajomon** (`priceUpdateRate`, `latencyThreshold`, `tokenUpdateRate`, `priceStep`, `tokenUpdateStep`).
+
+```bash
+./build.sh
+./deploy.sh rajomon-lb
+```
+
+Use **`destroy.sh rajomon-lb`** to tear down. Load tests use the same URLs as plain/rajomon: `http://<node>:3000/<interface>` (`run-plain.sh`).
+
+### plain-lb mode
+
+Like **plain**, but supports multiple replicas per microservice via the `replicas` field in `callgraph.json`. Deploy with `./deploy.sh plain-lb`; tear down with `./destroy.sh plain-lb`. Load tests use the same URLs as plain: `http://<node>:3000/<interface>` (`run-plain.sh`).
+
+- Workloads are **Deployments** (not Pods). Per-replica CPU = `cpu / replicas` (fractional allowed) for requests and limits. `GOMAXPROCS = ceil(cpu / replicas)`. Requires `cpu / replicas > 0`.
+- Internal gRPC services use **headless** Services (`clusterIP: None`) so clients can discover all pod IPs.
+- gRPC clients use **dns:///** load balancing when `plain_lb=true` (set in `k8s/plain-lb.env`, `k8s/dagor-lb.env`, or `k8s/rajomon-lb.env`). Policy is set by **`load_balancing_policy`** in `callgraph.json` (default **`round_robin`**). Set **`weighted_round_robin`** for WRR with `blackoutPeriod: 1s`; gRPC servers then report per-call ORCA **QPS** (1s window, all RPCs), **EPS** (1s window, failed RPCs only — e.g. DAGOR admission drops), and **CPU utilization** (process CPU via `Getrusage`, normalized by `GOMAXPROCS`). WRR uses EPS via the default `error_utilization_penalty` to deprioritize backends with high error rates.
+- The HTTP entry keeps a normal ClusterIP Service + NodePort (external load generators spread TCP connections across entry replicas).
+
 ## Call Graph Format
 
-- `nodes`: one per microservice; `id`, `interfaces` (see **service time** below), `cpu` (optional, default 1, used for cpu_count in sidecar config and app resources), `sidecar_cpu` (optional, default 1, used for num_threads in sidecar config; k8s sidecar gets 2× this), `over_commitment` (optional, default 0, must be in [0,1]; written to sidecar config)
+- `load_balancing_policy` (optional, default `round_robin`, **plain-lb, dagor-lb, and rajomon-lb**): gRPC client load balancer — `round_robin` or `weighted_round_robin` (WRR enables ORCA server metrics).
+- `dagor` (optional, **dagor and dagor-lb**): per-benchmark DAGOR defaults written to `dagor_init/dagor-config.go` — `queuing_thresh_ms` (default `2`), `alpha` (default `0.45`), `beta` (default `0.01`). All fields optional; omitted fields use framework defaults. Runtime env `Alpha` / `Beta` still override at deploy time.
+- `nodes`: one per microservice; `id`, `interfaces` (see **service time** below), `cpu` (optional, default 1, used for cpu_count in sidecar config and app resources), `replicas` (optional, default 1, **plain-lb, dagor-lb, and rajomon-lb**), `sidecar_cpu` (optional, default 1, used for num_threads in sidecar config; k8s sidecar gets 2× this), `over_commitment` (optional, default 0, must be in [0,1]; written to sidecar config)
 
 ### Service time per interface
 
@@ -126,12 +167,13 @@ Each workload interface (not the synthetic `USER` node) must specify **exactly o
 
 - **`avg_rt`** (number, ≥ 0): fixed busy-loop service time (same units as before; there is no default—omit nothing).
 - **`bimodal`**: `{ "rt": [t0, t1], "prob": [p0, p1] }` with two strictly positive `rt` values and probabilities strictly in `(0,1)` summing to 1. Per request, one mode is chosen at random (`ROUTING_SEED` applies, same as weighted routing).
+- **`exponential`**: `{ "mean": m }` with strictly positive `mean` (same time units as `avg_rt`). Per request, service time is sampled from an exponential distribution with that mean (`ROUTING_SEED` applies).
 
-Do not set both `avg_rt` and `bimodal` on the same interface.
+Do not set more than one of `avg_rt`, `bimodal`, and `exponential` on the same interface.
 
 Older graphs that omitted `avg_rt` (previously treated as `1.0`) must add an explicit `avg_rt` on each workload interface.
 
-Example bimodal backend: [`../tests/chain-2-bimodal/callgraph.json`](../tests/chain-2-bimodal/callgraph.json).
+Example bimodal backend: [`../tests/chain-2-bimodal/callgraph.json`](../tests/chain-2-bimodal/callgraph.json). Example exponential backend: [`../tests/chain-2-exponential/callgraph.json`](../tests/chain-2-exponential/callgraph.json).
 - `edges`: `source`, `target` as interface IDs (`microservice:interface`); `USER` → entry node. Optional **`api`**: entry interface name (`f1`, not `frontend:f1`). Omitted on `USER` edges means “derive from target”. Omitted on internal edges means the edge applies to **all** APIs (legacy). Multi-API benchmarks should set **`api`** on every internal edge so each API’s virtual graph is explicit.
 
   **Fan-out groups** (two or more outgoing edges from the same `(source, entry-api)`): exactly **one** of:

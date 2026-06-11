@@ -221,12 +221,43 @@ func loadEnvVars(accepted map[string]interface{}) map[string]interface{} {
 	return accepted
 }
 
+func InstanceName(base string) string {
+	if utils.GetEnvVar("plain_lb", false) != "true" {
+		return base
+	}
+	pod := utils.GetEnvVar("POD_NAME", false)
+	if pod == "" {
+		return base
+	}
+	if strings.HasPrefix(pod, base+"-") {
+		return base + "-" + strings.TrimPrefix(pod, base+"-")
+	}
+	return base + "-" + pod
+}
+
+func callgraphBaseName(name string) string {
+	if cg := getCallGraph()[name]; cg != nil {
+		return name
+	}
+	best := ""
+	for key := range getCallGraph() {
+		if strings.HasPrefix(name, key+"-") && len(key) > len(best) {
+			best = key
+		}
+	}
+	if best != "" {
+		return best
+	}
+	return name
+}
+
 func GetPriceTable(name string, enduser bool) *rajomon.PriceTable {
 	var callgraph map[string][]string
 	var options map[string]interface{}
 	if !enduser {
-		callgraph = getCallGraph()[name]
-		if utils.GetEnvVar("RAJOMON_"+strings.ToUpper(name)+"_DEBUG", false) == "true" {
+		baseName := callgraphBaseName(name)
+		callgraph = getCallGraph()[baseName]
+		if utils.GetEnvVar("RAJOMON_"+strings.ToUpper(baseName)+"_DEBUG", false) == "true" {
 			log.Debug("[GetPriceTable] turning on rajomon debug", "service", name)
 			rajomonOptions["debug"] = true
 		}

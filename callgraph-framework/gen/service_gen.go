@@ -12,10 +12,10 @@ import (
 const port = 2000
 
 func GenerateServices(pg *ParsedGraph, module string, outDir string) error {
-	if err := writeUtils(outDir); err != nil {
+	if err := writeUtils(pg, outDir); err != nil {
 		return err
 	}
-	if err := writeGRPCClient(module, outDir); err != nil {
+	if err := writeGRPCClient(pg, module, outDir); err != nil {
 		return err
 	}
 	svcNames := sortedServices(pg)
@@ -83,17 +83,21 @@ func deploymentOrder(pg *ParsedGraph) []string {
 	return order
 }
 
-func writeUtils(outDir string) error {
+func writeUtils(pg *ParsedGraph, outDir string) error {
 	utilsDir := filepath.Join(outDir, "utils")
 	if err := os.MkdirAll(utilsDir, 0755); err != nil {
 		return err
 	}
+	counterContent, err := renderCounterGo(pg)
+	if err != nil {
+		return err
+	}
 	files := map[string]string{
-		"busy.go":      busyGo,
-		"ennvars.go":   ennvarsGo,
-		"log.go":       logGo,
+		"busy.go":       busyGo,
+		"ennvars.go":    ennvarsGo,
+		"log.go":        logGo,
 		"propagator.go": propagatorGo,
-		"counter.go":   counterGo,
+		"counter.go":    counterContent,
 	}
 	for name, content := range files {
 		if err := os.WriteFile(filepath.Join(utilsDir, name), []byte(content), 0644); err != nil {
@@ -101,6 +105,18 @@ func writeUtils(outDir string) error {
 		}
 	}
 	return nil
+}
+
+func renderCounterGo(pg *ParsedGraph) (string, error) {
+	t, err := template.New("counter").Parse(counterGoTmpl)
+	if err != nil {
+		return "", err
+	}
+	var b bytes.Buffer
+	if err := t.Execute(&b, map[string]bool{"WRR": pg.LoadBalancingPolicy == "weighted_round_robin"}); err != nil {
+		return "", err
+	}
+	return b.String(), nil
 }
 
 const busyGo = `package utils
@@ -214,19 +230,24 @@ func ContextPropagationInterceptor() grpc.UnaryServerInterceptor {
 }
 `
 
-const counterGo = `package utils
+const counterGoTmpl = `package utils
 
 import (
 	"context"
 	"net/http"
-	"strings"
+{{if .WRR}}	"os"
+	"runtime"
+{{end}}	"strings"
 	"sync"
-	"time"
+{{if .WRR}}	"syscall"
+{{end}}	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/push"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
+{{if .WRR}}	"google.golang.org/grpc/orca"
+{{end}}
 )
 
 var logCounter = GetLogger("counter")
@@ -249,7 +270,16 @@ type CounterState struct {
 	registry                *prometheus.Registry
 	promAddr                string
 	serviceName             string
-}
+{{if .WRR}}	orcaWindowStart         time.Time
+	orcaWindowCount         int64
+	orcaQPS                 float64
+	orcaErrorWindowStart    time.Time
+	orcaErrorWindowCount    int64
+	orcaEPS                 float64
+	orcaCPUUtil             float64
+	orcaLastCPUTime         float64
+	orcaLastSample          time.Time
+{{end}}}
 
 func NewCounterState(serviceName string) *CounterState {
 	s := &CounterState{
@@ -298,10 +328,117 @@ func (s *CounterState) start() {
 		if s.promAddr != "" {
 			go s.PushAll()
 		}
-	})
+{{if .WRR}}		if os.Getenv("plain_lb") == "true" {
+			go s.sampleCPULoop()
+		}
+{{end}}	})
 }
 
-func (s *CounterState) GetInterceptor() grpc.UnaryServerInterceptor {
+{{if .WRR}}func rusageSeconds(ru *syscall.Rusage) float64 {
+	return float64(ru.Utime.Sec) + float64(ru.Utime.Usec)/1e6 +
+		float64(ru.Stime.Sec) + float64(ru.Stime.Usec)/1e6
+}
+
+func (s *CounterState) sampleCPULoop() {
+	ticker := time.NewTicker(5 * time.Second)
+	for range ticker.C {
+		var ru syscall.Rusage
+		if err := syscall.Getrusage(syscall.RUSAGE_SELF, &ru); err != nil {
+			continue
+		}
+		cpuTime := rusageSeconds(&ru)
+		now := time.Now()
+		s.lock.Lock()
+		if !s.orcaLastSample.IsZero() {
+			deltaCPU := cpuTime - s.orcaLastCPUTime
+			deltaWall := now.Sub(s.orcaLastSample).Seconds()
+			if deltaWall > 0 {
+				gmp := float64(runtime.GOMAXPROCS(0))
+				if gmp < 1 {
+					gmp = 1
+				}
+				util := deltaCPU / (deltaWall * gmp)
+				if util > 1 {
+					util = 1
+				}
+				s.orcaCPUUtil = util
+			}
+		}
+		s.orcaLastCPUTime = cpuTime
+		s.orcaLastSample = now
+		s.lock.Unlock()
+	}
+}
+
+func (s *CounterState) tickOrcaQPS() float64 {
+	now := time.Now()
+	if s.orcaWindowStart.IsZero() {
+		s.orcaWindowStart = now
+	}
+	s.orcaWindowCount++
+	elapsed := now.Sub(s.orcaWindowStart).Seconds()
+	if elapsed >= 1.0 {
+		s.orcaQPS = float64(s.orcaWindowCount) / elapsed
+		s.orcaWindowCount = 0
+		s.orcaWindowStart = now
+		return s.orcaQPS
+	}
+	if s.orcaQPS > 0 {
+		return s.orcaQPS
+	}
+	if elapsed < 1e-3 {
+		elapsed = 1e-3
+	}
+	return float64(s.orcaWindowCount) / elapsed
+}
+
+func (s *CounterState) tickOrcaEPS(isError bool) float64 {
+	now := time.Now()
+	if s.orcaErrorWindowStart.IsZero() {
+		s.orcaErrorWindowStart = now
+	}
+	if isError {
+		s.orcaErrorWindowCount++
+	}
+	elapsed := now.Sub(s.orcaErrorWindowStart).Seconds()
+	if elapsed >= 1.0 {
+		s.orcaEPS = float64(s.orcaErrorWindowCount) / elapsed
+		s.orcaErrorWindowCount = 0
+		s.orcaErrorWindowStart = now
+		return s.orcaEPS
+	}
+	if s.orcaEPS > 0 {
+		return s.orcaEPS
+	}
+	if elapsed < 1e-3 {
+		elapsed = 1e-3
+	}
+	return float64(s.orcaErrorWindowCount) / elapsed
+}
+
+func (s *CounterState) recordOrcaMetrics(ctx context.Context, isError bool) {
+	if os.Getenv("plain_lb") != "true" {
+		return
+	}
+	r := orca.CallMetricsRecorderFromContext(ctx)
+	if r == nil {
+		return
+	}
+	s.lock.Lock()
+	qps := s.tickOrcaQPS()
+	eps := s.tickOrcaEPS(isError)
+	cpu := s.orcaCPUUtil
+	s.lock.Unlock()
+	r.SetQPS(qps)
+	r.SetCPUUtilization(cpu)
+	if eps > 0 {
+		r.SetEPS(eps)
+	} else {
+		r.DeleteEPS()
+	}
+}
+
+{{end}}func (s *CounterState) GetInterceptor() grpc.UnaryServerInterceptor {
 	s.start()
 	return func(ctx context.Context, req interface{}, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 		md, ok := metadata.FromIncomingContext(ctx)
@@ -320,7 +457,8 @@ func (s *CounterState) GetInterceptor() grpc.UnaryServerInterceptor {
 			s.IncrementFailedRPCCounter(api)
 		}
 		s.IncrementOutReq(api)
-		return resp, err
+{{if .WRR}}		s.recordOrcaMetrics(ctx, err != nil)
+{{end}}		return resp, err
 	}
 }
 
@@ -434,19 +572,27 @@ func (s *CounterState) PushAll() {
 }
 `
 
-func writeGRPCClient(module string, outDir string) error {
+func writeGRPCClient(pg *ParsedGraph, module string, outDir string) error {
 	tmpl := `package pkg
 
 import (
+	"os"
 	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/keepalive"
+{{if .WRR}}	"google.golang.org/grpc/orca"
+	_ "google.golang.org/grpc/balancer/weightedroundrobin"
+{{end}}	_ "google.golang.org/grpc/resolver/dns"
 )
 
 func GetConn(addr string, extra ...grpc.DialOption) *grpc.ClientConn {
 	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
+	if os.Getenv("plain_lb") == "true" {
+		addr = "dns:///" + addr
+		opts = append(opts, grpc.WithDefaultServiceConfig(` + "`{{.LBConfig}}`" + `))
+	}
 	opts = append(opts, extra...)
 	conn, err := grpc.NewClient(addr, opts...)
 	if err != nil {
@@ -456,10 +602,12 @@ func GetConn(addr string, extra ...grpc.DialOption) *grpc.ClientConn {
 }
 
 func GetRajomonClient(addr string, interceptor grpc.DialOption) *grpc.ClientConn {
-	conn, err := grpc.NewClient(addr,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		interceptor,
-	)
+	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials()), interceptor}
+	if os.Getenv("plain_lb") == "true" {
+		addr = "dns:///" + addr
+		opts = append([]grpc.DialOption{grpc.WithDefaultServiceConfig(` + "`{{.LBConfig}}`" + `)}, opts...)
+	}
+	conn, err := grpc.NewClient(addr, opts...)
 	if err != nil {
 		panic("did not connect: " + err.Error())
 	}
@@ -467,15 +615,31 @@ func GetRajomonClient(addr string, interceptor grpc.DialOption) *grpc.ClientConn
 }
 
 func GetServerOptions() []grpc.ServerOption {
-	return []grpc.ServerOption{
+	opts := []grpc.ServerOption{
 		grpc.KeepaliveParams(keepalive.ServerParameters{Timeout: 120 * time.Second}),
 		grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{PermitWithoutStream: true}),
 	}
+{{if .WRR}}	if os.Getenv("plain_lb") == "true" {
+		opts = append(opts, orca.CallMetricsServerOption(nil))
+	}
+{{end}}	return opts
 }
 `
-	t, _ := template.New("").Parse(tmpl)
+	lbConfig := `{"loadBalancingConfig":[{"round_robin":{}}]}`
+	if pg.LoadBalancingPolicy == "weighted_round_robin" {
+		lbConfig = `{"loadBalancingConfig":[{"weighted_round_robin":{"blackoutPeriod":"1s"}}]}`
+	}
+	t, err := template.New("grpc").Parse(tmpl)
+	if err != nil {
+		return err
+	}
 	var b bytes.Buffer
-	t.Execute(&b, map[string]string{"Module": module})
+	if err := t.Execute(&b, map[string]interface{}{
+		"WRR":      pg.LoadBalancingPolicy == "weighted_round_robin",
+		"LBConfig": lbConfig,
+	}); err != nil {
+		return err
+	}
 	pkgDir := filepath.Join(outDir, "pkg")
 	if err := os.MkdirAll(pkgDir, 0755); err != nil {
 		return err
@@ -497,16 +661,18 @@ type entryServiceData struct {
 }
 
 type entryHandlerData struct {
-	Interface        string
-	BusyLoopRepeats  int
-	Bimodal          bool
-	BimodalP0        float64
-	BimodalR0        int
-	BimodalR1        int
-	HasWeighted      bool
-	ParallelFanout   bool
-	WeightedArms     []weightedArm
-	Downstreams      []downstreamCall
+	Interface       string
+	BusyLoopRepeats int
+	Exponential     bool
+	ExponentialMean float64
+	Bimodal         bool
+	BimodalP0       float64
+	BimodalR0       int
+	BimodalR1       int
+	HasWeighted     bool
+	ParallelFanout  bool
+	WeightedArms    []weightedArm
+	Downstreams     []downstreamCall
 }
 
 type clientRef struct {
@@ -613,6 +779,10 @@ func generateEntryService(pg *ParsedGraph, module string, svcName string, outDir
 			hd.BimodalP0 = entryNode.BimodalP0
 			hd.BimodalR0 = entryNode.BimodalR0
 			hd.BimodalR1 = entryNode.BimodalR1
+		} else if entryNode.Exponential {
+			needBenchRng = true
+			hd.Exponential = true
+			hd.ExponentialMean = entryNode.ExponentialMean
 		} else {
 			hd.BusyLoopRepeats = entryNode.BusyLoopRepeats()
 		}
@@ -678,6 +848,17 @@ func benchFloat() float64 {
 	return benchRng.r.Float64()
 }
 
+func benchExpBusyLoop(mean float64) {
+	benchRng.mu.Lock()
+	rt := benchRng.r.ExpFloat64() * mean
+	benchRng.mu.Unlock()
+	repeats := int(rt * 320)
+	if repeats < 1 {
+		repeats = 1
+	}
+	utils.BusyLoop(repeats)
+}
+
 {{end}}
 type Server struct {
 {{- range .Clients}}
@@ -713,8 +894,9 @@ func (s *Server) Run() error {
 	mux := http.NewServeMux()
 	var baseHandler http.Handler = http.HandlerFunc(s.handler)
 	plain := utils.GetEnvVar("plain", false) == "true"
+	plainLb := utils.GetEnvVar("plain_lb", false) == "true"
 	queuingExport := utils.GetEnvVar("queuing_export", false) == "true"
-	if plain || (sidecar && queuingExport) {
+	if plain || plainLb || (sidecar && queuingExport) {
 		counter := utils.NewCounterState(serviceName)
 		baseHandler = counter.GetHTTP1Middleware()(baseHandler)
 	}
@@ -758,7 +940,8 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 	switch path {
 {{range .Handlers}}	case "{{.Interface}}":
 		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "{{.Interface}}", "rpc-id", rpcID, "rpc-local-id", rpcLocalID))
-{{if .Bimodal}}		u := benchFloat()
+{{if .Exponential}}		benchExpBusyLoop({{printf "%.9g" .ExponentialMean}})
+{{else if .Bimodal}}		u := benchFloat()
 		if u < {{printf "%.9g" .BimodalP0}} {
 			utils.BusyLoop({{.BimodalR0}})
 		} else {
@@ -861,7 +1044,7 @@ func buildGRPCServiceData(pg *ParsedGraph, module string, svcName string) grpcSe
 	needBenchRng := false
 	needPar := false
 	for _, n := range nodes {
-		if n.Bimodal {
+		if n.Bimodal || n.Exponential {
 			needBenchRng = true
 		}
 		var cases []grpcAPICase
@@ -990,6 +1173,17 @@ func benchFloat() float64 {
 	return benchRng.r.Float64()
 }
 
+func benchExpBusyLoop(mean float64) {
+	benchRng.mu.Lock()
+	rt := benchRng.r.ExpFloat64() * mean
+	benchRng.mu.Unlock()
+	repeats := int(rt * 320)
+	if repeats < 1 {
+		repeats = 1
+	}
+	utils.BusyLoop(repeats)
+}
+
 {{end}}
 type Server struct {
 	pb.Unimplemented{{.ProtoServiceName}}Server
@@ -1019,7 +1213,7 @@ func (s *Server) Run() error {
 	var priceTable *rajomon.PriceTable
 	var dagorNode *dagor.Dagor
 	if useRajomon && !meshProxy {
-		priceTable = rajomoninit.GetPriceTable(serviceName, false)
+		priceTable = rajomoninit.GetPriceTable(rajomoninit.InstanceName(serviceName), false)
 	}
 	if useDagor && !meshProxy {
 		dagorNode = dagorinit.GetDagorNode(serviceName, false, false)
@@ -1080,7 +1274,8 @@ func (s *Server) Run() error {
 
 {{range .Handlers}}
 func (s *Server) {{.MethodName}}(ctx context.Context, req *pb.Request) (*pb.Response, error) {
-{{if .Node.Bimodal}}	u := benchFloat()
+{{if .Node.Exponential}}	benchExpBusyLoop({{printf "%.9g" .Node.ExponentialMean}})
+{{else if .Node.Bimodal}}	u := benchFloat()
 	if u < {{printf "%.9g" .Node.BimodalP0}} {
 		utils.BusyLoop({{.Node.BimodalR0}})
 	} else {
@@ -1195,6 +1390,17 @@ func benchFloat() float64 {
 	return benchRng.r.Float64()
 }
 
+func benchExpBusyLoop(mean float64) {
+	benchRng.mu.Lock()
+	rt := benchRng.r.ExpFloat64() * mean
+	benchRng.mu.Unlock()
+	repeats := int(rt * 320)
+	if repeats < 1 {
+		repeats = 1
+	}
+	utils.BusyLoop(repeats)
+}
+
 {{end}}
 type Server struct {
 	pb.Unimplemented{{.ProtoServiceName}}Server
@@ -1217,7 +1423,7 @@ func (s *Server) Run() error {
 	var pt *rajomon.PriceTable
 	var dn *dagor.Dagor
 	if useRajomon {
-		pt = rajomoninit.GetPriceTable(serviceName, false)
+		pt = rajomoninit.GetPriceTable(rajomoninit.InstanceName(serviceName), false)
 		opts = append(opts, grpc.ChainUnaryInterceptor(
 			utils.ContextPropagationInterceptor(),
 			utils.NewCounterState(serviceName).GetInterceptor(),
@@ -1253,7 +1459,8 @@ func (s *Server) Run() error {
 
 {{range .Handlers}}
 func (s *Server) {{.MethodName}}(ctx context.Context, req *pb.Request) (*pb.Response, error) {
-{{if .Node.Bimodal}}	u := benchFloat()
+{{if .Node.Exponential}}	benchExpBusyLoop({{printf "%.9g" .Node.ExponentialMean}})
+{{else if .Node.Bimodal}}	u := benchFloat()
 	if u < {{printf "%.9g" .Node.BimodalP0}} {
 		utils.BusyLoop({{.Node.BimodalR0}})
 	} else {

@@ -77,10 +77,10 @@ var dagorParams = dagor.DagorParam{
 	BusinessMap:                  {{.BusinessMap}},
 	EntryService:                 false,
 	IsEnduser:                    false,
-	QueuingThresh:                2 * time.Millisecond,
+	QueuingThresh:                {{printf "%g" .QueuingThreshMs}} * time.Millisecond,
 	AdmissionLevelUpdateInterval: 10 * time.Millisecond,
-	Alpha:                        0.45,
-	Beta:                         0.01,
+	Alpha:                        {{printf "%g" .Alpha}},
+	Beta:                         {{printf "%g" .Beta}},
 	Umax:                         15,
 	Bmax:                         {{.Bmax}},
 	Debug:                        false,
@@ -136,8 +136,11 @@ func GenerateDagorInit(pg *ParsedGraph, module string, outDir string) error {
 	}
 	bm, bmax := dagorBusinessMapAndBmax(pg)
 	return renderTemplate(dagorInitTmpl, map[string]interface{}{
-		"Module":       module,
-		"BusinessMap":  bm,
-		"Bmax":         bmax,
+		"Module":           module,
+		"BusinessMap":      bm,
+		"Bmax":             bmax,
+		"QueuingThreshMs":  pg.DagorQueuingThreshMs,
+		"Alpha":            pg.DagorAlpha,
+		"Beta":             pg.DagorBeta,
 	}, filepath.Join(dir, "dagor-config.go"))
 }

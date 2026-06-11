@@ -3,9 +3,11 @@ package gen
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"os"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"unicode"
 )
@@ -13,15 +15,24 @@ import (
 const busyLoopScale = 320
 const defaultConnectionPoolSize = 200
 
+type DagorConfig struct {
+	QueuingThreshMs *float64 `json:"queuing_thresh_ms,omitempty"`
+	Alpha           *float64 `json:"alpha,omitempty"`
+	Beta            *float64 `json:"beta,omitempty"`
+}
+
 type CallGraph struct {
-	Nodes []ServiceNode `json:"nodes"`
-	Edges []Edge        `json:"edges"`
+	LoadBalancingPolicy string        `json:"load_balancing_policy,omitempty"`
+	Dagor               *DagorConfig  `json:"dagor,omitempty"`
+	Nodes               []ServiceNode `json:"nodes"`
+	Edges               []Edge        `json:"edges"`
 }
 
 type ServiceNode struct {
 	ID                 string      `json:"id"`
 	Interfaces         []Interface `json:"interfaces"`
-	CPU                int         `json:"cpu"`
+	CPU                float64     `json:"cpu"`
+	Replicas           int         `json:"replicas"`
 	SidecarCPU         int         `json:"sidecar_cpu"`
 	OverCommitment     float64     `json:"over_commitment"`
 	ConnectionPoolSize int         `json:"connection_pool_size,omitempty"`
@@ -33,12 +44,18 @@ type BimodalSpec struct {
 	Prob []float64 `json:"prob"`
 }
 
+// ExponentialSpec is exponential service time with mean in the same units as avg_rt.
+type ExponentialSpec struct {
+	Mean float64 `json:"mean"`
+}
+
 type Interface struct {
-	Name     string         `json:"name"`
-	AvgRT    *float64       `json:"avg_rt,omitempty"`
-	Bimodal  *BimodalSpec   `json:"bimodal,omitempty"`
-	SLO      *int           `json:"slo"`
-	Priority *int           `json:"priority"`
+	Name        string           `json:"name"`
+	AvgRT       *float64         `json:"avg_rt,omitempty"`
+	Bimodal     *BimodalSpec     `json:"bimodal,omitempty"`
+	Exponential *ExponentialSpec `json:"exponential,omitempty"`
+	SLO         *int             `json:"slo"`
+	Priority    *int             `json:"priority"`
 }
 
 type Node struct {
@@ -52,9 +69,12 @@ type Node struct {
 	BimodalR1      int
 	BimodalRT0     float64
 	BimodalRT1     float64
-	BimodalProb0   float64
-	BimodalProb1   float64
-	CPU            int
+	BimodalProb0     float64
+	BimodalProb1     float64
+	Exponential      bool
+	ExponentialMean  float64
+	CPU              float64
+	Replicas       int
 	SidecarCPU     int
 	OverCommitment float64
 	SLO            *int
@@ -82,11 +102,15 @@ func EdgeVisible(e Edge, apiName string) bool {
 }
 
 type ParsedGraph struct {
-	Nodes              map[string]*Node
-	Edges              []Edge
-	EntryNodeIDs       []string
-	Services           map[string][]*Node
-	ConnectionPoolSize int // 0: use defaultConnectionPoolSize
+	Nodes                map[string]*Node
+	Edges                []Edge
+	EntryNodeIDs         []string
+	Services             map[string][]*Node
+	ConnectionPoolSize   int // 0: use defaultConnectionPoolSize
+	LoadBalancingPolicy  string
+	DagorQueuingThreshMs float64
+	DagorAlpha           float64
+	DagorBeta            float64
 }
 
 func ParseCallGraph(path string) (*ParsedGraph, error) {
@@ -101,6 +125,20 @@ func ParseCallGraph(path string) (*ParsedGraph, error) {
 	return buildParsedGraph(&cg)
 }
 
+func serviceTimeModes(iface Interface) int {
+	n := 0
+	if iface.AvgRT != nil {
+		n++
+	}
+	if iface.Bimodal != nil {
+		n++
+	}
+	if iface.Exponential != nil {
+		n++
+	}
+	return n
+}
+
 func buildParsedGraph(cg *CallGraph) (*ParsedGraph, error) {
 	pg := &ParsedGraph{
 		Nodes:    make(map[string]*Node),
@@ -112,6 +150,10 @@ func buildParsedGraph(cg *CallGraph) (*ParsedGraph, error) {
 		if cpu == 0 {
 			cpu = 1
 		}
+		replicas := svc.Replicas
+		if replicas == 0 {
+			replicas = 1
+		}
 		sidecarCPU := svc.SidecarCPU
 		if sidecarCPU == 0 {
 			sidecarCPU = 1
@@ -121,17 +163,19 @@ func buildParsedGraph(cg *CallGraph) (*ParsedGraph, error) {
 		}
 		for _, iface := range svc.Interfaces {
 			id := svc.ID + ":" + iface.Name
-			if iface.Bimodal != nil && iface.AvgRT != nil {
-				return nil, fmt.Errorf("node %s: set only one of avg_rt or bimodal", id)
-			}
-			if iface.Bimodal == nil && iface.AvgRT == nil {
-				return nil, fmt.Errorf("node %s: must set exactly one of avg_rt or bimodal", id)
+			switch serviceTimeModes(iface) {
+			case 0:
+				return nil, fmt.Errorf("node %s: must set exactly one of avg_rt, bimodal, exponential", id)
+			case 1:
+			default:
+				return nil, fmt.Errorf("node %s: set only one of avg_rt, bimodal, exponential", id)
 			}
 			node := &Node{
 				ID:             id,
 				Microservice:   svc.ID,
 				Interface:      iface.Name,
 				CPU:            cpu,
+				Replicas:       replicas,
 				SidecarCPU:     sidecarCPU,
 				OverCommitment: svc.OverCommitment,
 				SLO:            iface.SLO,
@@ -148,6 +192,9 @@ func buildParsedGraph(cg *CallGraph) (*ParsedGraph, error) {
 				node.BimodalProb0, node.BimodalProb1 = b.Prob[0], b.Prob[1]
 				node.BimodalR0 = repeatsFromServiceTime(b.RT[0])
 				node.BimodalR1 = repeatsFromServiceTime(b.RT[1])
+			} else if iface.Exponential != nil {
+				node.Exponential = true
+				node.ExponentialMean = iface.Exponential.Mean
 			} else {
 				node.AvgRT = *iface.AvgRT
 			}
@@ -203,6 +250,25 @@ func buildParsedGraph(cg *CallGraph) (*ParsedGraph, error) {
 		}
 		break
 	}
+	policy := strings.TrimSpace(cg.LoadBalancingPolicy)
+	if policy == "" {
+		policy = "round_robin"
+	}
+	pg.LoadBalancingPolicy = policy
+	pg.DagorQueuingThreshMs = 2
+	pg.DagorAlpha = 0.45
+	pg.DagorBeta = 0.01
+	if cg.Dagor != nil {
+		if cg.Dagor.QueuingThreshMs != nil {
+			pg.DagorQueuingThreshMs = *cg.Dagor.QueuingThreshMs
+		}
+		if cg.Dagor.Alpha != nil {
+			pg.DagorAlpha = *cg.Dagor.Alpha
+		}
+		if cg.Dagor.Beta != nil {
+			pg.DagorBeta = *cg.Dagor.Beta
+		}
+	}
 	return pg, nil
 }
 
@@ -228,10 +294,10 @@ func repeatsFromServiceTime(rt float64) int {
 	return repeats
 }
 
-// BusyLoopRepeats is only valid when n is not bimodal (codegen uses BimodalR0/R1 otherwise).
+// BusyLoopRepeats is only valid for fixed avg_rt nodes.
 func (n *Node) BusyLoopRepeats() int {
-	if n.Bimodal {
-		panic("BusyLoopRepeats called on bimodal node")
+	if n.Bimodal || n.Exponential {
+		panic("BusyLoopRepeats called on random service-time node")
 	}
 	return repeatsFromServiceTime(n.AvgRT)
 }
@@ -429,11 +495,31 @@ func (pg *ParsedGraph) EntryInterfaces() []*Node {
 	return out
 }
 
-func (pg *ParsedGraph) CPUForService(svcName string) int {
+func (pg *ParsedGraph) CPUForService(svcName string) float64 {
 	if nodes, ok := pg.Services[svcName]; ok && len(nodes) > 0 {
 		return nodes[0].CPU
 	}
 	return 1
+}
+
+func (pg *ParsedGraph) ReplicasForService(svcName string) int {
+	if nodes, ok := pg.Services[svcName]; ok && len(nodes) > 0 {
+		return nodes[0].Replicas
+	}
+	return 1
+}
+
+// PerReplicaCPU returns cpu/replicas for plain-lb and dagor-lb pod resources.
+func PerReplicaCPU(cpu float64, replicas int) float64 {
+	return cpu / float64(replicas)
+}
+
+func FormatK8sCPU(f float64) string {
+	return strconv.FormatFloat(f, 'g', -1, 64)
+}
+
+func GOMAXPROCSForPerReplicaCPU(f float64) int {
+	return int(math.Ceil(f))
 }
 
 func (pg *ParsedGraph) SidecarCPUForService(svcName string) int {
