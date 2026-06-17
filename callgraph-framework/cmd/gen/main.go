@@ -21,6 +21,10 @@ func main() {
 		*out = filepath.Dir(callgraphPath)
 	}
 	benchmarkName := filepath.Base(*out)
+	pg, err := gen.ParseCallGraph(callgraphPath)
+	if err != nil {
+		log.Fatalf("parse: %v", err)
+	}
 	if err := gen.Generate(callgraphPath, *out, benchmarkName); err != nil {
 		log.Fatalf("generate: %v", err)
 	}
@@ -29,5 +33,8 @@ func main() {
 	if err := viz.Visualize(callgraphOut, pdfOut); err != nil {
 		log.Fatalf("viz: %v", err)
 	}
-	fmt.Printf("Generated benchmark in %s (callgraph.pdf)\n", *out)
+	if err := gen.WriteModeComparison(pg, *out); err != nil {
+		log.Fatalf("mode comparison: %v", err)
+	}
+	fmt.Printf("Generated benchmark in %s (callgraph.pdf, mode-comparison.md, mode-comparison.csv)\n", *out)
 }

@@ -13,7 +13,11 @@ Example:
 go run ./cmd/gen ../alibaba-large/callgraph.json -o ../alibaba-large
 ```
 
-Generates the benchmark and `callgraph.pdf` in the output directory.
+Generates the benchmark, `callgraph.pdf`, and mode comparison tables (`mode-comparison.md`, `mode-comparison.csv`) in the output directory.
+
+### Mode comparison tables
+
+At codegen time, `cmd/gen` emits deploy-resource tables comparing all supported modes (`plain`, `plain-lb`, `sidecar`, `sidecar-lb`, `envoy`, `rajomon`, `dagor`, and LB variants). Values use the same formulas as K8s manifest generation: per-service `app_cpu_limit`, `sidecar_cpu_limit`, `replicas`, `GOMAXPROCS`, and sidecar `cpu_count` / `over_commitment` / `num_threads`. A cluster-totals section sums app and sidecar cores per mode.
 
 ### Visualizer
 
@@ -45,15 +49,15 @@ With `-paper`, `viz` runs `render_service_pdf.py` using **the repository root `.
 ## Scripts
 
 - `build.sh [tag]` — build the sidecar (if present), build all workload images with `docker buildx bake` (shared compile + parallel final stages), then push every image in parallel (`REGISTRY`, `TAG`, `BENCH` env vars behave as before).
-- `deploy.sh [plain|plain-lb|sidecar|rajomon|rajomon-lb|dagor|dagor-lb|envoy]` — deploy to K8s (uses `TAG`, `REGISTRY`). `./deploy.sh sidecar debug` enables workload debug (see below). `debug` is only valid with `sidecar`, not with plain, plain-lb, rajomon, rajomon-lb, dagor, dagor-lb, or envoy. **envoy** uses `envoyproxy/envoy:v1.32-latest` sidecars (no SLO queuing, no `SIDECAR_OVER_COMMIT`). For **sidecar** only: if **`SIDECAR_OVER_COMMIT`** is set (non-empty), every `over_commitment:` field in `sidecar-configs.yaml` is rewritten to that value before apply (needs `perl` on PATH); omit it to keep values from `callgraph.json` codegen.
+- `deploy.sh [plain|plain-lb|sidecar|sidecar-lb|rajomon|rajomon-lb|dagor|dagor-lb|envoy]` — deploy to K8s (uses `TAG`, `REGISTRY`). `./deploy.sh sidecar debug` or `./deploy.sh sidecar-lb debug` enables workload debug (see below). `debug` is only valid with `sidecar` or `sidecar-lb`, not with plain, plain-lb, rajomon, rajomon-lb, dagor, dagor-lb, or envoy. **envoy** uses `envoyproxy/envoy:v1.32-latest` sidecars (no SLO queuing, no `SIDECAR_OVER_COMMIT`). For **sidecar** and **sidecar-lb**: if **`SIDECAR_OVER_COMMIT`** is set (non-empty), every `over_commitment:` field in `sidecar-configs.yaml` / `sidecar-lb-configs.yaml` is rewritten to that value before apply (needs `perl` on PATH); omit it to keep values from `callgraph.json` codegen.
 - `destroy.sh` — tear down
-- `collect_logs.sh` — collect pod logs. If the environment variable `COLLECT_SIDECAR_NANOLOG=1` is set (done by `exec` when `--nanolog-debug` is enabled) and mode is `sidecar`, the script also `kubectl cp`s `/compressedLog` from each sidecar container into `$OUTPUT_DIR` as `*-sidecar.clog` (plus ingress as `*-ingress-sidecar.clog`). Decompression uses `benchmarks/sidecar/external/NanoLog/runtime/decompressor` from the repo checkout that runs the executor.
+- `collect_logs.sh` — collect pod logs. If the environment variable `COLLECT_SIDECAR_NANOLOG=1` is set (done by `exec` when `--nanolog-debug` is enabled) and mode is `sidecar` or `sidecar-lb`, the script also `kubectl cp`s `/compressedLog` from each sidecar container into `$OUTPUT_DIR` as `*-sidecar.clog` (plus ingress as `*-ingress-sidecar.clog`). Decompression uses `benchmarks/sidecar/external/NanoLog/runtime/decompressor` from the repo checkout that runs the executor.
 
 ### Sidecar deploy debug
 
-Use `./deploy.sh sidecar debug` after `./build.sh` as usual. Requires [mikefarah yq](https://github.com/mikefarah/yq) v4 on `PATH` (the script exits with an install hint if it is missing).
+Use `./deploy.sh sidecar debug` or `./deploy.sh sidecar-lb debug` after `./build.sh` as usual. Requires [mikefarah yq](https://github.com/mikefarah/yq) v4 on `PATH` (the script exits with an install hint if it is missing).
 
-Debug mode only changes **workload** manifests (`*-sidecar.yaml`, `ingress.yaml`) under a temp copy before `kubectl apply`: every `Pod` gets `spec.restartPolicy: Never`. If you set `SIDECAR_GLOG_V` and/or `SIDECAR_GLOG_VMODULE` (or define them in `k8s/sidecar-debug-glog.env`), the `sidecar` container also gets `GLOG_v` / `GLOG_vmodule` (existing entries with those names are replaced). You can use debug mode for **restart behavior only** without setting any verbosity. **Prometheus** is still applied from `k8s/manifests/prometheus.yaml` exactly like non-debug sidecar deploy.
+Debug mode only changes **workload** manifests under a temp copy before `kubectl apply`. For **sidecar**: `*-sidecar.yaml` and `ingress.yaml` (Pods) get `spec.restartPolicy: Never`. For **sidecar-lb**: `*-sidecar-lb.yaml` Deployments get GLOG env on the sidecar container only (Deployment pod templates cannot use `restartPolicy: Never`); `ingress-lb.yaml` (Pod) gets the same restart + GLOG behavior as sidecar ingress. If you set `SIDECAR_GLOG_V` and/or `SIDECAR_GLOG_VMODULE` (or define them in `k8s/sidecar-debug-glog.env`), the `sidecar` container also gets `GLOG_v` / `GLOG_vmodule` (existing entries with those names are replaced). You can use debug mode for **restart behavior only** (sidecar / sidecar-lb ingress) without setting any verbosity. **Prometheus** is still applied from `k8s/manifests/prometheus.yaml` exactly like non-debug deploy.
 
 Set verbosity via environment (or optional file — see precedence below):
 
@@ -78,11 +82,27 @@ export SIDECAR_GLOG_VMODULE=event_loop=3
 ./deploy.sh sidecar debug
 ```
 
-Optional `k8s/sidecar-debug-glog.env` under **this** benchmark’s `k8s/` (next to that benchmark’s `deploy.sh`). A file in another directory (e.g. `tests/one-service/k8s/...`) is not read when you deploy from `tests/fan-out-dynamic-0-9` — copy, symlink, or recreate it there. Same variable names as above, `#` comments allowed; script reads it only in the debug branch. **Precedence:** values already set in the environment win; the file fills `SIDECAR_GLOG_V` / `SIDECAR_GLOG_VMODULE` only when those variables are unset, so `SIDECAR_GLOG_V=3 ./deploy.sh sidecar debug` overrides a value from the file.
+Optional `k8s/sidecar-debug-glog.env` under **this** benchmark’s `k8s/` (next to that benchmark’s `deploy.sh`). A file in another directory (e.g. `tests/one-service/k8s/...`) is not read when you deploy from `tests/fan-out-dynamic-0-9` — copy, symlink, or recreate it there. Same variable names as above, `#` comments allowed; script reads it only in the debug branch (both `sidecar debug` and `sidecar-lb debug`). **Precedence:** values already set in the environment win; the file fills `SIDECAR_GLOG_V` / `SIDECAR_GLOG_VMODULE` only when those variables are unset, so `SIDECAR_GLOG_V=3 ./deploy.sh sidecar debug` overrides a value from the file.
 
 ### Sidecar over-commitment override
 
-For latency-vs-throughput sweeps over admission **over-commitment**, set **`SIDECAR_OVER_COMMIT`** when deploying sidecar mode (e.g. `0`, `0.2`, `1`). `deploy.sh` stages `sidecar-configs.yaml`, replaces each embedded `over_commitment:` value with `SIDECAR_OVER_COMMIT`, then applies the patched manifest (**requires `perl` on PATH**). After patching, the script checks every `over_commitment:` line matches **`SIDECAR_OVER_COMMIT`** and exits non‑zero otherwise (catch perl/path/format failures). Only snippets that already contain `over_commitment` are affected (ingress blocks typically do not). The experiment executor forwards **`deploy_env`** into the deploy environment.
+For latency-vs-throughput sweeps over admission **over-commitment**, set **`SIDECAR_OVER_COMMIT`** when deploying **sidecar** or **sidecar-lb** mode (e.g. `0`, `0.2`, `1`). `deploy.sh` stages `sidecar-configs.yaml` or `sidecar-lb-configs.yaml`, replaces each embedded `over_commitment:` value with `SIDECAR_OVER_COMMIT`, then applies the patched manifest (**requires `perl` on PATH**). After patching, the script checks every `over_commitment:` line matches **`SIDECAR_OVER_COMMIT`** and exits non‑zero otherwise (catch perl/path/format failures). Only snippets that already contain `over_commitment` are affected (ingress blocks typically do not). The experiment executor forwards **`deploy_env`** into the deploy environment.
+
+### sidecar-lb mode
+
+Sidecar admission control with **replication and sidecar-internal load balancing**. Same proxy topology as **sidecar** (`*-sidecar-lb.yaml` Deployments, dedicated ingress pod, SLO/priority queuing). Env template: **`k8s/sidecar-lb.env`** (`sidecar=true`). The `replicas` field in `callgraph.json` applies (Deployments, per-replica app CPU, headless internal Services). Workloads deploy **sequentially** in callgraph dependency order (leaves first, entry last), then ingress — same as **sidecar** — so downstream headless Services have ready endpoints before upstream sidecars resolve them at startup.
+
+Load balancing across replicas uses the sidecar proxy’s PPM-queue waiting-count selection (DNS discovery via headless Services). **`load_balancing_policy`** in `callgraph.json` does not apply.
+
+CPU vs **sidecar**: K8s sidecar CPU uses a **1×** multiplier (`sidecar_cpu` per pod) instead of **2×**; ingress sidecar CPU is `UserEntryCount() × 1` instead of `× 2`. `num_threads` stays `sidecar_cpu` per replica; `cpu_count` (admission) is `cpu / replicas`.
+
+```bash
+./build.sh
+./deploy.sh sidecar-lb
+./deploy.sh sidecar-lb debug   # optional: GLOG verbosity via env or k8s/sidecar-debug-glog.env
+```
+
+Use **`destroy.sh sidecar-lb`** to tear down. Load tests use the same URLs as sidecar (`run.sh`).
 
 ### Rajomon mode
 
@@ -159,7 +179,7 @@ Like **plain**, but supports multiple replicas per microservice via the `replica
 
 - `load_balancing_policy` (optional, default `round_robin`, **plain-lb, dagor-lb, and rajomon-lb**): gRPC client load balancer — `round_robin` or `weighted_round_robin` (WRR enables ORCA server metrics).
 - `dagor` (optional, **dagor and dagor-lb**): per-benchmark DAGOR defaults written to `dagor_init/dagor-config.go` — `queuing_thresh_ms` (default `2`), `alpha` (default `0.45`), `beta` (default `0.01`). All fields optional; omitted fields use framework defaults. Runtime env `Alpha` / `Beta` still override at deploy time.
-- `nodes`: one per microservice; `id`, `interfaces` (see **service time** below), `cpu` (optional, default 1, used for cpu_count in sidecar config and app resources), `replicas` (optional, default 1, **plain-lb, dagor-lb, and rajomon-lb**), `sidecar_cpu` (optional, default 1, used for num_threads in sidecar config; k8s sidecar gets 2× this), `over_commitment` (optional, default 0, must be in [0,1]; written to sidecar config)
+- `nodes`: one per microservice; `id`, `interfaces` (see **service time** below), `cpu` (optional, default 1, used for cpu_count in sidecar config and app resources), `replicas` (optional, default 1, **plain-lb, dagor-lb, rajomon-lb, and sidecar-lb**), `sidecar_cpu` (optional, default 1, used for num_threads in sidecar config; k8s sidecar gets 2× this in **sidecar**, 1× in **sidecar-lb**), `over_commitment` (optional, default 0, must be in [0,1]; written to sidecar config)
 
 ### Service time per interface
 

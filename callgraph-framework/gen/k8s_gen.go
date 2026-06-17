@@ -151,6 +151,18 @@ func GenerateK8s(pg *ParsedGraph, benchmarkName string, registry string, outDir 
 	if err := generateIngressYaml(pg, benchmarkName, outDir); err != nil {
 		return err
 	}
+	if err := generateSidecarLbConfigs(pg, benchmarkName, svcNames, outDir); err != nil {
+		return err
+	}
+	if err := generateSidecarLbEnv(pg, benchmarkName, svcNames, outDir); err != nil {
+		return err
+	}
+	if err := generateAppSidecarLbYaml(pg, benchmarkName, svcNames, outDir); err != nil {
+		return err
+	}
+	if err := generateIngressLbYaml(pg, benchmarkName, outDir); err != nil {
+		return err
+	}
 	if err := generateEnvoyConfigs(pg, benchmarkName, svcNames, outDir); err != nil {
 		return err
 	}
@@ -860,7 +872,7 @@ func generateSidecarConfigs(pg *ParsedGraph, benchmarkName string, svcNames []st
 	var configs []string
 	for _, name := range svcNames {
 		kn := k8sName(name)
-		cfg := buildSidecarServiceConfig(pg, prefix, name, kn, entrySvc)
+		cfg := buildSidecarServiceConfig(pg, prefix, name, kn, entrySvc, false)
 		configs = append(configs, fmt.Sprintf("  %s.yaml: |\n%s", kn, indent(cfg, 4)))
 	}
 	ingressCfg := buildIngressConfig(pg, prefix, entrySvc)
@@ -884,7 +896,7 @@ func indent(s string, n int) string {
 	return strings.Join(lines, "\n")
 }
 
-func buildSidecarServiceConfig(pg *ParsedGraph, prefix, svcName, kn, entrySvc string) string {
+func buildSidecarServiceConfig(pg *ParsedGraph, prefix, svcName, kn, entrySvc string, lb bool) string {
 	var b strings.Builder
 	var ringSize, bufCount, bufSize int
 	isEntry := svcName == entrySvc
@@ -953,12 +965,52 @@ func buildSidecarServiceConfig(pg *ParsedGraph, prefix, svcName, kn, entrySvc st
 	b.WriteString(fmt.Sprintf("name: %s\n", kn))
 
 	cpuCount := pg.CPUForService(svcName)
+	if lb {
+		replicas := pg.ReplicasForService(svcName)
+		cpuCount = float64(GOMAXPROCSForPerReplicaCPU(PerReplicaCPU(cpuCount, replicas)))
+	}
 	overCommitment := pg.OverCommitmentForService(svcName)
 	if isEntry {
 		b.WriteString(fmt.Sprintf("is_frontend: True\nfrontend_pool_connections: %d\n", pg.EffectiveConnectionPoolSize()))
 	}
 	b.WriteString(fmt.Sprintf("cpu_count: %d\nover_commitment: %.1f\n", int(cpuCount), overCommitment))
 	return b.String()
+}
+
+func generateSidecarLbConfigs(pg *ParsedGraph, benchmarkName string, svcNames []string, outDir string) error {
+	prefix := benchmarkName + "-"
+	entrySvc := pg.EntryMicroservice()
+	manifestsDir := filepath.Join(outDir, "k8s", "manifests")
+	if err := os.MkdirAll(manifestsDir, 0755); err != nil {
+		return err
+	}
+
+	var configs []string
+	for _, name := range svcNames {
+		kn := k8sName(name)
+		cfg := buildSidecarServiceConfig(pg, prefix, name, kn, entrySvc, true)
+		configs = append(configs, fmt.Sprintf("  %s.yaml: |\n%s", kn, indent(cfg, 4)))
+	}
+	ingressCfg := buildIngressConfig(pg, prefix, entrySvc)
+	configs = append(configs, fmt.Sprintf("  ingress.yaml: |\n%s", indent(ingressCfg, 4)))
+
+	cm := `apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sidecar-lb-configs
+data:
+` + strings.Join(configs, "\n")
+	return os.WriteFile(filepath.Join(manifestsDir, "sidecar-lb-configs.yaml"), []byte(cm), 0644)
+}
+
+func generateSidecarLbEnv(pg *ParsedGraph, benchmarkName string, svcNames []string, outDir string) error {
+	lines := []string{"sidecar=true", "", "PORT=2000"}
+	for _, name := range svcNames {
+		lines = append(lines, name+"_PORT=2000", name+"_EGRESS=localhost:4000")
+	}
+	lines = append(lines, "", "PROM_ADDR=prometheus-pushgateway:9091")
+	k8sDir := filepath.Join(outDir, "k8s")
+	return os.WriteFile(filepath.Join(k8sDir, "sidecar-lb.env"), []byte(strings.Join(lines, "\n")), 0644)
 }
 
 const sidecarIngressBasePort = 3000
@@ -1217,6 +1269,209 @@ spec:
 	return os.WriteFile(filepath.Join(manifestsDir, "ingress.yaml"), []byte(yaml), 0644)
 }
 
+func generateAppSidecarLbYaml(pg *ParsedGraph, benchmarkName string, svcNames []string, outDir string) error {
+	prefix := benchmarkName + "-"
+	manifestsDir := filepath.Join(outDir, "k8s", "manifests")
+	if err := os.MkdirAll(manifestsDir, 0755); err != nil {
+		return err
+	}
+	for _, name := range svcNames {
+		kn := k8sName(name)
+		imgName := prefix + kn
+		cpu := pg.CPUForService(name)
+		replicas := pg.ReplicasForService(name)
+		perCPU := PerReplicaCPU(cpu, replicas)
+		k8sCPUStr := FormatK8sCPU(perCPU)
+		gomaxprocsStr := fmt.Sprintf("%d", GOMAXPROCSForPerReplicaCPU(perCPU))
+		sidecarCPU := pg.SidecarCPUForService(name)
+		sidecarCpuStr := fmt.Sprintf("%d", sidecarCPU)
+		svcYaml := fmt.Sprintf(`apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: %s
+  labels:
+    app: %s
+spec:
+  replicas: %d
+  selector:
+    matchLabels:
+      app: %s
+  template:
+    metadata:
+      labels:
+        app: %s
+    spec:
+      containers:
+      - name: app
+        image: %s:latest
+        resources:
+          requests:
+            cpu: "%s"
+          limits:
+            cpu: "%s"
+        env:
+        - name: GOMAXPROCS
+          value: "%s"
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        envFrom:
+        - configMapRef:
+            name: %s-config
+        ports:
+        - containerPort: %d
+      - name: sidecar
+        image: sidecar-sidecar:latest
+        env:
+        - name: PROC_NAME
+          value: "%s-sidecar"
+        - name: GLOG_logtostderr
+          value: "1"
+        resources:
+          requests:
+            cpu: "%s"
+          limits:
+            cpu: "%s"
+        volumeMounts:
+        - name: config-volume
+          mountPath: /config.yaml
+          subPath: %s.yaml
+        ports:
+        - containerPort: %d
+        - containerPort: %d
+        - containerPort: %d
+          protocol: UDP
+        - containerPort: %d
+          protocol: UDP
+      volumes:
+      - name: config-volume
+        configMap:
+          name: sidecar-lb-configs
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: %s%s
+  labels:
+    app: %s
+spec:
+  clusterIP: None
+  selector:
+    app: %s
+  ports:
+  - name: sidecar-ingress-tcp
+    port: %d
+    targetPort: %d
+    protocol: TCP
+  - name: sidecar-ingress-udp
+    port: %d
+    targetPort: %d
+    protocol: UDP
+  - name: sidecar-egress-tcp
+    port: %d
+    targetPort: %d
+    protocol: TCP
+  - name: sidecar-egress-udp
+    port: %d
+    targetPort: %d
+    protocol: UDP
+`,
+			kn, kn, replicas, kn, kn, imgName, k8sCPUStr, k8sCPUStr, gomaxprocsStr, benchmarkName, sidecarAppPort,
+			kn, sidecarCpuStr, sidecarCpuStr, kn,
+			sidecarIngressPort, sidecarEgressPort, sidecarIngressPort, sidecarEgressPort,
+			prefix, kn, kn, kn,
+			sidecarIngressPort, sidecarIngressPort, sidecarIngressPort, sidecarIngressPort,
+			sidecarEgressPort, sidecarEgressPort, sidecarEgressPort, sidecarEgressPort)
+		outPath := filepath.Join(manifestsDir, kn+"-sidecar-lb.yaml")
+		if err := os.WriteFile(outPath, []byte(svcYaml), 0644); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func generateIngressLbYaml(pg *ParsedGraph, benchmarkName string, outDir string) error {
+	manifestsDir := filepath.Join(outDir, "k8s", "manifests")
+	cpu := pg.UserEntryCount()
+	nApis := pg.UserEntryCount()
+	var portSpecs []string
+	for i := 0; i < nApis; i++ {
+		p := sidecarIngressBasePort + i
+		portSpecs = append(portSpecs, fmt.Sprintf("    - containerPort: %d", p))
+		portSpecs = append(portSpecs, fmt.Sprintf("    - containerPort: %d\n      protocol: UDP", p))
+	}
+	portSpecs = append(portSpecs, "    - containerPort: 4000", "    - containerPort: 4000\n      protocol: UDP")
+	var svcPorts []string
+	for i := 0; i < nApis; i++ {
+		p := sidecarIngressBasePort + i
+		svcPorts = append(svcPorts, fmt.Sprintf(`  - name: sidecar-%d-tcp
+    port: %d
+    targetPort: %d
+    nodePort: %d
+    protocol: TCP
+  - name: sidecar-%d-udp
+    port: %d
+    targetPort: %d
+    nodePort: %d
+    protocol: UDP`, p, p, p, p, p, p, p, p))
+	}
+	svcPorts = append(svcPorts, `  - name: sidecar-4000-tcp
+    port: 4000
+    targetPort: 4000
+    protocol: TCP
+  - name: sidecar-4000-udp
+    port: 4000
+    targetPort: 4000
+    protocol: UDP`)
+	yaml := fmt.Sprintf(`apiVersion: v1
+kind: Pod
+metadata:
+  name: ingress
+  labels:
+    app: ingress
+spec:
+  restartPolicy: Never
+  containers:
+  - name: sidecar
+    image: sidecar-sidecar:latest
+    env:
+    - name: PROC_NAME
+      value: "ingress-sidecar"
+    - name: GLOG_logtostderr
+      value: "1"
+    resources:
+      requests:
+        cpu: "%d"
+      limits:
+        cpu: "%d"
+    volumeMounts:
+    - name: config-volume
+      mountPath: /config.yaml
+      subPath: ingress.yaml
+    ports:
+%s
+  volumes:
+  - name: config-volume
+    configMap:
+      name: sidecar-lb-configs
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: %s-ingress
+  labels:
+    app: ingress
+spec:
+  type: NodePort
+  selector:
+    app: ingress
+  ports:
+%s
+`, cpu, cpu, strings.Join(portSpecs, "\n"), benchmarkName, strings.Join(svcPorts, "\n"))
+	return os.WriteFile(filepath.Join(manifestsDir, "ingress-lb.yaml"), []byte(yaml), 0644)
+}
+
 func generatePrometheusYaml(outDir string) error {
 	manifestsDir := filepath.Join(outDir, "k8s", "manifests")
 	yaml := `apiVersion: apps/v1
@@ -1469,7 +1724,7 @@ BENCH={{.BenchmarkName}}
 WAIT_TIMEOUT=${WAIT_TIMEOUT:-120}
 
 if [ "$MODE" = "plain" ] && [ "$ARG2" = "debug" ]; then
-  echo "deploy.sh: debug only with sidecar; use ./deploy.sh sidecar debug" >&2
+  echo "deploy.sh: debug only with sidecar or sidecar-lb; use ./deploy.sh sidecar debug or ./deploy.sh sidecar-lb debug" >&2
   exit 1
 fi
 if [ "$MODE" = "plain-lb" ] && [ -n "$ARG2" ]; then
@@ -1480,12 +1735,16 @@ if [ "$MODE" = "sidecar" ] && [ -n "$ARG2" ] && [ "$ARG2" != "debug" ]; then
   echo "deploy.sh: unknown second argument: $ARG2 (expected: debug)" >&2
   exit 1
 fi
+if [ "$MODE" = "sidecar-lb" ] && [ -n "$ARG2" ] && [ "$ARG2" != "debug" ]; then
+  echo "deploy.sh: unknown second argument: $ARG2 (expected: debug)" >&2
+  exit 1
+fi
 if { [ "$MODE" = "rajomon" ] || [ "$MODE" = "dagor" ] || [ "$MODE" = "dagor-lb" ] || [ "$MODE" = "rajomon-lb" ]; } && [ -n "$ARG2" ]; then
   echo "deploy.sh: rajomon, dagor, dagor-lb, and rajomon-lb modes do not take a second argument" >&2
   exit 1
 fi
 SIDECAR_DEBUG=0
-if [ "$MODE" = "sidecar" ] && [ "$ARG2" = "debug" ]; then
+if { [ "$MODE" = "sidecar" ] || [ "$MODE" = "sidecar-lb" ]; } && [ "$ARG2" = "debug" ]; then
   SIDECAR_DEBUG=1
 fi
 
@@ -1517,7 +1776,7 @@ kubectl_wait_ready_or_fail() {
 
 sidecar_debug_require_yq() {
   command -v yq >/dev/null 2>&1 || {
-    echo "deploy.sh sidecar debug needs mikefarah yq v4: https://github.com/mikefarah/yq" >&2
+    echo "deploy.sh sidecar/sidecar-lb debug needs mikefarah yq v4: https://github.com/mikefarah/yq" >&2
     exit 1
   }
 }
@@ -1543,6 +1802,15 @@ sidecar_debug_patch_workload_yaml() {
   if [ -n "$GV_VAL" ] || [ -n "$VM_VAL" ]; then
     yq eval-all '
 select(.kind == "Pod") |= (.spec.containers |= map(
+  select(.name == "sidecar") |= (
+    (.env // []) as $e |
+    ($e | map(select(.name != "GLOG_v" and .name != "GLOG_vmodule"))) as $base |
+    ([{"name":"GLOG_v","value":strenv(GV_VAL)},{"name":"GLOG_vmodule","value":strenv(VM_VAL)}]
+      | map(select(.value != ""))) as $add |
+    .env = $base + $add
+  )
+)) |
+select(.kind == "Deployment") |= (.spec.template.spec.containers |= map(
   select(.name == "sidecar") |= (
     (.env // []) as $e |
     ($e | map(select(.name != "GLOG_v" and .name != "GLOG_vmodule"))) as $base |
@@ -1599,6 +1867,52 @@ if [ "$MODE" = "sidecar" ]; then
     sidecar_debug_patch_workload_yaml "$TMP_DIR/ingress.yaml"
   fi
   kubectl apply -f "$TMP_DIR/ingress.yaml"
+  kubectl_wait_ready_or_fail ingress 30
+elif [ "$MODE" = "sidecar-lb" ]; then
+  if [ "$SIDECAR_DEBUG" = "1" ]; then
+    sidecar_debug_require_yq
+    sidecar_debug_merge_glog_file
+  fi
+  cat k8s/sidecar-lb.env > "$TMP_DIR/sidecar_lb_merged.env"
+  echo "" >> "$TMP_DIR/sidecar_lb_merged.env"
+  echo "queuing_export=${queuing_export}" >> "$TMP_DIR/sidecar_lb_merged.env"
+  kubectl create configmap {{.BenchmarkName}}-config --from-env-file="$TMP_DIR/sidecar_lb_merged.env" --dry-run=client -o yaml > "$TMP_DIR/configmap.yaml"
+  kubectl apply -f "$TMP_DIR/configmap.yaml"
+  cp k8s/manifests/sidecar-lb-configs.yaml "$TMP_DIR/sidecar-lb-configs.yaml"
+  if [ -n "${SIDECAR_OVER_COMMIT:-}" ]; then
+    echo "deploy.sh: SIDECAR_OVER_COMMIT=${SIDECAR_OVER_COMMIT} (patch all over_commitment in sidecar-lb-configs)"
+    export SIDECAR_OVER_COMMIT
+    perl -i -pe 's/(over_commitment:\s*)[\d.]+/${1}$ENV{SIDECAR_OVER_COMMIT}/g' "$TMP_DIR/sidecar-lb-configs.yaml"
+    awk -v want="$SIDECAR_OVER_COMMIT" '
+      /over_commitment:/ {
+        if ($2 != want) {
+          print "deploy.sh: ERROR expected over_commitment " want " got " $2 > "/dev/stderr"
+          exit 1
+        }
+      }
+    ' "$TMP_DIR/sidecar-lb-configs.yaml"
+  fi
+  kubectl apply -f "$TMP_DIR/sidecar-lb-configs.yaml"
+
+  kubectl apply -f k8s/manifests/prometheus.yaml
+  kubectl_wait_ready_or_fail prometheus-pushgateway 60
+  kubectl_wait_ready_or_fail prometheus 60
+
+  for SVC in {{range $i, $e := .K8sOrder}}{{if $i}} {{end}}{{$e}}{{end}}; do
+    sed "s|sidecar-sidecar:latest|${REGISTRY}/sidecar-sidecar:${TAG}|g" "k8s/manifests/${SVC}-sidecar-lb.yaml" | \
+    sed "s|${BENCH}-${SVC}:latest|${REGISTRY}/${BENCH}-${SVC}:${TAG}|g" > "$TMP_DIR/${SVC}-sidecar-lb.yaml"
+    if [ "$SIDECAR_DEBUG" = "1" ]; then
+      sidecar_debug_patch_workload_yaml "$TMP_DIR/${SVC}-sidecar-lb.yaml"
+    fi
+    kubectl apply -f "$TMP_DIR/${SVC}-sidecar-lb.yaml"
+    kubectl_wait_ready_or_fail "${SVC}" "${WAIT_TIMEOUT}"
+  done
+
+  sed "s|sidecar-sidecar:latest|${REGISTRY}/sidecar-sidecar:${TAG}|g" k8s/manifests/ingress-lb.yaml > "$TMP_DIR/ingress-lb.yaml"
+  if [ "$SIDECAR_DEBUG" = "1" ]; then
+    sidecar_debug_patch_workload_yaml "$TMP_DIR/ingress-lb.yaml"
+  fi
+  kubectl apply -f "$TMP_DIR/ingress-lb.yaml"
   kubectl_wait_ready_or_fail ingress 30
 elif [ "$MODE" = "envoy" ]; then
   ENVOY_STATS_IMAGE="${REGISTRY}/envoy-stats-exporter:${TAG}"
@@ -1916,6 +2230,11 @@ if [ "$MODE" = "sidecar" ]; then
   kubectl delete service -l app=ingress --ignore-not-found
   kubectl delete configmap sidecar-configs --ignore-not-found
 fi
+if [ "$MODE" = "sidecar-lb" ]; then
+  kubectl delete pod -l app=ingress --ignore-not-found --wait=true
+  kubectl delete service -l app=ingress --ignore-not-found
+  kubectl delete configmap sidecar-lb-configs --ignore-not-found
+fi
 if [ "$MODE" = "envoy" ]; then
   kubectl delete pod -l app=ingress --ignore-not-found --wait=true
   kubectl delete service -l app=ingress --ignore-not-found
@@ -1955,7 +2274,7 @@ for svc in ` + trimmed + `; do
   for pod in $(kubectl get pods -l app=$svc -o jsonpath='{.items[*].metadata.name}'); do
     (
       kubectl logs "$pod" > "$OUTPUT_DIR/${pod}.log" 2>&1
-      if [ "$MODE" = "sidecar" ]; then
+      if [ "$MODE" = "sidecar" ] || [ "$MODE" = "sidecar-lb" ]; then
         kubectl logs "$pod" -c sidecar > "$OUTPUT_DIR/${pod}-sidecar.log" 2>&1
       fi
       if [ "$MODE" = "envoy" ]; then
@@ -1967,7 +2286,7 @@ for svc in ` + trimmed + `; do
 done
 for pid in "${log_pids[@]}"; do wait "$pid" || true; done
 
-if [ "$MODE" = "sidecar" ]; then
+if [ "$MODE" = "sidecar" ] || [ "$MODE" = "sidecar-lb" ]; then
   declare -a ing_pids=()
   for pod in $(kubectl get pods -l app=ingress -o jsonpath='{.items[*].metadata.name}'); do
     (
@@ -2005,7 +2324,7 @@ if [ "$MODE" = "envoy" ]; then
   for pid in "${stats_pids[@]}"; do wait "$pid" || true; done
 fi
 
-if [ "$MODE" = "sidecar" ] && [ "${COLLECT_SIDECAR_NANOLOG:-}" = "1" ]; then
+if { [ "$MODE" = "sidecar" ] || [ "$MODE" = "sidecar-lb" ]; } && [ "${COLLECT_SIDECAR_NANOLOG:-}" = "1" ]; then
   declare -a cp_pids=()
   for svc in ` + trimmed + `; do
     for pod in $(kubectl get pods -l app=$svc -o jsonpath='{.items[*].metadata.name}' 2>/dev/null); do
