@@ -1,0 +1,61 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sidecar-lb-configs
+data:
+  frontend.yaml: |
+    mapping:
+      f1:
+      f2:
+    ring_size: 1000
+    buffer_count: 4096
+    buffer_size: 80000
+    num_threads: 1
+    egress_listener_port: 4000
+    ingress_listener_port: 3000
+    ingress_upstream_host: localhost
+    ingress_upstream_port: 2000
+    report_latency: True
+    name: frontend
+    is_frontend: True
+    frontend_pool_connections: 200
+    cpu_count: 5
+    over_commitment: 0.0
+    
+  ingress.yaml: |
+    routing:
+      f1:
+        upstream:
+          host: leaf-diverse-frontend
+          port: 3000
+        slo: 71
+        priority: 0
+      f2:
+        upstream:
+          host: leaf-diverse-frontend
+          port: 3000
+        slo: 143
+        priority: 0
+    mapping:
+      f1:
+        downstreams:
+          - f1
+        listen_port: 3000
+      f2:
+        downstreams:
+          - f2
+        listen_port: 3001
+    ring_size: 4000
+    buffer_count: 16384
+    buffer_size: 10000
+    num_threads: 2
+    ingress_pool_connections: 200
+    egress_listener_port: 3000
+    ingress_listener_port: 4000
+    ingress_upstream_host: localhost
+    ingress_upstream_port: 2000
+    is_ingress: True
+    is_frontend: False
+    report_latency: True
+    name: ingress
+    

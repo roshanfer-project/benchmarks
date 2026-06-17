@@ -15,7 +15,44 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/reflection"
+	"math/rand"
+	"os"
+	"strconv"
+	"sync"
+	"time"
 )
+
+var benchRng struct {
+	mu sync.Mutex
+	r  *rand.Rand
+}
+
+func init() {
+	seed := time.Now().UnixNano()
+	if s := os.Getenv("ROUTING_SEED"); s != "" {
+		if v, err := strconv.ParseInt(s, 10, 64); err == nil {
+			seed = v
+		}
+	}
+	benchRng.r = rand.New(rand.NewSource(seed))
+}
+
+func benchFloat() float64 {
+	benchRng.mu.Lock()
+	defer benchRng.mu.Unlock()
+	return benchRng.r.Float64()
+}
+
+func benchExpBusyLoop(mean float64) {
+	benchRng.mu.Lock()
+	rt := benchRng.r.ExpFloat64() * mean
+	benchRng.mu.Unlock()
+	repeats := int(rt * 320)
+	if repeats < 1 {
+		repeats = 1
+	}
+	utils.BusyLoop(repeats)
+}
 
 
 type Server struct {
@@ -43,7 +80,7 @@ func (s *Server) Run() error {
 	var priceTable *rajomon.PriceTable
 	var dagorNode *dagor.Dagor
 	if useRajomon && !meshProxy {
-		priceTable = rajomoninit.GetPriceTable(serviceName, false)
+		priceTable = rajomoninit.GetPriceTable(rajomoninit.InstanceName(serviceName), false)
 	}
 	if useDagor && !meshProxy {
 		dagorNode = dagorinit.GetDagorNode(serviceName, false, false)
@@ -87,8 +124,8 @@ func (s *Server) Run() error {
 }
 
 
-func (s *Server) F4(ctx context.Context, req *pb.Request) (*pb.Response, error) {
-	utils.BusyLoop(256)
+func (s *Server) F5(ctx context.Context, req *pb.Request) (*pb.Response, error) {
+	benchExpBusyLoop(1.5)
 
 	md, _ := metadata.FromIncomingContext(ctx)
 	api := ""

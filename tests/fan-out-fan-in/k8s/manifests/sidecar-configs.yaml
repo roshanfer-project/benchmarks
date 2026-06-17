@@ -5,14 +5,15 @@ metadata:
 data:
   backend1.yaml: |
     routing:
-      benchmark.shared/f4:
+      benchmark.shared/f5:
         upstream:
           host: fan-out-fan-in-shared
           port: 3000
     mapping:
       benchmark.backend1/f2:
         downstreams:
-          - benchmark.shared/f4
+          - benchmark.shared/f5
+      benchmark.backend1/f3:
     ring_size: 1000
     buffer_count: 1024
     buffer_size: 80000
@@ -23,19 +24,19 @@ data:
     ingress_upstream_port: 2000
     report_latency: True
     name: backend1
-    cpu_count: 2
+    cpu_count: 3
     over_commitment: 1.0
     
   backend2.yaml: |
     routing:
-      benchmark.shared/f4:
+      benchmark.shared/f5:
         upstream:
           host: fan-out-fan-in-shared
           port: 3000
     mapping:
-      benchmark.backend2/f3:
+      benchmark.backend2/f4:
         downstreams:
-          - benchmark.shared/f4
+          - benchmark.shared/f5
     ring_size: 1000
     buffer_count: 1024
     buffer_size: 80000
@@ -46,7 +47,7 @@ data:
     ingress_upstream_port: 2000
     report_latency: True
     name: backend2
-    cpu_count: 2
+    cpu_count: 3
     over_commitment: 1.0
     
   frontend.yaml: |
@@ -55,18 +56,22 @@ data:
         upstream:
           host: fan-out-fan-in-backend1
           port: 3000
-      benchmark.backend2/f3:
+      benchmark.backend2/f4:
         upstream:
           host: fan-out-fan-in-backend2
+          port: 3000
+      benchmark.backend1/f3:
+        upstream:
+          host: fan-out-fan-in-backend1
           port: 3000
     mapping:
       f1:
         downstreams:
           - benchmark.backend1/f2
-          - benchmark.backend2/f3
+          - benchmark.backend2/f4
       g1:
         downstreams:
-          - benchmark.backend1/f2
+          - benchmark.backend1/f3
     ring_size: 1000
     buffer_count: 4096
     buffer_size: 80000
@@ -84,7 +89,7 @@ data:
     
   shared.yaml: |
     mapping:
-      benchmark.shared/f4:
+      benchmark.shared/f5:
     ring_size: 1000
     buffer_count: 1024
     buffer_size: 80000
@@ -95,7 +100,7 @@ data:
     ingress_upstream_port: 2000
     report_latency: True
     name: shared
-    cpu_count: 3
+    cpu_count: 4
     over_commitment: 0.0
     
   ingress.yaml: |

@@ -9,10 +9,11 @@ message Response { string payload = 1; }
 
 service backend1 {
   rpc f2(Request) returns (Response);
+  rpc f3(Request) returns (Response);
 }
 
 service backend2 {
-  rpc f3(Request) returns (Response);
+  rpc f4(Request) returns (Response);
 }
 
 service frontend {
@@ -21,6 +22,6 @@ service frontend {
 }
 
 service shared {
-  rpc f4(Request) returns (Response);
+  rpc f5(Request) returns (Response);
 }
 

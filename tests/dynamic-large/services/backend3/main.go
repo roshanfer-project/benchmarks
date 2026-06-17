@@ -45,7 +45,7 @@ func (s *Server) Run() error {
 	var priceTable *rajomon.PriceTable
 	var dagorNode *dagor.Dagor
 	if useRajomon && !meshProxy {
-		priceTable = rajomoninit.GetPriceTable(serviceName, false)
+		priceTable = rajomoninit.GetPriceTable(rajomoninit.InstanceName(serviceName), false)
 	}
 	if useDagor && !meshProxy {
 		dagorNode = dagorinit.GetDagorNode(serviceName, false, false)

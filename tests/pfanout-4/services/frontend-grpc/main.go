@@ -41,7 +41,7 @@ func (s *Server) Run() error {
 	var pt *rajomon.PriceTable
 	var dn *dagor.Dagor
 	if useRajomon {
-		pt = rajomoninit.GetPriceTable(serviceName, false)
+		pt = rajomoninit.GetPriceTable(rajomoninit.InstanceName(serviceName), false)
 		opts = append(opts, grpc.ChainUnaryInterceptor(
 			utils.ContextPropagationInterceptor(),
 			utils.NewCounterState(serviceName).GetInterceptor(),

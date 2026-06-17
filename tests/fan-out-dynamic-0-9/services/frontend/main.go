@@ -41,6 +41,17 @@ func benchFloat() float64 {
 	return benchRng.r.Float64()
 }
 
+func benchExpBusyLoop(mean float64) {
+	benchRng.mu.Lock()
+	rt := benchRng.r.ExpFloat64() * mean
+	benchRng.mu.Unlock()
+	repeats := int(rt * 320)
+	if repeats < 1 {
+		repeats = 1
+	}
+	utils.BusyLoop(repeats)
+}
+
 
 type Server struct {
 	Backend1Client pb.Backend1Client
@@ -79,8 +90,9 @@ func (s *Server) Run() error {
 	mux := http.NewServeMux()
 	var baseHandler http.Handler = http.HandlerFunc(s.handler)
 	plain := utils.GetEnvVar("plain", false) == "true"
+	plainLb := utils.GetEnvVar("plain_lb", false) == "true"
 	queuingExport := utils.GetEnvVar("queuing_export", false) == "true"
-	if plain || (sidecar && queuingExport) {
+	if plain || plainLb || (sidecar && queuingExport) {
 		counter := utils.NewCounterState(serviceName)
 		baseHandler = counter.GetHTTP1Middleware()(baseHandler)
 	}

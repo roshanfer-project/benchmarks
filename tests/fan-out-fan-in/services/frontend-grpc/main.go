@@ -38,7 +38,7 @@ func (s *Server) Run() error {
 	var pt *rajomon.PriceTable
 	var dn *dagor.Dagor
 	if useRajomon {
-		pt = rajomoninit.GetPriceTable(serviceName, false)
+		pt = rajomoninit.GetPriceTable(rajomoninit.InstanceName(serviceName), false)
 		opts = append(opts, grpc.ChainUnaryInterceptor(
 			utils.ContextPropagationInterceptor(),
 			utils.NewCounterState(serviceName).GetInterceptor(),
@@ -99,7 +99,7 @@ func (s *Server) F1(ctx context.Context, req *pb.Request) (*pb.Response, error) 
 			log.Error("downstream call failed", "error", err)
 			return nil, err
 		}
-		_, err = s.Backend2Client.F3(ctx, req)
+		_, err = s.Backend2Client.F4(ctx, req)
 		if err != nil {
 			log.Error("downstream call failed", "error", err)
 			return nil, err
@@ -122,7 +122,7 @@ func (s *Server) G1(ctx context.Context, req *pb.Request) (*pb.Response, error) 
 	switch api {
 	case "g1":
 		var err error
-		_, err = s.Backend1Client.F2(ctx, req)
+		_, err = s.Backend1Client.F3(ctx, req)
 		if err != nil {
 			log.Error("downstream call failed", "error", err)
 			return nil, err

@@ -53,8 +53,9 @@ func (s *Server) Run() error {
 	mux := http.NewServeMux()
 	var baseHandler http.Handler = http.HandlerFunc(s.handler)
 	plain := utils.GetEnvVar("plain", false) == "true"
+	plainLb := utils.GetEnvVar("plain_lb", false) == "true"
 	queuingExport := utils.GetEnvVar("queuing_export", false) == "true"
-	if plain || (sidecar && queuingExport) {
+	if plain || plainLb || (sidecar && queuingExport) {
 		counter := utils.NewCounterState(serviceName)
 		baseHandler = counter.GetHTTP1Middleware()(baseHandler)
 	}
@@ -109,7 +110,7 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), 500)
 			return
 		}
-		_, err = s.Backend2Client.F3(ctx, req)
+		_, err = s.Backend2Client.F4(ctx, req)
 		if err != nil {
 			log.Error("downstream call failed", "error", err)
 			http.Error(w, err.Error(), 500)
@@ -123,7 +124,7 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 
 		req := &pb.Request{}
 		var err error
-		_, err = s.Backend1Client.F2(ctx, req)
+		_, err = s.Backend1Client.F3(ctx, req)
 		if err != nil {
 			log.Error("downstream call failed", "error", err)
 			http.Error(w, err.Error(), 500)

@@ -43,6 +43,17 @@ func benchFloat() float64 {
 	return benchRng.r.Float64()
 }
 
+func benchExpBusyLoop(mean float64) {
+	benchRng.mu.Lock()
+	rt := benchRng.r.ExpFloat64() * mean
+	benchRng.mu.Unlock()
+	repeats := int(rt * 320)
+	if repeats < 1 {
+		repeats = 1
+	}
+	utils.BusyLoop(repeats)
+}
+
 
 type Server struct {
 	pb.UnimplementedBackend1Server
@@ -71,7 +82,7 @@ func (s *Server) Run() error {
 	var priceTable *rajomon.PriceTable
 	var dagorNode *dagor.Dagor
 	if useRajomon && !meshProxy {
-		priceTable = rajomoninit.GetPriceTable(serviceName, false)
+		priceTable = rajomoninit.GetPriceTable(rajomoninit.InstanceName(serviceName), false)
 	}
 	if useDagor && !meshProxy {
 		dagorNode = dagorinit.GetDagorNode(serviceName, false, false)

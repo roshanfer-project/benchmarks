@@ -49,6 +49,34 @@ data:
     
               http2_protocol_options: {}
     
+      - name: listener_inbound_f3
+        address:
+          socket_address: { address: 0.0.0.0, port_value: 3001 }
+        filter_chains:
+        - filters:
+          - name: envoy.filters.network.http_connection_manager
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+              stat_prefix: inbound_f3
+              generate_request_id: false
+              http_filters:
+              - name: envoy.filters.http.router
+                typed_config:
+                  "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+              route_config:
+                virtual_hosts:
+                - name: local
+                  domains: ["*"]
+                  routes:
+                  - match: { prefix: "/benchmark.backend1/f3" }
+                    route: { cluster: local_app, timeout: 10s }
+                  - match: { prefix: "/f3" }
+                    route: { cluster: local_app, timeout: 10s }
+                  - match: { prefix: "/" }
+                    direct_response: { status: 404, body: { inline_string: "unknown inbound path" } }
+    
+              http2_protocol_options: {}
+    
       - name: listener_outbound
         address:
           socket_address: { address: 0.0.0.0, port_value: 4000 }
@@ -68,8 +96,8 @@ data:
                 - name: egress
                   domains: ["*"]
                   routes:
-                  - match: { prefix: "/benchmark.shared/f4" }
-                    route: { cluster: shared-f4-in, timeout: 10s }
+                  - match: { prefix: "/benchmark.shared/f5" }
+                    route: { cluster: shared-f5-in, timeout: 10s }
                   - match: { prefix: "/" }
                     direct_response: { status: 404, body: { inline_string: "no egress route" } }
     
@@ -88,12 +116,12 @@ data:
                   socket_address: { address: 127.0.0.1, port_value: 2000 }
         http2_protocol_options: {}
     
-      - name: shared-f4-in
+      - name: shared-f5-in
         connect_timeout: 2s
         type: STRICT_DNS
         lb_policy: ROUND_ROBIN
         load_assignment:
-          cluster_name: shared-f4-in
+          cluster_name: shared-f5-in
           endpoints:
           - lb_endpoints:
             - endpoint:
@@ -123,7 +151,7 @@ data:
     
     static_resources:
       listeners:
-      - name: listener_inbound_f3
+      - name: listener_inbound_f4
         address:
           socket_address: { address: 0.0.0.0, port_value: 3000 }
         filter_chains:
@@ -131,7 +159,7 @@ data:
           - name: envoy.filters.network.http_connection_manager
             typed_config:
               "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
-              stat_prefix: inbound_f3
+              stat_prefix: inbound_f4
               generate_request_id: false
               http_filters:
               - name: envoy.filters.http.router
@@ -142,9 +170,9 @@ data:
                 - name: local
                   domains: ["*"]
                   routes:
-                  - match: { prefix: "/benchmark.backend2/f3" }
+                  - match: { prefix: "/benchmark.backend2/f4" }
                     route: { cluster: local_app, timeout: 10s }
-                  - match: { prefix: "/f3" }
+                  - match: { prefix: "/f4" }
                     route: { cluster: local_app, timeout: 10s }
                   - match: { prefix: "/" }
                     direct_response: { status: 404, body: { inline_string: "unknown inbound path" } }
@@ -170,8 +198,8 @@ data:
                 - name: egress
                   domains: ["*"]
                   routes:
-                  - match: { prefix: "/benchmark.shared/f4" }
-                    route: { cluster: shared-f4-in, timeout: 10s }
+                  - match: { prefix: "/benchmark.shared/f5" }
+                    route: { cluster: shared-f5-in, timeout: 10s }
                   - match: { prefix: "/" }
                     direct_response: { status: 404, body: { inline_string: "no egress route" } }
     
@@ -190,12 +218,12 @@ data:
                   socket_address: { address: 127.0.0.1, port_value: 2000 }
         http2_protocol_options: {}
     
-      - name: shared-f4-in
+      - name: shared-f5-in
         connect_timeout: 2s
         type: STRICT_DNS
         lb_policy: ROUND_ROBIN
         load_assignment:
-          cluster_name: shared-f4-in
+          cluster_name: shared-f5-in
           endpoints:
           - lb_endpoints:
             - endpoint:
@@ -300,8 +328,10 @@ data:
                   routes:
                   - match: { prefix: "/benchmark.backend1/f2" }
                     route: { cluster: backend1-f2-in, timeout: 10s }
-                  - match: { prefix: "/benchmark.backend2/f3" }
-                    route: { cluster: backend2-f3-in, timeout: 10s }
+                  - match: { prefix: "/benchmark.backend2/f4" }
+                    route: { cluster: backend2-f4-in, timeout: 10s }
+                  - match: { prefix: "/benchmark.backend1/f3" }
+                    route: { cluster: backend1-f3-in, timeout: 10s }
                   - match: { prefix: "/" }
                     direct_response: { status: 404, body: { inline_string: "no egress route" } }
     
@@ -335,12 +365,12 @@ data:
         http2_protocol_options:
           max_concurrent_streams: 100
     
-      - name: backend2-f3-in
+      - name: backend2-f4-in
         connect_timeout: 2s
         type: STRICT_DNS
         lb_policy: ROUND_ROBIN
         load_assignment:
-          cluster_name: backend2-f3-in
+          cluster_name: backend2-f4-in
           endpoints:
           - lb_endpoints:
             - endpoint:
@@ -348,6 +378,22 @@ data:
                   socket_address:
                     address: fan-out-fan-in-backend2
                     port_value: 3000
+        http2_protocol_options:
+          max_concurrent_streams: 100
+    
+      - name: backend1-f3-in
+        connect_timeout: 2s
+        type: STRICT_DNS
+        lb_policy: ROUND_ROBIN
+        load_assignment:
+          cluster_name: backend1-f3-in
+          endpoints:
+          - lb_endpoints:
+            - endpoint:
+                address:
+                  socket_address:
+                    address: fan-out-fan-in-backend1
+                    port_value: 3001
         http2_protocol_options:
           max_concurrent_streams: 100
     
@@ -370,7 +416,7 @@ data:
     
     static_resources:
       listeners:
-      - name: listener_inbound_f4
+      - name: listener_inbound_f5
         address:
           socket_address: { address: 0.0.0.0, port_value: 3000 }
         filter_chains:
@@ -378,7 +424,7 @@ data:
           - name: envoy.filters.network.http_connection_manager
             typed_config:
               "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
-              stat_prefix: inbound_f4
+              stat_prefix: inbound_f5
               generate_request_id: false
               http_filters:
               - name: envoy.filters.http.router
@@ -389,9 +435,9 @@ data:
                 - name: local
                   domains: ["*"]
                   routes:
-                  - match: { prefix: "/benchmark.shared/f4" }
+                  - match: { prefix: "/benchmark.shared/f5" }
                     route: { cluster: local_app, timeout: 10s }
-                  - match: { prefix: "/f4" }
+                  - match: { prefix: "/f5" }
                     route: { cluster: local_app, timeout: 10s }
                   - match: { prefix: "/" }
                     direct_response: { status: 404, body: { inline_string: "unknown inbound path" } }

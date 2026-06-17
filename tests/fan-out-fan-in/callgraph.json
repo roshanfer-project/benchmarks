@@ -32,35 +32,51 @@
       "interfaces": [
         {
           "name": "f2",
-          "avg_rt": 0.4,
+          "exponential": {
+            "mean": 0.8
+          },
+          "priority": 0
+        },
+        {
+          "name": "f3",
+          "exponential": {
+            "mean": 2
+          },
           "priority": 0
         }
       ],
-      "cpu": 2,
+      "cpu": 3,
+      "replicas": 3,
       "over_commitment": 1
     },
     {
       "id": "backend2",
       "interfaces": [
         {
-          "name": "f3",
-          "avg_rt": 0.4,
+          "name": "f4",
+          "exponential": {
+            "mean": 0.5
+          },
           "priority": 0
         }
       ],
-      "cpu": 2,
+      "cpu": 3,
+      "replicas": 3,
       "over_commitment": 1
     },
     {
       "id": "shared",
       "interfaces": [
         {
-          "name": "f4",
-          "avg_rt": 0.8,
+          "name": "f5",
+          "exponential": {
+            "mean": 1.5
+          },
           "priority": 0
         }
       ],
-      "cpu": 3
+      "cpu": 4,
+      "replicas": 4
     }
   ],
   "edges": [
@@ -74,7 +90,7 @@
     },
     {
       "source": "frontend:g1",
-      "target": "backend1:f2",
+      "target": "backend1:f3",
       "api": "g1"
     },
     {
@@ -84,17 +100,17 @@
     },
     {
       "source": "frontend:f1",
-      "target": "backend2:f3",
+      "target": "backend2:f4",
       "api": "f1"
     },
     {
       "source": "backend1:f2",
-      "target": "shared:f4",
+      "target": "shared:f5",
       "api": "f1"
     },
     {
-      "source": "backend2:f3",
-      "target": "shared:f4",
+      "source": "backend2:f4",
+      "target": "shared:f5",
       "api": "f1"
     }
   ]

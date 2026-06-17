@@ -1,0 +1,269 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend1
+  labels:
+    app: backend1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend1
+  template:
+    metadata:
+      labels:
+        app: backend1
+    spec:
+      containers:
+      - name: app
+        image: fan-out-3-backend1:latest
+        resources:
+          requests:
+            cpu: "3"
+          limits:
+            cpu: "3"
+        env:
+        - name: GOMAXPROCS
+          value: "3"
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        envFrom:
+        - configMapRef:
+            name: fan-out-3-config
+        ports:
+        - containerPort: 2000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fan-out-3-backend1
+  labels:
+    app: backend1
+spec:
+  clusterIP: None
+  selector:
+    app: backend1
+  ports:
+  - name: grpc
+    port: 2000
+    targetPort: 2000
+    protocol: TCP
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend2
+  labels:
+    app: backend2
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend2
+  template:
+    metadata:
+      labels:
+        app: backend2
+    spec:
+      containers:
+      - name: app
+        image: fan-out-3-backend2:latest
+        resources:
+          requests:
+            cpu: "3"
+          limits:
+            cpu: "3"
+        env:
+        - name: GOMAXPROCS
+          value: "3"
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        envFrom:
+        - configMapRef:
+            name: fan-out-3-config
+        ports:
+        - containerPort: 2000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fan-out-3-backend2
+  labels:
+    app: backend2
+spec:
+  clusterIP: None
+  selector:
+    app: backend2
+  ports:
+  - name: grpc
+    port: 2000
+    targetPort: 2000
+    protocol: TCP
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend3
+  labels:
+    app: backend3
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend3
+  template:
+    metadata:
+      labels:
+        app: backend3
+    spec:
+      containers:
+      - name: app
+        image: fan-out-3-backend3:latest
+        resources:
+          requests:
+            cpu: "4"
+          limits:
+            cpu: "4"
+        env:
+        - name: GOMAXPROCS
+          value: "4"
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        envFrom:
+        - configMapRef:
+            name: fan-out-3-config
+        ports:
+        - containerPort: 2000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fan-out-3-backend3
+  labels:
+    app: backend3
+spec:
+  clusterIP: None
+  selector:
+    app: backend3
+  ports:
+  - name: grpc
+    port: 2000
+    targetPort: 2000
+    protocol: TCP
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend-grpc
+  labels:
+    app: frontend-grpc
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: frontend-grpc
+  template:
+    metadata:
+      labels:
+        app: frontend-grpc
+    spec:
+      containers:
+      - name: app
+        image: fan-out-3-frontend-grpc:latest
+        resources:
+          requests:
+            cpu: "2"
+          limits:
+            cpu: "2"
+        env:
+        - name: GOMAXPROCS
+          value: "2"
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        envFrom:
+        - configMapRef:
+            name: fan-out-3-config
+        ports:
+        - containerPort: 2000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fan-out-3-frontend-grpc
+  labels:
+    app: frontend-grpc
+spec:
+  clusterIP: None
+  selector:
+    app: frontend-grpc
+  ports:
+  - name: grpc
+    port: 2000
+    targetPort: 2000
+    protocol: TCP
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rajomon-client
+  labels:
+    app: rajomon-client
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rajomon-client
+  template:
+    metadata:
+      labels:
+        app: rajomon-client
+    spec:
+      containers:
+      - name: app
+        image: fan-out-3-rajomon-client:latest
+        resources:
+          requests:
+            cpu: "2"
+          limits:
+            cpu: "2"
+        env:
+        - name: GOMAXPROCS
+          value: "2"
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        envFrom:
+        - configMapRef:
+            name: fan-out-3-config
+        ports:
+        - containerPort: 2007
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fan-out-3-entry
+  labels:
+    app: rajomon-client
+spec:
+  type: NodePort
+  selector:
+    app: rajomon-client
+  ports:
+  - name: http
+    port: 2007
+    targetPort: 2007
+    nodePort: 3000
+    protocol: TCP

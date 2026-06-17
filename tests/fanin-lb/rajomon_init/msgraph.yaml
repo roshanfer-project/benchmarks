@@ -1,0 +1,18 @@
+applications:
+- callgraph:
+    backend1:
+    - shared
+    backend2:
+    - shared
+    frontend-grpc:
+    - backend1
+    - backend2
+    shared: []
+  entrypoint: frontend-grpc
+  interface: f1
+- callgraph:
+    backend1: []
+    frontend-grpc:
+    - backend1
+  entrypoint: frontend-grpc
+  interface: g1

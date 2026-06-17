@@ -43,6 +43,17 @@ func benchFloat() float64 {
 	return benchRng.r.Float64()
 }
 
+func benchExpBusyLoop(mean float64) {
+	benchRng.mu.Lock()
+	rt := benchRng.r.ExpFloat64() * mean
+	benchRng.mu.Unlock()
+	repeats := int(rt * 320)
+	if repeats < 1 {
+		repeats = 1
+	}
+	utils.BusyLoop(repeats)
+}
+
 
 type Server struct {
 	pb.UnimplementedFrontendServer
@@ -64,7 +75,7 @@ func (s *Server) Run() error {
 	var pt *rajomon.PriceTable
 	var dn *dagor.Dagor
 	if useRajomon {
-		pt = rajomoninit.GetPriceTable(serviceName, false)
+		pt = rajomoninit.GetPriceTable(rajomoninit.InstanceName(serviceName), false)
 		opts = append(opts, grpc.ChainUnaryInterceptor(
 			utils.ContextPropagationInterceptor(),
 			utils.NewCounterState(serviceName).GetInterceptor(),

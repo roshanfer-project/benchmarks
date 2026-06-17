@@ -10,12 +10,12 @@ spec:
     image: fan-out-fan-in-backend2:latest
     resources:
       requests:
-        cpu: "2"
+        cpu: "3"
       limits:
-        cpu: "2"
+        cpu: "3"
     env:
     - name: GOMAXPROCS
-      value: "2"
+      value: "3"
     envFrom:
     - configMapRef:
         name: fan-out-fan-in-config

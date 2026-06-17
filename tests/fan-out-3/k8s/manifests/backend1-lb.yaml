@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend1
+  labels:
+    app: backend1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend1
+  template:
+    metadata:
+      labels:
+        app: backend1
+    spec:
+      containers:
+      - name: app
+        image: fan-out-3-backend1:latest
+        resources:
+          requests:
+            cpu: "3"
+          limits:
+            cpu: "3"
+        env:
+        - name: GOMAXPROCS
+          value: "3"
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        envFrom:
+        - configMapRef:
+            name: fan-out-3-config
+        ports:
+        - containerPort: 2000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fan-out-3-backend1
+  labels:
+    app: backend1
+spec:
+  clusterIP: None
+  selector:
+    app: backend1
+  ports:
+  - name: http
+    port: 2000
+    targetPort: 2000
+    protocol: TCP

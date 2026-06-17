@@ -11,12 +11,12 @@ spec:
     image: fan-out-fan-in-backend1:latest
     resources:
       requests:
-        cpu: "2"
+        cpu: "3"
       limits:
-        cpu: "2"
+        cpu: "3"
     env:
     - name: GOMAXPROCS
-      value: "2"
+      value: "3"
     envFrom:
     - configMapRef:
         name: fan-out-fan-in-config
@@ -52,12 +52,12 @@ spec:
     image: fan-out-fan-in-backend2:latest
     resources:
       requests:
-        cpu: "2"
+        cpu: "3"
       limits:
-        cpu: "2"
+        cpu: "3"
     env:
     - name: GOMAXPROCS
-      value: "2"
+      value: "3"
     envFrom:
     - configMapRef:
         name: fan-out-fan-in-config
@@ -134,12 +134,12 @@ spec:
     image: fan-out-fan-in-shared:latest
     resources:
       requests:
-        cpu: "3"
+        cpu: "4"
       limits:
-        cpu: "3"
+        cpu: "4"
     env:
     - name: GOMAXPROCS
-      value: "3"
+      value: "4"
     envFrom:
     - configMapRef:
         name: fan-out-fan-in-config

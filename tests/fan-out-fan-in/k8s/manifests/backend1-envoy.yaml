@@ -10,12 +10,12 @@ spec:
     image: fan-out-fan-in-backend1:latest
     resources:
       requests:
-        cpu: "2"
+        cpu: "3"
       limits:
-        cpu: "2"
+        cpu: "3"
     env:
     - name: GOMAXPROCS
-      value: "2"
+      value: "3"
     envFrom:
     - configMapRef:
         name: fan-out-fan-in-config
@@ -42,6 +42,7 @@ spec:
       subPath: backend1.yaml
     ports:
     - containerPort: 3000
+    - containerPort: 3001
     - containerPort: 4000
     - containerPort: 9901
   - name: envoy-stats
@@ -80,6 +81,10 @@ spec:
   - name: envoy-ingress-3000
     port: 3000
     targetPort: 3000
+    protocol: TCP
+  - name: envoy-ingress-3001
+    port: 3001
+    targetPort: 3001
     protocol: TCP
   - name: envoy-egress
     port: 4000
