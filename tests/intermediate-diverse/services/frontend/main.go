@@ -77,7 +77,6 @@ func (s *Server) Run() error {
 }
 
 func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
 	sidecar := utils.GetEnvVar("sidecar", false) == "true"
 	envoy := utils.GetEnvVar("envoy", false) == "true"
 	var rpcID, rpcLocalID string
@@ -103,6 +102,7 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	path := strings.TrimPrefix(r.URL.Path, "/")
+	ctx := r.Context()
 	switch path {
 	case "f1":
 		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "f1", "rpc-id", rpcID, "rpc-local-id", rpcLocalID))
@@ -110,6 +110,7 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 
 		req := &pb.Request{}
 		var err error
+		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "f1", "rpc-id", rpcID, "rpc-local-id", rpcLocalID))
 		_, err = s.Backend1Client.B1(ctx, req)
 		if err != nil {
 			log.Error("downstream call failed", "error", err)
@@ -124,6 +125,7 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 
 		req := &pb.Request{}
 		var err error
+		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "f2", "rpc-id", rpcID, "rpc-local-id", rpcLocalID))
 		_, err = s.Backend2Client.B2(ctx, req)
 		if err != nil {
 			log.Error("downstream call failed", "error", err)
@@ -138,6 +140,7 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 
 		req := &pb.Request{}
 		var err error
+		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "f3", "rpc-id", rpcID, "rpc-local-id", rpcLocalID))
 		_, err = s.Backend3Client.B3(ctx, req)
 		if err != nil {
 			log.Error("downstream call failed", "error", err)

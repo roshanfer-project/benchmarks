@@ -1501,6 +1501,7 @@ spec:
         args:
           - "--config.file=/etc/prometheus/prometheus.yml"
           - "--storage.tsdb.path=/prometheus"
+          - "--enable-feature=native-histograms"
         ports:
           - containerPort: 9090
         volumeMounts:

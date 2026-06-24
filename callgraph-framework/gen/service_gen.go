@@ -104,6 +104,7 @@ func writeUtils(pg *ParsedGraph, outDir string) error {
 			return err
 		}
 	}
+	_ = os.Remove(filepath.Join(utilsDir, "queuing_delay.go"))
 	return nil
 }
 
@@ -246,11 +247,20 @@ import (
 	"github.com/prometheus/client_golang/prometheus/push"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/tap"
 {{if .WRR}}	"google.golang.org/grpc/orca"
 {{end}}
 )
 
 var logCounter = GetLogger("counter")
+
+type tapTimeKey struct{}
+
+func TapHandler(serviceName string) tap.ServerInHandle {
+	return func(ctx context.Context, _ *tap.Info) (context.Context, error) {
+		return context.WithValue(ctx, tapTimeKey{}, time.Now()), nil
+	}
+}
 
 func replicaInstanceSuffix(serviceName string) string {
 	if GetEnvVar("plain_lb", false) != "true" {
@@ -273,6 +283,7 @@ type CounterState struct {
 	outReq                  map[string]int64
 	maxQueue                map[string]int64
 	queueIntegral           map[string]float64
+	queuingDelay            *prometheus.HistogramVec
 	lock                    sync.Mutex
 	startOnce               sync.Once
 	startTime               time.Time
@@ -330,10 +341,20 @@ func NewCounterState(serviceName string) *CounterState {
 		prometheus.GaugeOpts{Name: "failed_rpc_counter", Help: "Failed RPC counter for each RPC method"},
 		[]string{"api"},
 	)
+	s.queuingDelay = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:                            "queuing_delay_microseconds",
+			Help:                            "gRPC queue delay before CounterState (tap to interceptor entry), in microseconds",
+			NativeHistogramBucketFactor:     1.1,
+			NativeHistogramMaxBucketNumber:  100,
+		},
+		[]string{"api"},
+	)
 	s.registry.MustRegister(s.maxQueueGauge)
 	s.registry.MustRegister(s.avgQueueGauge)
 	s.registry.MustRegister(s.acceptedRPCCounterGauge)
 	s.registry.MustRegister(s.failedRPCCounterGauge)
+	s.registry.MustRegister(s.queuingDelay)
 	return s
 }
 
@@ -464,6 +485,9 @@ func (s *CounterState) recordOrcaMetrics(ctx context.Context, isError bool) {
 			panic("api not found in metadata")
 		}
 		api := keys[0]
+		if t0, ok := ctx.Value(tapTimeKey{}).(time.Time); ok {
+			s.queuingDelay.WithLabelValues(api).Observe(float64(time.Since(t0).Microseconds()))
+		}
 		s.IncrementInReq(api)
 		s.IncrementAcceptedRPCCounter(api)
 		resp, err := handler(ctx, req)
@@ -585,6 +609,8 @@ func (s *CounterState) PushAll() {
 		}
 		if err := pusher.Push(); err != nil {
 			logCounter.Error("Could not push to Pushgateway", "error", err)
+		} else {
+			s.queuingDelay.Reset()
 		}
 	}
 }
@@ -934,7 +960,6 @@ func (s *Server) Run() error {
 }
 
 func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
 	sidecar := utils.GetEnvVar("sidecar", false) == "true"
 	envoy := utils.GetEnvVar("envoy", false) == "true"
 	var rpcID, rpcLocalID string
@@ -960,6 +985,7 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	path := strings.TrimPrefix(r.URL.Path, "/")
+	ctx := r.Context()
 	switch path {
 {{range .Handlers}}	case "{{.Interface}}":
 		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "{{.Interface}}", "rpc-id", rpcID, "rpc-local-id", rpcLocalID))
@@ -1009,7 +1035,8 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 		}
 {{else if .Downstreams}}		req := &pb.Request{}
 		var err error
-{{range .Downstreams}}		_, err = s.{{.ProtoMicroservice}}Client.{{.MethodName}}(ctx, req)
+{{$api := .Interface}}{{range .Downstreams}}		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "{{$api}}", "rpc-id", rpcID, "rpc-local-id", rpcLocalID))
+		_, err = s.{{.ProtoMicroservice}}Client.{{.MethodName}}(ctx, req)
 		if err != nil {
 			log.Error("downstream call failed", "error", err)
 			http.Error(w, err.Error(), 500)
@@ -1243,23 +1270,28 @@ func (s *Server) Run() error {
 	}
 	if meshProxy {
 		if sidecar && queuingExport {
+			opts = append(opts, grpc.InTapHandle(utils.TapHandler(serviceName)))
 			opts = append(opts, grpc.ChainUnaryInterceptor(
 				utils.ContextPropagationInterceptor(),
 				utils.NewCounterState(serviceName).GetInterceptor()))
 		} else {
-			opts = append(opts, grpc.UnaryInterceptor(utils.ContextPropagationInterceptor()))
+			opts = append(opts, grpc.ChainUnaryInterceptor(
+				utils.ContextPropagationInterceptor()))
 		}
 	} else if useRajomon {
+		opts = append(opts, grpc.InTapHandle(utils.TapHandler(serviceName)))
 		opts = append(opts, grpc.ChainUnaryInterceptor(
 			utils.ContextPropagationInterceptor(),
 			utils.NewCounterState(serviceName).GetInterceptor(),
 			priceTable.UnaryInterceptor))
 	} else if useDagor {
+		opts = append(opts, grpc.InTapHandle(utils.TapHandler(serviceName)))
 		opts = append(opts, grpc.ChainUnaryInterceptor(
 			utils.ContextPropagationInterceptor(),
 			utils.NewCounterState(serviceName).GetInterceptor(),
 			dagorNode.UnaryInterceptorServer))
 	} else {
+		opts = append(opts, grpc.InTapHandle(utils.TapHandler(serviceName)))
 		opts = append(opts, grpc.ChainUnaryInterceptor(
 			utils.ContextPropagationInterceptor(),
 			utils.NewCounterState(serviceName).GetInterceptor()))
@@ -1447,12 +1479,14 @@ func (s *Server) Run() error {
 	var dn *dagor.Dagor
 	if useRajomon {
 		pt = rajomoninit.GetPriceTable(rajomoninit.InstanceName(serviceName), false)
+		opts = append(opts, grpc.InTapHandle(utils.TapHandler(serviceName)))
 		opts = append(opts, grpc.ChainUnaryInterceptor(
 			utils.ContextPropagationInterceptor(),
 			utils.NewCounterState(serviceName).GetInterceptor(),
 			pt.UnaryInterceptor))
 	} else {
 		dn = dagorinit.GetDagorNode(serviceName, true, false)
+		opts = append(opts, grpc.InTapHandle(utils.TapHandler(serviceName)))
 		opts = append(opts, grpc.ChainUnaryInterceptor(
 			utils.ContextPropagationInterceptor(),
 			utils.NewCounterState(serviceName).GetInterceptor(),

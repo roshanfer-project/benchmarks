@@ -41,12 +41,14 @@ func (s *Server) Run() error {
 	var dn *dagor.Dagor
 	if useRajomon {
 		pt = rajomoninit.GetPriceTable(rajomoninit.InstanceName(serviceName), false)
+		opts = append(opts, grpc.InTapHandle(utils.TapHandler(serviceName)))
 		opts = append(opts, grpc.ChainUnaryInterceptor(
 			utils.ContextPropagationInterceptor(),
 			utils.NewCounterState(serviceName).GetInterceptor(),
 			pt.UnaryInterceptor))
 	} else {
 		dn = dagorinit.GetDagorNode(serviceName, true, false)
+		opts = append(opts, grpc.InTapHandle(utils.TapHandler(serviceName)))
 		opts = append(opts, grpc.ChainUnaryInterceptor(
 			utils.ContextPropagationInterceptor(),
 			utils.NewCounterState(serviceName).GetInterceptor(),
