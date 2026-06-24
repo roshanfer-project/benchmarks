@@ -165,9 +165,9 @@ func Check(pg *ParsedGraph) error {
 		errs = append(errs, "no nodes defined")
 	}
 	switch pg.LoadBalancingPolicy {
-	case "weighted_round_robin", "round_robin":
+	case "weighted_round_robin", "round_robin", "least_request":
 	default:
-		errs = append(errs, fmt.Sprintf("load_balancing_policy %q: want weighted_round_robin or round_robin", pg.LoadBalancingPolicy))
+		errs = append(errs, fmt.Sprintf("load_balancing_policy %q: want weighted_round_robin, round_robin, or least_request", pg.LoadBalancingPolicy))
 	}
 	if pg.DagorQueuingThreshMs <= 0 {
 		errs = append(errs, fmt.Sprintf("dagor.queuing_thresh_ms must be > 0, got %g", pg.DagorQueuingThreshMs))

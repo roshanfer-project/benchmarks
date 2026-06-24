@@ -584,6 +584,7 @@ import (
 	"google.golang.org/grpc/keepalive"
 {{if .WRR}}	"google.golang.org/grpc/orca"
 	_ "google.golang.org/grpc/balancer/weightedroundrobin"
+{{end}}{{if .LeastRequest}}	_ "google.golang.org/grpc/balancer/leastrequest"
 {{end}}	_ "google.golang.org/grpc/resolver/dns"
 )
 
@@ -625,9 +626,12 @@ func GetServerOptions() []grpc.ServerOption {
 {{end}}	return opts
 }
 `
-	lbConfig := `{"loadBalancingConfig":[{"round_robin":{}}]}`
-	if pg.LoadBalancingPolicy == "weighted_round_robin" {
+	lbConfig := `{"loadBalancingConfig":[{"least_request_experimental":{}}]}`
+	switch pg.LoadBalancingPolicy {
+	case "weighted_round_robin":
 		lbConfig = `{"loadBalancingConfig":[{"weighted_round_robin":{"blackoutPeriod":"1s"}}]}`
+	case "round_robin":
+		lbConfig = `{"loadBalancingConfig":[{"round_robin":{}}]}`
 	}
 	t, err := template.New("grpc").Parse(tmpl)
 	if err != nil {
@@ -635,8 +639,9 @@ func GetServerOptions() []grpc.ServerOption {
 	}
 	var b bytes.Buffer
 	if err := t.Execute(&b, map[string]interface{}{
-		"WRR":      pg.LoadBalancingPolicy == "weighted_round_robin",
-		"LBConfig": lbConfig,
+		"WRR":          pg.LoadBalancingPolicy == "weighted_round_robin",
+		"LeastRequest": pg.LoadBalancingPolicy != "round_robin" && pg.LoadBalancingPolicy != "weighted_round_robin",
+		"LBConfig":     lbConfig,
 	}); err != nil {
 		return err
 	}
