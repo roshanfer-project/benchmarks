@@ -16,6 +16,20 @@ import (
 
 var logCounter = GetLogger("counter")
 
+func ReplicaJobName(base string) string {
+	if GetEnvVar("plain_lb", false) != "true" {
+		return base
+	}
+	pod := GetEnvVar("POD_NAME", false)
+	if pod == "" {
+		return base
+	}
+	if strings.HasPrefix(pod, base+"-") {
+		return base + "-" + strings.TrimPrefix(pod, base+"-")
+	}
+	return base + "-" + pod
+}
+
 type CounterState struct {
 	failedRPCCounter        map[string]int64
 	acceptedRPCCounter      map[string]int64
@@ -34,6 +48,7 @@ type CounterState struct {
 	registry                *prometheus.Registry
 	promAddr                string
 	serviceName             string
+	pushJobName             string
 }
 
 func NewCounterState(serviceName string) *CounterState {
@@ -53,6 +68,7 @@ func NewCounterState(serviceName string) *CounterState {
 	} else {
 		s.serviceName = serviceName
 	}
+	s.pushJobName = ReplicaJobName(s.serviceName)
 	s.promAddr = GetEnvVar("PROM_ADDR", false)
 
 	s.maxQueueGauge = prometheus.NewGaugeVec(
@@ -212,7 +228,7 @@ func (s *CounterState) PushAll() {
 		s.lock.Unlock()
 		s.PushAcceptedRPCCounter()
 		s.PushFailedRPCCounter()
-		if err := push.New(s.promAddr, s.serviceName).Gatherer(s.registry).Push(); err != nil {
+		if err := push.New(s.promAddr, s.pushJobName).Gatherer(s.registry).Push(); err != nil {
 			logCounter.Error("Could not push to Pushgateway", "error", err)
 		}
 	}

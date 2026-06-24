@@ -174,6 +174,7 @@ Like **plain**, but supports multiple replicas per microservice via the `replica
 - Internal gRPC services use **headless** Services (`clusterIP: None`) so clients can discover all pod IPs.
 - gRPC clients use **dns:///** load balancing when `plain_lb=true` (set in `k8s/plain-lb.env`, `k8s/dagor-lb.env`, or `k8s/rajomon-lb.env`). Policy is set by **`load_balancing_policy`** in `callgraph.json` (default **`least_request`**, power-of-two-choices over active RPC counts). Set **`round_robin`** for round-robin. Set **`weighted_round_robin`** for WRR with `blackoutPeriod: 1s`; gRPC servers then report per-call ORCA **QPS** (1s window, all RPCs), **EPS** (1s window, failed RPCs only — e.g. DAGOR admission drops), and **CPU utilization** (process CPU via `Getrusage`, normalized by `GOMAXPROCS`). WRR uses EPS via the default `error_utilization_penalty` to deprioritize backends with high error rates.
 - The HTTP entry keeps a normal ClusterIP Service + NodePort (external load generators spread TCP connections across entry replicas).
+- **Prometheus metrics:** when `plain_lb=true`, each pod pushes to Pushgateway with job `serviceName-<podSuffix>` (from `POD_NAME`, same rule as Rajomon `InstanceName`). Post-run `metrics/prometheus.json` has one key per replica (e.g. `backend1-7d4f8b9c-xk2mz`), not aggregated base names. **`ingress`** is omitted in replicated modes (collector only computes it when an exact `frontend` or `nginx` key exists). Non-LB modes (`plain`, `rajomon`, …) keep bare service keys unchanged.
 
 ## Call Graph Format
 

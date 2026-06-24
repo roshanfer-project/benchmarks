@@ -21,6 +21,7 @@ DURATION=$4
 # shellcheck source=/dev/null
 source "$(dirname "${BASH_SOURCE[0]}")/rwg_phases.sh"
 resolve_rwg_phases "$BASE" "$RATE" "$DURATION"
+
 API=$5
 output_dir="$6/out-$API.csv"
 address="${TARGET_ADDR:-192.168.1.100}"
