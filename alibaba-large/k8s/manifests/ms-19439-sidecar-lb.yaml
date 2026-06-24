@@ -1,0 +1,91 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ms-19439
+  labels:
+    app: ms-19439
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ms-19439
+  template:
+    metadata:
+      labels:
+        app: ms-19439
+    spec:
+      containers:
+      - name: app
+        image: alibaba-large-ms-19439:latest
+        resources:
+          requests:
+            cpu: "5"
+          limits:
+            cpu: "5"
+        env:
+        - name: GOMAXPROCS
+          value: "5"
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        envFrom:
+        - configMapRef:
+            name: alibaba-large-config
+        ports:
+        - containerPort: 2000
+      - name: sidecar
+        image: sidecar-sidecar:latest
+        env:
+        - name: PROC_NAME
+          value: "ms-19439-sidecar"
+        - name: GLOG_logtostderr
+          value: "1"
+        resources:
+          requests:
+            cpu: "1"
+          limits:
+            cpu: "1"
+        volumeMounts:
+        - name: config-volume
+          mountPath: /config.yaml
+          subPath: ms-19439.yaml
+        ports:
+        - containerPort: 3000
+        - containerPort: 4000
+        - containerPort: 3000
+          protocol: UDP
+        - containerPort: 4000
+          protocol: UDP
+      volumes:
+      - name: config-volume
+        configMap:
+          name: sidecar-lb-configs
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alibaba-large-ms-19439
+  labels:
+    app: ms-19439
+spec:
+  clusterIP: None
+  selector:
+    app: ms-19439
+  ports:
+  - name: sidecar-ingress-tcp
+    port: 3000
+    targetPort: 3000
+    protocol: TCP
+  - name: sidecar-ingress-udp
+    port: 3000
+    targetPort: 3000
+    protocol: UDP
+  - name: sidecar-egress-tcp
+    port: 4000
+    targetPort: 4000
+    protocol: TCP
+  - name: sidecar-egress-udp
+    port: 4000
+    targetPort: 4000
+    protocol: UDP

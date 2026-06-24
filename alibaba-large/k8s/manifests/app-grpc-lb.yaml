@@ -1,0 +1,1619 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ms-12657
+  labels:
+    app: ms-12657
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ms-12657
+  template:
+    metadata:
+      labels:
+        app: ms-12657
+    spec:
+      containers:
+      - name: app
+        image: alibaba-large-ms-12657:latest
+        resources:
+          requests:
+            cpu: "3"
+          limits:
+            cpu: "3"
+        env:
+        - name: GOMAXPROCS
+          value: "3"
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        envFrom:
+        - configMapRef:
+            name: alibaba-large-config
+        ports:
+        - containerPort: 2000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alibaba-large-ms-12657
+  labels:
+    app: ms-12657
+spec:
+  clusterIP: None
+  selector:
+    app: ms-12657
+  ports:
+  - name: grpc
+    port: 2000
+    targetPort: 2000
+    protocol: TCP
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ms-14758
+  labels:
+    app: ms-14758
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ms-14758
+  template:
+    metadata:
+      labels:
+        app: ms-14758
+    spec:
+      containers:
+      - name: app
+        image: alibaba-large-ms-14758:latest
+        resources:
+          requests:
+            cpu: "3"
+          limits:
+            cpu: "3"
+        env:
+        - name: GOMAXPROCS
+          value: "3"
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        envFrom:
+        - configMapRef:
+            name: alibaba-large-config
+        ports:
+        - containerPort: 2000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alibaba-large-ms-14758
+  labels:
+    app: ms-14758
+spec:
+  clusterIP: None
+  selector:
+    app: ms-14758
+  ports:
+  - name: grpc
+    port: 2000
+    targetPort: 2000
+    protocol: TCP
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ms-18750
+  labels:
+    app: ms-18750
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ms-18750
+  template:
+    metadata:
+      labels:
+        app: ms-18750
+    spec:
+      containers:
+      - name: app
+        image: alibaba-large-ms-18750:latest
+        resources:
+          requests:
+            cpu: "3"
+          limits:
+            cpu: "3"
+        env:
+        - name: GOMAXPROCS
+          value: "3"
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        envFrom:
+        - configMapRef:
+            name: alibaba-large-config
+        ports:
+        - containerPort: 2000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alibaba-large-ms-18750
+  labels:
+    app: ms-18750
+spec:
+  clusterIP: None
+  selector:
+    app: ms-18750
+  ports:
+  - name: grpc
+    port: 2000
+    targetPort: 2000
+    protocol: TCP
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ms-19439
+  labels:
+    app: ms-19439
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ms-19439
+  template:
+    metadata:
+      labels:
+        app: ms-19439
+    spec:
+      containers:
+      - name: app
+        image: alibaba-large-ms-19439:latest
+        resources:
+          requests:
+            cpu: "5"
+          limits:
+            cpu: "5"
+        env:
+        - name: GOMAXPROCS
+          value: "5"
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        envFrom:
+        - configMapRef:
+            name: alibaba-large-config
+        ports:
+        - containerPort: 2000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alibaba-large-ms-19439
+  labels:
+    app: ms-19439
+spec:
+  clusterIP: None
+  selector:
+    app: ms-19439
+  ports:
+  - name: grpc
+    port: 2000
+    targetPort: 2000
+    protocol: TCP
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ms-21298
+  labels:
+    app: ms-21298
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ms-21298
+  template:
+    metadata:
+      labels:
+        app: ms-21298
+    spec:
+      containers:
+      - name: app
+        image: alibaba-large-ms-21298:latest
+        resources:
+          requests:
+            cpu: "5"
+          limits:
+            cpu: "5"
+        env:
+        - name: GOMAXPROCS
+          value: "5"
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        envFrom:
+        - configMapRef:
+            name: alibaba-large-config
+        ports:
+        - containerPort: 2000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alibaba-large-ms-21298
+  labels:
+    app: ms-21298
+spec:
+  clusterIP: None
+  selector:
+    app: ms-21298
+  ports:
+  - name: grpc
+    port: 2000
+    targetPort: 2000
+    protocol: TCP
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ms-25781
+  labels:
+    app: ms-25781
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ms-25781
+  template:
+    metadata:
+      labels:
+        app: ms-25781
+    spec:
+      containers:
+      - name: app
+        image: alibaba-large-ms-25781:latest
+        resources:
+          requests:
+            cpu: "3"
+          limits:
+            cpu: "3"
+        env:
+        - name: GOMAXPROCS
+          value: "3"
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        envFrom:
+        - configMapRef:
+            name: alibaba-large-config
+        ports:
+        - containerPort: 2000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alibaba-large-ms-25781
+  labels:
+    app: ms-25781
+spec:
+  clusterIP: None
+  selector:
+    app: ms-25781
+  ports:
+  - name: grpc
+    port: 2000
+    targetPort: 2000
+    protocol: TCP
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ms-25806
+  labels:
+    app: ms-25806
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ms-25806
+  template:
+    metadata:
+      labels:
+        app: ms-25806
+    spec:
+      containers:
+      - name: app
+        image: alibaba-large-ms-25806:latest
+        resources:
+          requests:
+            cpu: "8"
+          limits:
+            cpu: "8"
+        env:
+        - name: GOMAXPROCS
+          value: "8"
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        envFrom:
+        - configMapRef:
+            name: alibaba-large-config
+        ports:
+        - containerPort: 2000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alibaba-large-ms-25806
+  labels:
+    app: ms-25806
+spec:
+  clusterIP: None
+  selector:
+    app: ms-25806
+  ports:
+  - name: grpc
+    port: 2000
+    targetPort: 2000
+    protocol: TCP
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ms-2687
+  labels:
+    app: ms-2687
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ms-2687
+  template:
+    metadata:
+      labels:
+        app: ms-2687
+    spec:
+      containers:
+      - name: app
+        image: alibaba-large-ms-2687:latest
+        resources:
+          requests:
+            cpu: "4"
+          limits:
+            cpu: "4"
+        env:
+        - name: GOMAXPROCS
+          value: "4"
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        envFrom:
+        - configMapRef:
+            name: alibaba-large-config
+        ports:
+        - containerPort: 2000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alibaba-large-ms-2687
+  labels:
+    app: ms-2687
+spec:
+  clusterIP: None
+  selector:
+    app: ms-2687
+  ports:
+  - name: grpc
+    port: 2000
+    targetPort: 2000
+    protocol: TCP
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ms-33572
+  labels:
+    app: ms-33572
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ms-33572
+  template:
+    metadata:
+      labels:
+        app: ms-33572
+    spec:
+      containers:
+      - name: app
+        image: alibaba-large-ms-33572:latest
+        resources:
+          requests:
+            cpu: "4"
+          limits:
+            cpu: "4"
+        env:
+        - name: GOMAXPROCS
+          value: "4"
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        envFrom:
+        - configMapRef:
+            name: alibaba-large-config
+        ports:
+        - containerPort: 2000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alibaba-large-ms-33572
+  labels:
+    app: ms-33572
+spec:
+  clusterIP: None
+  selector:
+    app: ms-33572
+  ports:
+  - name: grpc
+    port: 2000
+    targetPort: 2000
+    protocol: TCP
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ms-38190
+  labels:
+    app: ms-38190
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ms-38190
+  template:
+    metadata:
+      labels:
+        app: ms-38190
+    spec:
+      containers:
+      - name: app
+        image: alibaba-large-ms-38190:latest
+        resources:
+          requests:
+            cpu: "4"
+          limits:
+            cpu: "4"
+        env:
+        - name: GOMAXPROCS
+          value: "4"
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        envFrom:
+        - configMapRef:
+            name: alibaba-large-config
+        ports:
+        - containerPort: 2000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alibaba-large-ms-38190
+  labels:
+    app: ms-38190
+spec:
+  clusterIP: None
+  selector:
+    app: ms-38190
+  ports:
+  - name: grpc
+    port: 2000
+    targetPort: 2000
+    protocol: TCP
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ms-40087
+  labels:
+    app: ms-40087
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ms-40087
+  template:
+    metadata:
+      labels:
+        app: ms-40087
+    spec:
+      containers:
+      - name: app
+        image: alibaba-large-ms-40087:latest
+        resources:
+          requests:
+            cpu: "6"
+          limits:
+            cpu: "6"
+        env:
+        - name: GOMAXPROCS
+          value: "6"
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        envFrom:
+        - configMapRef:
+            name: alibaba-large-config
+        ports:
+        - containerPort: 2000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alibaba-large-ms-40087
+  labels:
+    app: ms-40087
+spec:
+  clusterIP: None
+  selector:
+    app: ms-40087
+  ports:
+  - name: grpc
+    port: 2000
+    targetPort: 2000
+    protocol: TCP
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ms-41667
+  labels:
+    app: ms-41667
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ms-41667
+  template:
+    metadata:
+      labels:
+        app: ms-41667
+    spec:
+      containers:
+      - name: app
+        image: alibaba-large-ms-41667:latest
+        resources:
+          requests:
+            cpu: "4"
+          limits:
+            cpu: "4"
+        env:
+        - name: GOMAXPROCS
+          value: "4"
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        envFrom:
+        - configMapRef:
+            name: alibaba-large-config
+        ports:
+        - containerPort: 2000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alibaba-large-ms-41667
+  labels:
+    app: ms-41667
+spec:
+  clusterIP: None
+  selector:
+    app: ms-41667
+  ports:
+  - name: grpc
+    port: 2000
+    targetPort: 2000
+    protocol: TCP
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ms-43032
+  labels:
+    app: ms-43032
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ms-43032
+  template:
+    metadata:
+      labels:
+        app: ms-43032
+    spec:
+      containers:
+      - name: app
+        image: alibaba-large-ms-43032:latest
+        resources:
+          requests:
+            cpu: "4"
+          limits:
+            cpu: "4"
+        env:
+        - name: GOMAXPROCS
+          value: "4"
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        envFrom:
+        - configMapRef:
+            name: alibaba-large-config
+        ports:
+        - containerPort: 2000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alibaba-large-ms-43032
+  labels:
+    app: ms-43032
+spec:
+  clusterIP: None
+  selector:
+    app: ms-43032
+  ports:
+  - name: grpc
+    port: 2000
+    targetPort: 2000
+    protocol: TCP
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ms-43754
+  labels:
+    app: ms-43754
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ms-43754
+  template:
+    metadata:
+      labels:
+        app: ms-43754
+    spec:
+      containers:
+      - name: app
+        image: alibaba-large-ms-43754:latest
+        resources:
+          requests:
+            cpu: "4"
+          limits:
+            cpu: "4"
+        env:
+        - name: GOMAXPROCS
+          value: "4"
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        envFrom:
+        - configMapRef:
+            name: alibaba-large-config
+        ports:
+        - containerPort: 2000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alibaba-large-ms-43754
+  labels:
+    app: ms-43754
+spec:
+  clusterIP: None
+  selector:
+    app: ms-43754
+  ports:
+  - name: grpc
+    port: 2000
+    targetPort: 2000
+    protocol: TCP
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ms-44246
+  labels:
+    app: ms-44246
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ms-44246
+  template:
+    metadata:
+      labels:
+        app: ms-44246
+    spec:
+      containers:
+      - name: app
+        image: alibaba-large-ms-44246:latest
+        resources:
+          requests:
+            cpu: "4"
+          limits:
+            cpu: "4"
+        env:
+        - name: GOMAXPROCS
+          value: "4"
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        envFrom:
+        - configMapRef:
+            name: alibaba-large-config
+        ports:
+        - containerPort: 2000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alibaba-large-ms-44246
+  labels:
+    app: ms-44246
+spec:
+  clusterIP: None
+  selector:
+    app: ms-44246
+  ports:
+  - name: grpc
+    port: 2000
+    targetPort: 2000
+    protocol: TCP
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ms-45067
+  labels:
+    app: ms-45067
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ms-45067
+  template:
+    metadata:
+      labels:
+        app: ms-45067
+    spec:
+      containers:
+      - name: app
+        image: alibaba-large-ms-45067:latest
+        resources:
+          requests:
+            cpu: "4"
+          limits:
+            cpu: "4"
+        env:
+        - name: GOMAXPROCS
+          value: "4"
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        envFrom:
+        - configMapRef:
+            name: alibaba-large-config
+        ports:
+        - containerPort: 2000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alibaba-large-ms-45067
+  labels:
+    app: ms-45067
+spec:
+  clusterIP: None
+  selector:
+    app: ms-45067
+  ports:
+  - name: grpc
+    port: 2000
+    targetPort: 2000
+    protocol: TCP
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ms-51783
+  labels:
+    app: ms-51783
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ms-51783
+  template:
+    metadata:
+      labels:
+        app: ms-51783
+    spec:
+      containers:
+      - name: app
+        image: alibaba-large-ms-51783:latest
+        resources:
+          requests:
+            cpu: "4"
+          limits:
+            cpu: "4"
+        env:
+        - name: GOMAXPROCS
+          value: "4"
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        envFrom:
+        - configMapRef:
+            name: alibaba-large-config
+        ports:
+        - containerPort: 2000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alibaba-large-ms-51783
+  labels:
+    app: ms-51783
+spec:
+  clusterIP: None
+  selector:
+    app: ms-51783
+  ports:
+  - name: grpc
+    port: 2000
+    targetPort: 2000
+    protocol: TCP
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ms-51787
+  labels:
+    app: ms-51787
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ms-51787
+  template:
+    metadata:
+      labels:
+        app: ms-51787
+    spec:
+      containers:
+      - name: app
+        image: alibaba-large-ms-51787:latest
+        resources:
+          requests:
+            cpu: "4"
+          limits:
+            cpu: "4"
+        env:
+        - name: GOMAXPROCS
+          value: "4"
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        envFrom:
+        - configMapRef:
+            name: alibaba-large-config
+        ports:
+        - containerPort: 2000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alibaba-large-ms-51787
+  labels:
+    app: ms-51787
+spec:
+  clusterIP: None
+  selector:
+    app: ms-51787
+  ports:
+  - name: grpc
+    port: 2000
+    targetPort: 2000
+    protocol: TCP
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ms-53792
+  labels:
+    app: ms-53792
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ms-53792
+  template:
+    metadata:
+      labels:
+        app: ms-53792
+    spec:
+      containers:
+      - name: app
+        image: alibaba-large-ms-53792:latest
+        resources:
+          requests:
+            cpu: "4"
+          limits:
+            cpu: "4"
+        env:
+        - name: GOMAXPROCS
+          value: "4"
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        envFrom:
+        - configMapRef:
+            name: alibaba-large-config
+        ports:
+        - containerPort: 2000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alibaba-large-ms-53792
+  labels:
+    app: ms-53792
+spec:
+  clusterIP: None
+  selector:
+    app: ms-53792
+  ports:
+  - name: grpc
+    port: 2000
+    targetPort: 2000
+    protocol: TCP
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ms-56113
+  labels:
+    app: ms-56113
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ms-56113
+  template:
+    metadata:
+      labels:
+        app: ms-56113
+    spec:
+      containers:
+      - name: app
+        image: alibaba-large-ms-56113:latest
+        resources:
+          requests:
+            cpu: "8"
+          limits:
+            cpu: "8"
+        env:
+        - name: GOMAXPROCS
+          value: "8"
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        envFrom:
+        - configMapRef:
+            name: alibaba-large-config
+        ports:
+        - containerPort: 2000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alibaba-large-ms-56113
+  labels:
+    app: ms-56113
+spec:
+  clusterIP: None
+  selector:
+    app: ms-56113
+  ports:
+  - name: grpc
+    port: 2000
+    targetPort: 2000
+    protocol: TCP
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ms-5720
+  labels:
+    app: ms-5720
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ms-5720
+  template:
+    metadata:
+      labels:
+        app: ms-5720
+    spec:
+      containers:
+      - name: app
+        image: alibaba-large-ms-5720:latest
+        resources:
+          requests:
+            cpu: "4"
+          limits:
+            cpu: "4"
+        env:
+        - name: GOMAXPROCS
+          value: "4"
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        envFrom:
+        - configMapRef:
+            name: alibaba-large-config
+        ports:
+        - containerPort: 2000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alibaba-large-ms-5720
+  labels:
+    app: ms-5720
+spec:
+  clusterIP: None
+  selector:
+    app: ms-5720
+  ports:
+  - name: grpc
+    port: 2000
+    targetPort: 2000
+    protocol: TCP
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ms-58796
+  labels:
+    app: ms-58796
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ms-58796
+  template:
+    metadata:
+      labels:
+        app: ms-58796
+    spec:
+      containers:
+      - name: app
+        image: alibaba-large-ms-58796:latest
+        resources:
+          requests:
+            cpu: "4"
+          limits:
+            cpu: "4"
+        env:
+        - name: GOMAXPROCS
+          value: "4"
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        envFrom:
+        - configMapRef:
+            name: alibaba-large-config
+        ports:
+        - containerPort: 2000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alibaba-large-ms-58796
+  labels:
+    app: ms-58796
+spec:
+  clusterIP: None
+  selector:
+    app: ms-58796
+  ports:
+  - name: grpc
+    port: 2000
+    targetPort: 2000
+    protocol: TCP
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ms-62039
+  labels:
+    app: ms-62039
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ms-62039
+  template:
+    metadata:
+      labels:
+        app: ms-62039
+    spec:
+      containers:
+      - name: app
+        image: alibaba-large-ms-62039:latest
+        resources:
+          requests:
+            cpu: "4"
+          limits:
+            cpu: "4"
+        env:
+        - name: GOMAXPROCS
+          value: "4"
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        envFrom:
+        - configMapRef:
+            name: alibaba-large-config
+        ports:
+        - containerPort: 2000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alibaba-large-ms-62039
+  labels:
+    app: ms-62039
+spec:
+  clusterIP: None
+  selector:
+    app: ms-62039
+  ports:
+  - name: grpc
+    port: 2000
+    targetPort: 2000
+    protocol: TCP
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ms-64512-grpc
+  labels:
+    app: ms-64512-grpc
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ms-64512-grpc
+  template:
+    metadata:
+      labels:
+        app: ms-64512-grpc
+    spec:
+      containers:
+      - name: app
+        image: alibaba-large-ms-64512-grpc:latest
+        resources:
+          requests:
+            cpu: "5"
+          limits:
+            cpu: "5"
+        env:
+        - name: GOMAXPROCS
+          value: "5"
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        envFrom:
+        - configMapRef:
+            name: alibaba-large-config
+        ports:
+        - containerPort: 2000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alibaba-large-ms-64512-grpc
+  labels:
+    app: ms-64512-grpc
+spec:
+  clusterIP: None
+  selector:
+    app: ms-64512-grpc
+  ports:
+  - name: grpc
+    port: 2000
+    targetPort: 2000
+    protocol: TCP
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ms-66921
+  labels:
+    app: ms-66921
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ms-66921
+  template:
+    metadata:
+      labels:
+        app: ms-66921
+    spec:
+      containers:
+      - name: app
+        image: alibaba-large-ms-66921:latest
+        resources:
+          requests:
+            cpu: "4"
+          limits:
+            cpu: "4"
+        env:
+        - name: GOMAXPROCS
+          value: "4"
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        envFrom:
+        - configMapRef:
+            name: alibaba-large-config
+        ports:
+        - containerPort: 2000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alibaba-large-ms-66921
+  labels:
+    app: ms-66921
+spec:
+  clusterIP: None
+  selector:
+    app: ms-66921
+  ports:
+  - name: grpc
+    port: 2000
+    targetPort: 2000
+    protocol: TCP
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ms-67465
+  labels:
+    app: ms-67465
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ms-67465
+  template:
+    metadata:
+      labels:
+        app: ms-67465
+    spec:
+      containers:
+      - name: app
+        image: alibaba-large-ms-67465:latest
+        resources:
+          requests:
+            cpu: "4"
+          limits:
+            cpu: "4"
+        env:
+        - name: GOMAXPROCS
+          value: "4"
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        envFrom:
+        - configMapRef:
+            name: alibaba-large-config
+        ports:
+        - containerPort: 2000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alibaba-large-ms-67465
+  labels:
+    app: ms-67465
+spec:
+  clusterIP: None
+  selector:
+    app: ms-67465
+  ports:
+  - name: grpc
+    port: 2000
+    targetPort: 2000
+    protocol: TCP
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ms-70124
+  labels:
+    app: ms-70124
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ms-70124
+  template:
+    metadata:
+      labels:
+        app: ms-70124
+    spec:
+      containers:
+      - name: app
+        image: alibaba-large-ms-70124:latest
+        resources:
+          requests:
+            cpu: "3"
+          limits:
+            cpu: "3"
+        env:
+        - name: GOMAXPROCS
+          value: "3"
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        envFrom:
+        - configMapRef:
+            name: alibaba-large-config
+        ports:
+        - containerPort: 2000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alibaba-large-ms-70124
+  labels:
+    app: ms-70124
+spec:
+  clusterIP: None
+  selector:
+    app: ms-70124
+  ports:
+  - name: grpc
+    port: 2000
+    targetPort: 2000
+    protocol: TCP
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ms-7103
+  labels:
+    app: ms-7103
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ms-7103
+  template:
+    metadata:
+      labels:
+        app: ms-7103
+    spec:
+      containers:
+      - name: app
+        image: alibaba-large-ms-7103:latest
+        resources:
+          requests:
+            cpu: "7"
+          limits:
+            cpu: "7"
+        env:
+        - name: GOMAXPROCS
+          value: "7"
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        envFrom:
+        - configMapRef:
+            name: alibaba-large-config
+        ports:
+        - containerPort: 2000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alibaba-large-ms-7103
+  labels:
+    app: ms-7103
+spec:
+  clusterIP: None
+  selector:
+    app: ms-7103
+  ports:
+  - name: grpc
+    port: 2000
+    targetPort: 2000
+    protocol: TCP
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ms-9105
+  labels:
+    app: ms-9105
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ms-9105
+  template:
+    metadata:
+      labels:
+        app: ms-9105
+    spec:
+      containers:
+      - name: app
+        image: alibaba-large-ms-9105:latest
+        resources:
+          requests:
+            cpu: "6"
+          limits:
+            cpu: "6"
+        env:
+        - name: GOMAXPROCS
+          value: "6"
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        envFrom:
+        - configMapRef:
+            name: alibaba-large-config
+        ports:
+        - containerPort: 2000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alibaba-large-ms-9105
+  labels:
+    app: ms-9105
+spec:
+  clusterIP: None
+  selector:
+    app: ms-9105
+  ports:
+  - name: grpc
+    port: 2000
+    targetPort: 2000
+    protocol: TCP
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rajomon-client
+  labels:
+    app: rajomon-client
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rajomon-client
+  template:
+    metadata:
+      labels:
+        app: rajomon-client
+    spec:
+      containers:
+      - name: app
+        image: alibaba-large-rajomon-client:latest
+        resources:
+          requests:
+            cpu: "5"
+          limits:
+            cpu: "5"
+        env:
+        - name: GOMAXPROCS
+          value: "5"
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        envFrom:
+        - configMapRef:
+            name: alibaba-large-config
+        ports:
+        - containerPort: 2007
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alibaba-large-entry
+  labels:
+    app: rajomon-client
+spec:
+  type: NodePort
+  selector:
+    app: rajomon-client
+  ports:
+  - name: http
+    port: 2007
+    targetPort: 2007
+    nodePort: 3000
+    protocol: TCP

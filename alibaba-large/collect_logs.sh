@@ -7,8 +7,11 @@ for svc in ms-12657 ms-14758 ms-18750 ms-19439 ms-21298 ms-25781 ms-25806 ms-268
   for pod in $(kubectl get pods -l app=$svc -o jsonpath='{.items[*].metadata.name}'); do
     (
       kubectl logs "$pod" > "$OUTPUT_DIR/${pod}.log" 2>&1
-      if [ "$MODE" = "sidecar" ]; then
+      if [ "$MODE" = "sidecar" ] || [ "$MODE" = "sidecar-lb" ]; then
         kubectl logs "$pod" -c sidecar > "$OUTPUT_DIR/${pod}-sidecar.log" 2>&1
+      fi
+      if [ "$MODE" = "envoy" ]; then
+        kubectl logs "$pod" -c envoy > "$OUTPUT_DIR/${pod}-envoy.log" 2>&1
       fi
     ) &
     log_pids+=($!)
@@ -16,7 +19,7 @@ for svc in ms-12657 ms-14758 ms-18750 ms-19439 ms-21298 ms-25781 ms-25806 ms-268
 done
 for pid in "${log_pids[@]}"; do wait "$pid" || true; done
 
-if [ "$MODE" = "sidecar" ]; then
+if [ "$MODE" = "sidecar" ] || [ "$MODE" = "sidecar-lb" ]; then
   declare -a ing_pids=()
   for pod in $(kubectl get pods -l app=ingress -o jsonpath='{.items[*].metadata.name}'); do
     (
@@ -27,7 +30,34 @@ if [ "$MODE" = "sidecar" ]; then
   for pid in "${ing_pids[@]}"; do wait "$pid" || true; done
 fi
 
-if [ "$MODE" = "sidecar" ] && [ "${COLLECT_SIDECAR_NANOLOG:-}" = "1" ]; then
+if [ "$MODE" = "envoy" ]; then
+  declare -a ing_pids=()
+  for pod in $(kubectl get pods -l app=ingress -o jsonpath='{.items[*].metadata.name}'); do
+    (
+      kubectl logs "$pod" -c envoy > "$OUTPUT_DIR/${pod}-envoy.log" 2>&1
+    ) &
+    ing_pids+=($!)
+  done
+  for pid in "${ing_pids[@]}"; do wait "$pid" || true; done
+fi
+
+if [ "$MODE" = "envoy" ]; then
+  ENVOY_METRICS_DIR=${ENVOY_METRICS_DIR:-./metrics/envoy}
+  mkdir -p "$ENVOY_METRICS_DIR"
+  declare -a stats_pids=()
+  for svc in ms-12657 ms-14758 ms-18750 ms-19439 ms-21298 ms-25781 ms-25806 ms-2687 ms-33572 ms-38190 ms-40087 ms-41667 ms-43032 ms-43754 ms-44246 ms-45067 ms-51783 ms-51787 ms-53792 ms-56113 ms-5720 ms-58796 ms-62039 ms-64512 ms-66921 ms-67465 ms-70124 ms-7103 ms-9105 ms-64512-grpc rajomon-client ingress; do
+    for pod in $(kubectl get pods -l app=$svc -o jsonpath='{.items[*].metadata.name}' 2>/dev/null); do
+      [ -z "$pod" ] && continue
+      app=$(kubectl get pod "$pod" -o jsonpath='{.metadata.labels.app}' 2>/dev/null)
+      [ -z "$app" ] && continue
+      ( kubectl cp "$pod:/tmp/envoy_stats.csv" "$ENVOY_METRICS_DIR/${app}.csv" -c envoy-stats 2>/dev/null || true ) &
+      stats_pids+=($!)
+    done
+  done
+  for pid in "${stats_pids[@]}"; do wait "$pid" || true; done
+fi
+
+if { [ "$MODE" = "sidecar" ] || [ "$MODE" = "sidecar-lb" ]; } && [ "${COLLECT_SIDECAR_NANOLOG:-}" = "1" ]; then
   declare -a cp_pids=()
   for svc in ms-12657 ms-14758 ms-18750 ms-19439 ms-21298 ms-25781 ms-25806 ms-2687 ms-33572 ms-38190 ms-40087 ms-41667 ms-43032 ms-43754 ms-44246 ms-45067 ms-51783 ms-51787 ms-53792 ms-56113 ms-5720 ms-58796 ms-62039 ms-64512 ms-66921 ms-67465 ms-70124 ms-7103 ms-9105 ms-64512-grpc rajomon-client; do
     for pod in $(kubectl get pods -l app=$svc -o jsonpath='{.items[*].metadata.name}' 2>/dev/null); do

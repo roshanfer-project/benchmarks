@@ -10,7 +10,10 @@ import (
 	"alibabalarge/pkg"
 	pb "alibabalarge/protobuf"
 	"google.golang.org/grpc"
+	"sync/atomic"
 )
+
+var envoyRPCSeq uint64
 
 
 type Server struct {
@@ -39,89 +42,95 @@ var log = utils.GetLogger(serviceName)
 func (s *Server) Run() error {
 	log.Info("Initializing HTTP server...")
 	sidecar := utils.GetEnvVar("sidecar", false) == "true"
+	envoy := utils.GetEnvVar("envoy", false) == "true"
+	if sidecar && envoy {
+		panic("sidecar and envoy cannot both be enabled")
+	}
+	meshProxy := sidecar || envoy
 	var conn *grpc.ClientConn
-	if sidecar {
+	if meshProxy {
 		conn = pkg.GetConn(utils.GetEnvVar("MS_64512_EGRESS", true))
 	}
-	if !sidecar {
+	if !meshProxy {
 		conn = pkg.GetConn(utils.GetEnvVar("MS_14758_ADDR", true))
 	}
 	s.MS_14758Client = pb.NewMS_14758Client(conn)
-	if !sidecar {
+	if !meshProxy {
 		conn = pkg.GetConn(utils.GetEnvVar("MS_19439_ADDR", true))
 	}
 	s.MS_19439Client = pb.NewMS_19439Client(conn)
-	if !sidecar {
+	if !meshProxy {
 		conn = pkg.GetConn(utils.GetEnvVar("MS_21298_ADDR", true))
 	}
 	s.MS_21298Client = pb.NewMS_21298Client(conn)
-	if !sidecar {
+	if !meshProxy {
 		conn = pkg.GetConn(utils.GetEnvVar("MS_25781_ADDR", true))
 	}
 	s.MS_25781Client = pb.NewMS_25781Client(conn)
-	if !sidecar {
+	if !meshProxy {
 		conn = pkg.GetConn(utils.GetEnvVar("MS_25806_ADDR", true))
 	}
 	s.MS_25806Client = pb.NewMS_25806Client(conn)
-	if !sidecar {
+	if !meshProxy {
 		conn = pkg.GetConn(utils.GetEnvVar("MS_2687_ADDR", true))
 	}
 	s.MS_2687Client = pb.NewMS_2687Client(conn)
-	if !sidecar {
+	if !meshProxy {
 		conn = pkg.GetConn(utils.GetEnvVar("MS_40087_ADDR", true))
 	}
 	s.MS_40087Client = pb.NewMS_40087Client(conn)
-	if !sidecar {
+	if !meshProxy {
 		conn = pkg.GetConn(utils.GetEnvVar("MS_43032_ADDR", true))
 	}
 	s.MS_43032Client = pb.NewMS_43032Client(conn)
-	if !sidecar {
+	if !meshProxy {
 		conn = pkg.GetConn(utils.GetEnvVar("MS_51783_ADDR", true))
 	}
 	s.MS_51783Client = pb.NewMS_51783Client(conn)
-	if !sidecar {
+	if !meshProxy {
 		conn = pkg.GetConn(utils.GetEnvVar("MS_51787_ADDR", true))
 	}
 	s.MS_51787Client = pb.NewMS_51787Client(conn)
-	if !sidecar {
+	if !meshProxy {
 		conn = pkg.GetConn(utils.GetEnvVar("MS_53792_ADDR", true))
 	}
 	s.MS_53792Client = pb.NewMS_53792Client(conn)
-	if !sidecar {
+	if !meshProxy {
 		conn = pkg.GetConn(utils.GetEnvVar("MS_58796_ADDR", true))
 	}
 	s.MS_58796Client = pb.NewMS_58796Client(conn)
-	if !sidecar {
+	if !meshProxy {
 		conn = pkg.GetConn(utils.GetEnvVar("MS_62039_ADDR", true))
 	}
 	s.MS_62039Client = pb.NewMS_62039Client(conn)
-	if !sidecar {
+	if !meshProxy {
 		conn = pkg.GetConn(utils.GetEnvVar("MS_66921_ADDR", true))
 	}
 	s.MS_66921Client = pb.NewMS_66921Client(conn)
-	if !sidecar {
+	if !meshProxy {
 		conn = pkg.GetConn(utils.GetEnvVar("MS_67465_ADDR", true))
 	}
 	s.MS_67465Client = pb.NewMS_67465Client(conn)
-	if !sidecar {
+	if !meshProxy {
 		conn = pkg.GetConn(utils.GetEnvVar("MS_70124_ADDR", true))
 	}
 	s.MS_70124Client = pb.NewMS_70124Client(conn)
-	if !sidecar {
+	if !meshProxy {
 		conn = pkg.GetConn(utils.GetEnvVar("MS_9105_ADDR", true))
 	}
 	s.MS_9105Client = pb.NewMS_9105Client(conn)
 
 
 	port := 2000
-	if sidecar {
+	if meshProxy {
 		port = utils.StrToInt(utils.GetEnvVar("MS_64512_PORT", true))
 	}
 	mux := http.NewServeMux()
 	var baseHandler http.Handler = http.HandlerFunc(s.handler)
 	plain := utils.GetEnvVar("plain", false) == "true"
+	plainLb := utils.GetEnvVar("plain_lb", false) == "true"
 	queuingExport := utils.GetEnvVar("queuing_export", false) == "true"
-	if plain || (sidecar && queuingExport) {
+	if plain || plainLb || (sidecar && queuingExport) {
 		counter := utils.NewCounterState(serviceName)
 		baseHandler = counter.GetHTTP1Middleware()(baseHandler)
 	}
@@ -138,6 +147,7 @@ func (s *Server) Run() error {
 func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	sidecar := utils.GetEnvVar("sidecar", false) == "true"
+	envoy := utils.GetEnvVar("envoy", false) == "true"
 	var rpcID, rpcLocalID string
 	if sidecar {
 		rpcID = r.Header.Get("rpc-id")
@@ -149,6 +159,15 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 		if rpcLocalID == "" {
 			http.Error(w, "rpc-local-id header required", http.StatusBadRequest)
 			return
+		}
+	} else if envoy {
+		rpcID = r.Header.Get("rpc-id")
+		rpcLocalID = r.Header.Get("rpc-local-id")
+		if rpcID == "" {
+			rpcID = fmt.Sprintf("%d", atomic.AddUint64(&envoyRPCSeq, 1))
+		}
+		if rpcLocalID == "" {
+			rpcLocalID = rpcID
 		}
 	}
 	path := strings.TrimPrefix(r.URL.Path, "/")

@@ -59,26 +59,26 @@ type Interface struct {
 }
 
 type Node struct {
-	ID             string
-	Microservice   string
-	Interface      string
-	AvgRT          float64
-	Bimodal        bool
-	BimodalP0      float64
-	BimodalR0      int
-	BimodalR1      int
-	BimodalRT0     float64
-	BimodalRT1     float64
-	BimodalProb0     float64
-	BimodalProb1     float64
-	Exponential      bool
-	ExponentialMean  float64
-	CPU              float64
-	Replicas       int
-	SidecarCPU     int
-	OverCommitment float64
-	SLO            *int
-	Priority       *int
+	ID              string
+	Microservice    string
+	Interface       string
+	AvgRT           float64
+	Bimodal         bool
+	BimodalP0       float64
+	BimodalR0       int
+	BimodalR1       int
+	BimodalRT0      float64
+	BimodalRT1      float64
+	BimodalProb0    float64
+	BimodalProb1    float64
+	Exponential     bool
+	ExponentialMean float64
+	CPU             float64
+	Replicas        int
+	SidecarCPU      int
+	OverCommitment  float64
+	SLO             *int
+	Priority        *int
 }
 
 type Edge struct {
@@ -252,7 +252,7 @@ func buildParsedGraph(cg *CallGraph) (*ParsedGraph, error) {
 	}
 	policy := strings.TrimSpace(cg.LoadBalancingPolicy)
 	if policy == "" {
-		policy = "least_request"
+		policy = "round_robin"
 	}
 	pg.LoadBalancingPolicy = policy
 	pg.DagorQueuingThreshMs = 2

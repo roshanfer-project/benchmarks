@@ -30,22 +30,27 @@ func (s *Server) Run() error {
 	log.Info("Initializing gRPC server...")
 	opts := pkg.GetServerOptions()
 	sidecar := utils.GetEnvVar("sidecar", false) == "true"
+	envoy := utils.GetEnvVar("envoy", false) == "true"
+	if sidecar && envoy {
+		panic("sidecar and envoy cannot both be enabled")
+	}
+	meshProxy := sidecar || envoy
 	useRajomon := utils.GetEnvVar("rajomon", false) == "true"
 	useDagor := utils.GetEnvVar("dagor", false) == "true"
 	queuingExport := utils.GetEnvVar("queuing_export", false) == "true"
-	if !sidecar && useRajomon && useDagor {
+	if !meshProxy && useRajomon && useDagor {
 		panic("rajomon and dagor cannot both be enabled")
 	}
 	var priceTable *rajomon.PriceTable
 	var dagorNode *dagor.Dagor
-	if useRajomon && !sidecar {
-		priceTable = rajomoninit.GetPriceTable(serviceName, false)
+	if useRajomon && !meshProxy {
+		priceTable = rajomoninit.GetPriceTable(rajomoninit.InstanceName(serviceName), false)
 	}
-	if useDagor && !sidecar {
+	if useDagor && !meshProxy {
 		dagorNode = dagorinit.GetDagorNode(serviceName, false, false)
 	}
-	if sidecar {
-		if queuingExport {
+	if meshProxy {
+		if sidecar && queuingExport {
 			opts = append(opts, grpc.ChainUnaryInterceptor(
 				utils.ContextPropagationInterceptor(),
 				utils.NewCounterState(serviceName).GetInterceptor()))
@@ -70,10 +75,10 @@ func (s *Server) Run() error {
 	srv := grpc.NewServer(opts...)
 	pb.RegisterMS_70124Server(srv, s)
 	var conn *grpc.ClientConn
-	if sidecar {
+	if meshProxy {
 		conn = pkg.GetConn(utils.GetEnvVar("MS_70124_EGRESS", true))
 	}
-	if !sidecar {
+	if !meshProxy {
 		addr := utils.GetEnvVar("MS_56113_ADDR", true)
 		if useRajomon {
 			conn = pkg.GetRajomonClient(addr, grpc.WithUnaryInterceptor(priceTable.UnaryInterceptorClient))
@@ -88,7 +93,7 @@ func (s *Server) Run() error {
 
 	reflection.Register(srv)
 	port := 2000
-	if sidecar {
+	if meshProxy {
 		port = utils.StrToInt(utils.GetEnvVar("MS_70124_PORT", true))
 	}
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", port))

@@ -7,6 +7,7 @@ fail=0
 declare -a pids=()
 for kn in "ms-12657" "ms-14758" "ms-18750" "ms-19439" "ms-21298" "ms-25781" "ms-25806" "ms-2687" "ms-33572" "ms-38190" "ms-40087" "ms-41667" "ms-43032" "ms-43754" "ms-44246" "ms-45067" "ms-51783" "ms-51787" "ms-53792" "ms-56113" "ms-5720" "ms-58796" "ms-62039" "ms-64512" "ms-66921" "ms-67465" "ms-70124" "ms-7103" "ms-9105"; do
   (
+    kubectl delete deployment -l app="$kn" --ignore-not-found --wait=true
     kubectl delete pod -l app="$kn" --ignore-not-found --wait=true
     kubectl delete service -l app="$kn" --ignore-not-found
   ) &
@@ -25,12 +26,27 @@ if [ "$MODE" = "sidecar" ]; then
   kubectl delete service -l app=ingress --ignore-not-found
   kubectl delete configmap sidecar-configs --ignore-not-found
 fi
-if [ "$MODE" = "rajomon" ] || [ "$MODE" = "dagor" ]; then
+if [ "$MODE" = "sidecar-lb" ]; then
+  kubectl delete pod -l app=ingress --ignore-not-found --wait=true
+  kubectl delete service -l app=ingress --ignore-not-found
+  kubectl delete configmap sidecar-lb-configs --ignore-not-found
+fi
+if [ "$MODE" = "envoy" ]; then
+  kubectl delete pod -l app=ingress --ignore-not-found --wait=true
+  kubectl delete service -l app=ingress --ignore-not-found
+  kubectl delete configmap envoy-configs --ignore-not-found
+fi
+if [ "$MODE" = "rajomon" ] || [ "$MODE" = "dagor" ] || [ "$MODE" = "dagor-lb" ] || [ "$MODE" = "rajomon-lb" ]; then
+  kubectl delete deployment -l app=rajomon-client --ignore-not-found --wait=true
   kubectl delete pod -l app=rajomon-client --ignore-not-found --wait=true
   kubectl delete service -l app=rajomon-client --ignore-not-found
   kubectl delete service alibaba-large-entry --ignore-not-found
+  kubectl delete deployment -l app=ms-64512-grpc --ignore-not-found --wait=true
   kubectl delete pod -l app=ms-64512-grpc --ignore-not-found --wait=true
   kubectl delete service -l app=ms-64512-grpc --ignore-not-found
+fi
+if [ "$MODE" = "plain-lb" ]; then
+  kubectl delete service alibaba-large-entry --ignore-not-found
 fi
 echo "Destroy complete."
 exit "$fail"
