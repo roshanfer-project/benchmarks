@@ -178,6 +178,23 @@ Like **plain**, but supports multiple replicas per microservice via the `replica
 
 ## Call Graph Format
 
+- `features` (optional, default `[]`): compile-time toggles baked into generated Go at `go run ./cmd/gen` time. Omitted or empty means all features off. After changing features, regenerate the benchmark and rebuild images (`./build.sh`). Unknown feature names are rejected at codegen time.
+
+  | Feature | Default | Effect |
+  |---|---|---|
+  | `queueing_delay_export` | off | Enables gRPC tap + `queuing_delay_microseconds` Prometheus histogram (tap-to-interceptor delay). Adds per-request overhead. |
+
+  Queue-size metrics (`max_queue`, `avg_queue`, RPC counters) still work without this feature; only the delay histogram is omitted. This is unrelated to runtime deploy env **`queuing_export`**, which gates whether **sidecar** mode installs the counter interceptor at all.
+
+  Example:
+
+  ```json
+  {
+    "features": ["queueing_delay_export"],
+    "nodes": [ ... ]
+  }
+  ```
+
 - `load_balancing_policy` (optional, default `least_request`, **plain-lb, dagor-lb, and rajomon-lb**): gRPC client load balancer — `least_request` (P2C over active RPC counts), `round_robin`, or `weighted_round_robin` (WRR enables ORCA server metrics).
 - `dagor` (optional, **dagor and dagor-lb**): per-benchmark DAGOR defaults written to `dagor_init/dagor-config.go` — `queuing_thresh_ms` (default `2`), `alpha` (default `0.45`), `beta` (default `0.01`). All fields optional; omitted fields use framework defaults. Runtime env `Alpha` / `Beta` still override at deploy time.
 - `nodes`: one per microservice; `id`, `interfaces` (see **service time** below), `cpu` (optional, default 1, used for cpu_count in sidecar config and app resources), `replicas` (optional, default 1, **plain-lb, dagor-lb, rajomon-lb, and sidecar-lb**), `sidecar_cpu` (optional, default 1, used for num_threads in sidecar config; k8s sidecar gets 2× this in **sidecar**, 1× in **sidecar-lb**), `over_commitment` (optional, default 0, must be in [0,1]; written to sidecar config)

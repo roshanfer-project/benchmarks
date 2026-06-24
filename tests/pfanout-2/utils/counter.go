@@ -11,19 +11,10 @@ import (
 	"github.com/prometheus/client_golang/prometheus/push"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
-	"google.golang.org/grpc/tap"
 
 )
 
 var logCounter = GetLogger("counter")
-
-type tapTimeKey struct{}
-
-func TapHandler(serviceName string) tap.ServerInHandle {
-	return func(ctx context.Context, _ *tap.Info) (context.Context, error) {
-		return context.WithValue(ctx, tapTimeKey{}, time.Now()), nil
-	}
-}
 
 func replicaInstanceSuffix(serviceName string) string {
 	if GetEnvVar("plain_lb", false) != "true" {
@@ -46,7 +37,6 @@ type CounterState struct {
 	outReq                  map[string]int64
 	maxQueue                map[string]int64
 	queueIntegral           map[string]float64
-	queuingDelay            *prometheus.HistogramVec
 	lock                    sync.Mutex
 	startOnce               sync.Once
 	startTime               time.Time
@@ -95,20 +85,10 @@ func NewCounterState(serviceName string) *CounterState {
 		prometheus.GaugeOpts{Name: "failed_rpc_counter", Help: "Failed RPC counter for each RPC method"},
 		[]string{"api"},
 	)
-	s.queuingDelay = prometheus.NewHistogramVec(
-		prometheus.HistogramOpts{
-			Name:                            "queuing_delay_microseconds",
-			Help:                            "gRPC queue delay before CounterState (tap to interceptor entry), in microseconds",
-			NativeHistogramBucketFactor:     1.1,
-			NativeHistogramMaxBucketNumber:  100,
-		},
-		[]string{"api"},
-	)
 	s.registry.MustRegister(s.maxQueueGauge)
 	s.registry.MustRegister(s.avgQueueGauge)
 	s.registry.MustRegister(s.acceptedRPCCounterGauge)
 	s.registry.MustRegister(s.failedRPCCounterGauge)
-	s.registry.MustRegister(s.queuingDelay)
 	return s
 }
 
@@ -132,9 +112,6 @@ func (s *CounterState) GetInterceptor() grpc.UnaryServerInterceptor {
 			panic("api not found in metadata")
 		}
 		api := keys[0]
-		if t0, ok := ctx.Value(tapTimeKey{}).(time.Time); ok {
-			s.queuingDelay.WithLabelValues(api).Observe(float64(time.Since(t0).Microseconds()))
-		}
 		s.IncrementInReq(api)
 		s.IncrementAcceptedRPCCounter(api)
 		resp, err := handler(ctx, req)
@@ -256,7 +233,6 @@ func (s *CounterState) PushAll() {
 		if err := pusher.Push(); err != nil {
 			logCounter.Error("Could not push to Pushgateway", "error", err)
 		} else {
-			s.queuingDelay.Reset()
 		}
 	}
 }

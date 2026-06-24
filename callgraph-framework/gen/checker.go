@@ -8,6 +8,18 @@ import (
 
 const weightEpsilon = 1e-6
 
+var knownFeatures = map[string]struct{}{
+	"queueing_delay_export": {},
+}
+
+func checkFeatures(pg *ParsedGraph, errs *[]string) {
+	for name := range pg.Features {
+		if _, ok := knownFeatures[name]; !ok {
+			*errs = append(*errs, fmt.Sprintf("unknown feature %q", name))
+		}
+	}
+}
+
 func checkEdgeWeights(pg *ParsedGraph, errs *[]string) {
 	for _, e := range pg.Edges {
 		if e.Source == "USER" && e.Weight != nil {
@@ -290,6 +302,7 @@ func Check(pg *ParsedGraph) error {
 		errs = append(errs, "effective connection_pool_size must be >= 1")
 	}
 
+	checkFeatures(pg, &errs)
 	checkEdgeWeights(pg, &errs)
 	checkFanOutAndParallel(pg, &errs)
 

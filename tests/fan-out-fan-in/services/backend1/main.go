@@ -88,7 +88,6 @@ func (s *Server) Run() error {
 	}
 	if meshProxy {
 		if sidecar && queuingExport {
-			opts = append(opts, grpc.InTapHandle(utils.TapHandler(serviceName)))
 			opts = append(opts, grpc.ChainUnaryInterceptor(
 				utils.ContextPropagationInterceptor(),
 				utils.NewCounterState(serviceName).GetInterceptor()))
@@ -97,19 +96,16 @@ func (s *Server) Run() error {
 				utils.ContextPropagationInterceptor()))
 		}
 	} else if useRajomon {
-		opts = append(opts, grpc.InTapHandle(utils.TapHandler(serviceName)))
 		opts = append(opts, grpc.ChainUnaryInterceptor(
 			utils.ContextPropagationInterceptor(),
 			utils.NewCounterState(serviceName).GetInterceptor(),
 			priceTable.UnaryInterceptor))
 	} else if useDagor {
-		opts = append(opts, grpc.InTapHandle(utils.TapHandler(serviceName)))
 		opts = append(opts, grpc.ChainUnaryInterceptor(
 			utils.ContextPropagationInterceptor(),
 			utils.NewCounterState(serviceName).GetInterceptor(),
 			dagorNode.UnaryInterceptorServer))
 	} else {
-		opts = append(opts, grpc.InTapHandle(utils.TapHandler(serviceName)))
 		opts = append(opts, grpc.ChainUnaryInterceptor(
 			utils.ContextPropagationInterceptor(),
 			utils.NewCounterState(serviceName).GetInterceptor()))

@@ -114,7 +114,10 @@ func renderCounterGo(pg *ParsedGraph) (string, error) {
 		return "", err
 	}
 	var b bytes.Buffer
-	if err := t.Execute(&b, map[string]bool{"WRR": pg.LoadBalancingPolicy == "weighted_round_robin"}); err != nil {
+	if err := t.Execute(&b, map[string]bool{
+		"WRR":                 pg.LoadBalancingPolicy == "weighted_round_robin",
+		"QueueingDelayExport": pg.HasFeature("queueing_delay_export"),
+	}); err != nil {
 		return "", err
 	}
 	return b.String(), nil
@@ -247,14 +250,14 @@ import (
 	"github.com/prometheus/client_golang/prometheus/push"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
-	"google.golang.org/grpc/tap"
-{{if .WRR}}	"google.golang.org/grpc/orca"
+{{if .QueueingDelayExport}}	"google.golang.org/grpc/tap"
+{{end}}{{if .WRR}}	"google.golang.org/grpc/orca"
 {{end}}
 )
 
 var logCounter = GetLogger("counter")
 
-type tapTimeKey struct{}
+{{if .QueueingDelayExport}}type tapTimeKey struct{}
 
 func TapHandler(serviceName string) tap.ServerInHandle {
 	return func(ctx context.Context, _ *tap.Info) (context.Context, error) {
@@ -262,7 +265,7 @@ func TapHandler(serviceName string) tap.ServerInHandle {
 	}
 }
 
-func replicaInstanceSuffix(serviceName string) string {
+{{end}}func replicaInstanceSuffix(serviceName string) string {
 	if GetEnvVar("plain_lb", false) != "true" {
 		return ""
 	}
@@ -283,8 +286,8 @@ type CounterState struct {
 	outReq                  map[string]int64
 	maxQueue                map[string]int64
 	queueIntegral           map[string]float64
-	queuingDelay            *prometheus.HistogramVec
-	lock                    sync.Mutex
+{{if .QueueingDelayExport}}	queuingDelay            *prometheus.HistogramVec
+{{end}}	lock                    sync.Mutex
 	startOnce               sync.Once
 	startTime               time.Time
 	lastEventTime           time.Time
@@ -341,7 +344,7 @@ func NewCounterState(serviceName string) *CounterState {
 		prometheus.GaugeOpts{Name: "failed_rpc_counter", Help: "Failed RPC counter for each RPC method"},
 		[]string{"api"},
 	)
-	s.queuingDelay = prometheus.NewHistogramVec(
+{{if .QueueingDelayExport}}	s.queuingDelay = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name:                            "queuing_delay_microseconds",
 			Help:                            "gRPC queue delay before CounterState (tap to interceptor entry), in microseconds",
@@ -350,12 +353,12 @@ func NewCounterState(serviceName string) *CounterState {
 		},
 		[]string{"api"},
 	)
-	s.registry.MustRegister(s.maxQueueGauge)
+{{end}}	s.registry.MustRegister(s.maxQueueGauge)
 	s.registry.MustRegister(s.avgQueueGauge)
 	s.registry.MustRegister(s.acceptedRPCCounterGauge)
 	s.registry.MustRegister(s.failedRPCCounterGauge)
-	s.registry.MustRegister(s.queuingDelay)
-	return s
+{{if .QueueingDelayExport}}	s.registry.MustRegister(s.queuingDelay)
+{{end}}	return s
 }
 
 func (s *CounterState) start() {
@@ -485,10 +488,10 @@ func (s *CounterState) recordOrcaMetrics(ctx context.Context, isError bool) {
 			panic("api not found in metadata")
 		}
 		api := keys[0]
-		if t0, ok := ctx.Value(tapTimeKey{}).(time.Time); ok {
+{{if .QueueingDelayExport}}		if t0, ok := ctx.Value(tapTimeKey{}).(time.Time); ok {
 			s.queuingDelay.WithLabelValues(api).Observe(float64(time.Since(t0).Microseconds()))
 		}
-		s.IncrementInReq(api)
+{{end}}		s.IncrementInReq(api)
 		s.IncrementAcceptedRPCCounter(api)
 		resp, err := handler(ctx, req)
 		if err != nil {
@@ -610,8 +613,8 @@ func (s *CounterState) PushAll() {
 		if err := pusher.Push(); err != nil {
 			logCounter.Error("Could not push to Pushgateway", "error", err)
 		} else {
-			s.queuingDelay.Reset()
-		}
+{{if .QueueingDelayExport}}			s.queuingDelay.Reset()
+{{end}}		}
 	}
 }
 `
@@ -1061,16 +1064,17 @@ func main() {
 `
 
 type grpcServiceData struct {
-	Module           string
-	ServiceName      string
-	ProtoServiceName string
-	Port             int
-	Handlers         []grpcHandler
-	Clients          []clientRef
-	EgressEnv        string
-	PortEnv          string
-	NeedBenchRng     bool
-	NeedParallel     bool
+	Module                string
+	ServiceName           string
+	ProtoServiceName      string
+	Port                  int
+	Handlers              []grpcHandler
+	Clients               []clientRef
+	EgressEnv             string
+	PortEnv               string
+	NeedBenchRng          bool
+	NeedParallel          bool
+	QueueingDelayExport   bool
 }
 
 type grpcAPICase struct {
@@ -1121,16 +1125,17 @@ func buildGRPCServiceData(pg *ParsedGraph, module string, svcName string) grpcSe
 	}
 	sort.Slice(clients, func(i, j int) bool { return clients[i].Microservice < clients[j].Microservice })
 	return grpcServiceData{
-		Module:           module,
-		ServiceName:      svcName,
-		ProtoServiceName: protoServiceName(svcName),
-		Port:             port,
-		Handlers:         handlers,
-		Clients:          clients,
-		EgressEnv:        svcName + "_EGRESS",
-		PortEnv:          svcName + "_PORT",
-		NeedBenchRng:     needBenchRng,
-		NeedParallel:     needPar,
+		Module:              module,
+		ServiceName:         svcName,
+		ProtoServiceName:    protoServiceName(svcName),
+		Port:                port,
+		Handlers:            handlers,
+		Clients:             clients,
+		EgressEnv:           svcName + "_EGRESS",
+		PortEnv:             svcName + "_PORT",
+		NeedBenchRng:        needBenchRng,
+		NeedParallel:        needPar,
+		QueueingDelayExport: pg.HasFeature("queueing_delay_export"),
 	}
 }
 
@@ -1270,8 +1275,8 @@ func (s *Server) Run() error {
 	}
 	if meshProxy {
 		if sidecar && queuingExport {
-			opts = append(opts, grpc.InTapHandle(utils.TapHandler(serviceName)))
-			opts = append(opts, grpc.ChainUnaryInterceptor(
+{{if .QueueingDelayExport}}			opts = append(opts, grpc.InTapHandle(utils.TapHandler(serviceName)))
+{{end}}			opts = append(opts, grpc.ChainUnaryInterceptor(
 				utils.ContextPropagationInterceptor(),
 				utils.NewCounterState(serviceName).GetInterceptor()))
 		} else {
@@ -1279,20 +1284,20 @@ func (s *Server) Run() error {
 				utils.ContextPropagationInterceptor()))
 		}
 	} else if useRajomon {
-		opts = append(opts, grpc.InTapHandle(utils.TapHandler(serviceName)))
-		opts = append(opts, grpc.ChainUnaryInterceptor(
+{{if .QueueingDelayExport}}		opts = append(opts, grpc.InTapHandle(utils.TapHandler(serviceName)))
+{{end}}		opts = append(opts, grpc.ChainUnaryInterceptor(
 			utils.ContextPropagationInterceptor(),
 			utils.NewCounterState(serviceName).GetInterceptor(),
 			priceTable.UnaryInterceptor))
 	} else if useDagor {
-		opts = append(opts, grpc.InTapHandle(utils.TapHandler(serviceName)))
-		opts = append(opts, grpc.ChainUnaryInterceptor(
+{{if .QueueingDelayExport}}		opts = append(opts, grpc.InTapHandle(utils.TapHandler(serviceName)))
+{{end}}		opts = append(opts, grpc.ChainUnaryInterceptor(
 			utils.ContextPropagationInterceptor(),
 			utils.NewCounterState(serviceName).GetInterceptor(),
 			dagorNode.UnaryInterceptorServer))
 	} else {
-		opts = append(opts, grpc.InTapHandle(utils.TapHandler(serviceName)))
-		opts = append(opts, grpc.ChainUnaryInterceptor(
+{{if .QueueingDelayExport}}		opts = append(opts, grpc.InTapHandle(utils.TapHandler(serviceName)))
+{{end}}		opts = append(opts, grpc.ChainUnaryInterceptor(
 			utils.ContextPropagationInterceptor(),
 			utils.NewCounterState(serviceName).GetInterceptor()))
 	}
@@ -1479,15 +1484,15 @@ func (s *Server) Run() error {
 	var dn *dagor.Dagor
 	if useRajomon {
 		pt = rajomoninit.GetPriceTable(rajomoninit.InstanceName(serviceName), false)
-		opts = append(opts, grpc.InTapHandle(utils.TapHandler(serviceName)))
-		opts = append(opts, grpc.ChainUnaryInterceptor(
+{{if .QueueingDelayExport}}		opts = append(opts, grpc.InTapHandle(utils.TapHandler(serviceName)))
+{{end}}		opts = append(opts, grpc.ChainUnaryInterceptor(
 			utils.ContextPropagationInterceptor(),
 			utils.NewCounterState(serviceName).GetInterceptor(),
 			pt.UnaryInterceptor))
 	} else {
 		dn = dagorinit.GetDagorNode(serviceName, true, false)
-		opts = append(opts, grpc.InTapHandle(utils.TapHandler(serviceName)))
-		opts = append(opts, grpc.ChainUnaryInterceptor(
+{{if .QueueingDelayExport}}		opts = append(opts, grpc.InTapHandle(utils.TapHandler(serviceName)))
+{{end}}		opts = append(opts, grpc.ChainUnaryInterceptor(
 			utils.ContextPropagationInterceptor(),
 			utils.NewCounterState(serviceName).GetInterceptor(),
 			dn.UnaryInterceptorServer))

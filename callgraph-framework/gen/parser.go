@@ -23,6 +23,7 @@ type DagorConfig struct {
 
 type CallGraph struct {
 	LoadBalancingPolicy string        `json:"load_balancing_policy,omitempty"`
+	Features            []string      `json:"features,omitempty"`
 	Dagor               *DagorConfig  `json:"dagor,omitempty"`
 	Nodes               []ServiceNode `json:"nodes"`
 	Edges               []Edge        `json:"edges"`
@@ -106,11 +107,16 @@ type ParsedGraph struct {
 	Edges                []Edge
 	EntryNodeIDs         []string
 	Services             map[string][]*Node
+	Features             map[string]bool
 	ConnectionPoolSize   int // 0: use defaultConnectionPoolSize
 	LoadBalancingPolicy  string
 	DagorQueuingThreshMs float64
 	DagorAlpha           float64
 	DagorBeta            float64
+}
+
+func (pg *ParsedGraph) HasFeature(name string) bool {
+	return pg.Features[name]
 }
 
 func ParseCallGraph(path string) (*ParsedGraph, error) {
@@ -143,6 +149,10 @@ func buildParsedGraph(cg *CallGraph) (*ParsedGraph, error) {
 	pg := &ParsedGraph{
 		Nodes:    make(map[string]*Node),
 		Services: make(map[string][]*Node),
+		Features: make(map[string]bool),
+	}
+	for _, f := range cg.Features {
+		pg.Features[f] = true
 	}
 	for i := range cg.Nodes {
 		svc := &cg.Nodes[i]
