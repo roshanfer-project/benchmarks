@@ -252,7 +252,7 @@ func buildParsedGraph(cg *CallGraph) (*ParsedGraph, error) {
 	}
 	policy := strings.TrimSpace(cg.LoadBalancingPolicy)
 	if policy == "" {
-		policy = "round_robin"
+		policy = "least_request"
 	}
 	pg.LoadBalancingPolicy = policy
 	pg.DagorQueuingThreshMs = 2
