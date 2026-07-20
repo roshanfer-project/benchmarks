@@ -1,0 +1,88 @@
+{
+    "nodes": [
+        {
+            "id": "USER",
+            "interfaces": [
+                {
+                    "name": "USER"
+                }
+            ]
+        },
+        {
+            "id": "frontend",
+            "interfaces": [
+                {
+                    "name": "f1",
+                    "avg_rt": 0.1,
+                    "slo": 50,
+                    "priority": 0
+                }
+            ],
+            "cpu": 2,
+            "over_commitment": 1
+        },
+        {
+            "id": "backend1",
+            "interfaces": [
+                {
+                    "name": "f2",
+                    "exponential": {
+                        "mean": 1
+                    },
+                    "priority": 0
+                }
+            ],
+            "cpu": 3,
+            "replicas": 3
+        },
+        {
+            "id": "backend2",
+            "interfaces": [
+                {
+                    "name": "f3",
+                    "exponential": {
+                        "mean": 1
+                    },
+                    "priority": 0
+                }
+            ],
+            "cpu": 3,
+            "replicas": 3
+        },
+        {
+            "id": "backend3",
+            "interfaces": [
+                {
+                    "name": "f4",
+                    "exponential": {
+                        "mean": 1
+                    },
+                    "priority": 0
+                }
+            ],
+            "cpu": 3,
+            "replicas": 3
+        }
+    ],
+    "edges": [
+        {
+            "source": "USER",
+            "target": "frontend:f1"
+        },
+        {
+            "source": "frontend:f1",
+            "target": "backend1:f2",
+            "api": "f1"
+        },
+        {
+            "source": "backend1:f2",
+            "target": "backend2:f3",
+            "api": "f1"
+        },
+        {
+            "source": "backend2:f3",
+            "target": "backend3:f4",
+            "api": "f1"
+        }
+    ]
+}

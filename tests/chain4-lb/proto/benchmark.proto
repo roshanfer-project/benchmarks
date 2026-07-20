@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package benchmark;
+
+option go_package = "chain4lb/protobuf";
+
+message Request { string payload = 1; }
+message Response { string payload = 1; }
+
+service backend1 {
+  rpc f2(Request) returns (Response);
+}
+
+service backend2 {
+  rpc f3(Request) returns (Response);
+}
+
+service backend3 {
+  rpc f4(Request) returns (Response);
+}
+
+service frontend {
+  rpc f1(Request) returns (Response);
+}
+
