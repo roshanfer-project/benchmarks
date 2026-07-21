@@ -407,6 +407,7 @@ elif [ "$MODE" = "rajomon-lb" ]; then
 elif [ "$MODE" = "plain-lb" ]; then
   kubectl create configmap fan-out-dynamic-0-9-config --from-env-file=k8s/plain-lb.env --dry-run=client -o yaml > "$TMP_DIR/configmap.yaml"
   kubectl apply -f "$TMP_DIR/configmap.yaml"
+  kubectl apply -f k8s/manifests/plain-lb-envoy-configs.yaml
 
   kubectl apply -f k8s/manifests/prometheus.yaml
   kubectl_wait_ready_or_fail prometheus-pushgateway 60
@@ -430,7 +431,8 @@ elif [ "$MODE" = "plain-lb" ]; then
     exit 1
   fi
 
-  kubectl apply -f k8s/manifests/entry-lb.yaml
+  kubectl apply -f k8s/manifests/ingress-envoy-lb.yaml
+  kubectl_wait_ready_or_fail ingress 30
 else
   kubectl create configmap fan-out-dynamic-0-9-config --from-env-file=k8s/plain.env --dry-run=client -o yaml > "$TMP_DIR/configmap.yaml"
   kubectl apply -f "$TMP_DIR/configmap.yaml"

@@ -125,13 +125,12 @@ func ingressSidecarSpec(pg *ParsedGraph, mode string, _ bool) ServiceDeploySpec 
 	}
 }
 
-func ingressEnvoySpec(mode string) ServiceDeploySpec {
-	limit := float64(envoyIngressConcurrency)
+func ingressEnvoySpec(mode string, concurrency int) ServiceDeploySpec {
 	return ServiceDeploySpec{
 		Mode:            mode,
 		Service:         "ingress",
 		AppCPULimit:     na,
-		SidecarCPULimit: limit,
+		SidecarCPULimit: float64(concurrency),
 		Replicas:        1,
 		GOMAXPROCS:      int(na),
 		CPUCount:        int(na),
@@ -184,6 +183,7 @@ func DeploySpecForMode(pg *ParsedGraph, mode string) []ServiceDeploySpec {
 		for _, svc := range svcNames {
 			specs = append(specs, lbAppSpec(pg, mode, svc))
 		}
+		specs = append(specs, ingressEnvoySpec(mode, pg.UserEntryCount()*2))
 	case "sidecar":
 		for _, svc := range svcNames {
 			specs = append(specs, sidecarWorkloadSpec(pg, mode, svc, false))
@@ -198,7 +198,7 @@ func DeploySpecForMode(pg *ParsedGraph, mode string) []ServiceDeploySpec {
 		for _, svc := range svcNames {
 			specs = append(specs, envoyWorkloadSpec(pg, mode, svc))
 		}
-		specs = append(specs, ingressEnvoySpec(mode))
+		specs = append(specs, ingressEnvoySpec(mode, envoyIngressConcurrency))
 	case "rajomon", "dagor":
 		for _, svc := range svcNames {
 			specs = append(specs, plainPodAppSpec(pg, mode, svc))

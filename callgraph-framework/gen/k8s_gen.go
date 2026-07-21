@@ -175,6 +175,12 @@ func GenerateK8s(pg *ParsedGraph, benchmarkName string, registry string, outDir 
 	if err := generateIngressEnvoyYaml(pg, benchmarkName, outDir); err != nil {
 		return err
 	}
+	if err := generatePlainLbEnvoyConfigs(pg, benchmarkName, outDir); err != nil {
+		return err
+	}
+	if err := generateIngressEnvoyLbYaml(pg, benchmarkName, outDir); err != nil {
+		return err
+	}
 	if err := generateRajomonEnv(pg, benchmarkName, svcNames, outDir); err != nil {
 		return err
 	}
@@ -290,8 +296,6 @@ spec:
 
 func generateAppLbYaml(pg *ParsedGraph, benchmarkName string, svcNames []string, outDir string) error {
 	prefix := benchmarkName + "-"
-	entrySvc := pg.EntryMicroservice()
-	entryPodName := k8sName(entrySvc)
 	manifestsDir := filepath.Join(outDir, "k8s", "manifests")
 	if err := os.MkdirAll(manifestsDir, 0755); err != nil {
 		return err
@@ -363,70 +367,7 @@ spec:
 			return err
 		}
 	}
-	entryCPU := pg.CPUForService(entrySvc)
-	entryReplicas := pg.ReplicasForService(entrySvc)
-	entryPerCPU := PerReplicaCPU(entryCPU, entryReplicas)
-	entryK8sCPUStr := FormatK8sCPU(entryPerCPU)
-	entryGomaxprocsStr := fmt.Sprintf("%d", GOMAXPROCSForPerReplicaCPU(entryPerCPU))
-	entryImg := prefix + entryPodName
-	entryLb := fmt.Sprintf(`apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: %s
-  labels:
-    app: %s
-spec:
-  replicas: %d
-  selector:
-    matchLabels:
-      app: %s
-  template:
-    metadata:
-      labels:
-        app: %s
-    spec:
-      containers:
-      - name: app
-        image: %s:latest
-        resources:
-          requests:
-            cpu: "%s"
-          limits:
-            cpu: "%s"
-        env:
-        - name: GOMAXPROCS
-          value: "%s"
-        - name: POD_NAME
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.name
-        envFrom:
-        - configMapRef:
-            name: %s-config
-        ports:
-        - containerPort: %d
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: %s
-  labels:
-    app: %s
-spec:
-  type: NodePort
-  selector:
-    app: %s
-  ports:
-  - name: http
-    port: %d
-    targetPort: %d
-    nodePort: 3000
-    protocol: TCP
-`,
-		entryPodName, entryPodName, entryReplicas, entryPodName, entryPodName,
-		entryImg, entryK8sCPUStr, entryK8sCPUStr, entryGomaxprocsStr, benchmarkName, port,
-		prefix+"entry", entryPodName, entryPodName, port, port)
-	return os.WriteFile(filepath.Join(manifestsDir, "entry-lb.yaml"), []byte(entryLb), 0644)
+	return nil
 }
 
 func generatePlainLbEnv(pg *ParsedGraph, benchmarkName string, svcNames []string, outDir string) error {
@@ -2128,6 +2069,7 @@ elif [ "$MODE" = "rajomon-lb" ]; then
 elif [ "$MODE" = "plain-lb" ]; then
   kubectl create configmap {{.BenchmarkName}}-config --from-env-file=k8s/plain-lb.env --dry-run=client -o yaml > "$TMP_DIR/configmap.yaml"
   kubectl apply -f "$TMP_DIR/configmap.yaml"
+  kubectl apply -f k8s/manifests/plain-lb-envoy-configs.yaml
 
   kubectl apply -f k8s/manifests/prometheus.yaml
   kubectl_wait_ready_or_fail prometheus-pushgateway 60
@@ -2151,7 +2093,8 @@ elif [ "$MODE" = "plain-lb" ]; then
     exit 1
   fi
 
-  kubectl apply -f k8s/manifests/entry-lb.yaml
+  kubectl apply -f k8s/manifests/ingress-envoy-lb.yaml
+  kubectl_wait_ready_or_fail ingress 30
 else
   kubectl create configmap {{.BenchmarkName}}-config --from-env-file=k8s/plain.env --dry-run=client -o yaml > "$TMP_DIR/configmap.yaml"
   kubectl apply -f "$TMP_DIR/configmap.yaml"
@@ -2245,6 +2188,11 @@ if [ "$MODE" = "envoy" ]; then
   kubectl delete service -l app=ingress --ignore-not-found
   kubectl delete configmap envoy-configs --ignore-not-found
 fi
+if [ "$MODE" = "plain-lb" ]; then
+  kubectl delete pod -l app=ingress --ignore-not-found --wait=true
+  kubectl delete service -l app=ingress --ignore-not-found
+  kubectl delete configmap plain-lb-envoy-configs --ignore-not-found
+fi
 if [ "$MODE" = "rajomon" ] || [ "$MODE" = "dagor" ] || [ "$MODE" = "dagor-lb" ] || [ "$MODE" = "rajomon-lb" ]; then
   kubectl delete deployment -l app=rajomon-client --ignore-not-found --wait=true
   kubectl delete pod -l app=rajomon-client --ignore-not-found --wait=true
@@ -2253,9 +2201,6 @@ if [ "$MODE" = "rajomon" ] || [ "$MODE" = "dagor" ] || [ "$MODE" = "dagor-lb" ] 
   kubectl delete deployment -l app=` + ek + ` --ignore-not-found --wait=true
   kubectl delete pod -l app=` + ek + ` --ignore-not-found --wait=true
   kubectl delete service -l app=` + ek + ` --ignore-not-found
-fi
-if [ "$MODE" = "plain-lb" ]; then
-  kubectl delete service ` + benchmarkName + `-entry --ignore-not-found
 fi
 echo "Destroy complete."
 exit "$fail"
@@ -2302,7 +2247,7 @@ if [ "$MODE" = "sidecar" ] || [ "$MODE" = "sidecar-lb" ]; then
   for pid in "${ing_pids[@]}"; do wait "$pid" || true; done
 fi
 
-if [ "$MODE" = "envoy" ]; then
+if [ "$MODE" = "envoy" ] || [ "$MODE" = "plain-lb" ]; then
   declare -a ing_pids=()
   for pod in $(kubectl get pods -l app=ingress -o jsonpath='{.items[*].metadata.name}'); do
     (

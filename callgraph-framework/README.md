@@ -168,13 +168,13 @@ Use **`destroy.sh rajomon-lb`** to tear down. Load tests use the same URLs as pl
 
 ### plain-lb mode
 
-Like **plain**, but supports multiple replicas per microservice via the `replicas` field in `callgraph.json`. Deploy with `./deploy.sh plain-lb`; tear down with `./destroy.sh plain-lb`. Load tests use the same URLs as plain: `http://<node>:3000/<interface>` (`run-plain.sh`).
+Like **plain**, but supports multiple replicas per microservice via the `replicas` field in `callgraph.json`. Deploy with `./deploy.sh plain-lb`; tear down with `./destroy.sh plain-lb`. Load tests use per-API NodePorts like sidecar (`run.sh`): `http://<node>:3000/<interface>`, `http://<node>:3001/<interface>`, …
 
 - Workloads are **Deployments** (not Pods). Per-replica CPU = `cpu / replicas` (fractional allowed) for requests and limits. `GOMAXPROCS = ceil(cpu / replicas)`. Requires `cpu / replicas > 0`.
 - Internal gRPC services use **headless** Services (`clusterIP: None`) so clients can discover all pod IPs.
 - gRPC clients use **dns:///** load balancing when `plain_lb=true` (set in `k8s/plain-lb.env`, `k8s/dagor-lb.env`, or `k8s/rajomon-lb.env`). Policy is set by **`load_balancing_policy`** in `callgraph.json` (default **`least_request`**, power-of-two-choices over active RPC counts). Set **`round_robin`** for round-robin. Set **`weighted_round_robin`** for WRR with `blackoutPeriod: 1s`; gRPC servers then report per-call ORCA **QPS** (1s window, all RPCs), **EPS** (1s window, failed RPCs only — e.g. DAGOR admission drops), and **CPU utilization** (process CPU via `Getrusage`, normalized by `GOMAXPROCS`). WRR uses EPS via the default `error_utilization_penalty` to deprioritize backends with high error rates.
 - Prometheus pushes keep `job=<serviceName>` for all modes. In replicated `plain_lb=true` modes, each pod also pushes with Pushgateway grouping label `instance=<podSuffix>` so replicas do not overwrite each other; `collector.py` writes these as per-replica keys like `backend1-<podSuffix>` in `prometheus.json`. Non-LB modes keep bare keys like `backend1`.
-- The HTTP entry keeps a normal ClusterIP Service + NodePort (external load generators spread TCP connections across entry replicas).
+- HTTP entry is a dedicated **Envoy** ingress Pod (`ingress-envoy-lb.yaml`) with NodePorts `3000+i` per user API. Upstream is the frontend headless Service on port **2000** over **HTTP/1** (`LEAST_REQUEST`, `STRICT_DNS`). Ingress CPU and `--concurrency` are `UserEntryCount() × 2` (same core budget as sidecar-lb ingress).
 
 ## Call Graph Format
 

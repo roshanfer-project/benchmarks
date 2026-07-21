@@ -30,7 +30,7 @@ if [ "$MODE" = "sidecar" ] || [ "$MODE" = "sidecar-lb" ]; then
   for pid in "${ing_pids[@]}"; do wait "$pid" || true; done
 fi
 
-if [ "$MODE" = "envoy" ]; then
+if [ "$MODE" = "envoy" ] || [ "$MODE" = "plain-lb" ]; then
   declare -a ing_pids=()
   for pod in $(kubectl get pods -l app=ingress -o jsonpath='{.items[*].metadata.name}'); do
     (

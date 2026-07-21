@@ -15,6 +15,7 @@ const (
 	envoyAdminPort            = 9901
 	envoyRouteTimeout         = "10s"
 	envoyConnectTimeout       = "2s"
+	envoyHighCircuitBreakers  = 100000
 )
 
 const envoyStatsContainerYAML = `  - name: envoy-stats
@@ -80,7 +81,7 @@ func generateEnvoyConfigs(pg *ParsedGraph, benchmarkName string, svcNames []stri
 		cfg := buildEnvoyServiceConfig(pg, prefix, name, kn, entrySvc)
 		configs = append(configs, fmt.Sprintf("  %s.yaml: |\n%s", kn, indent(cfg, 4)))
 	}
-	ingressCfg := buildEnvoyIngressConfig(pg, prefix, entrySvc)
+	ingressCfg := buildEnvoyIngressConfig(pg, prefix, entrySvc, 0, "ROUND_ROBIN", false)
 	configs = append(configs, fmt.Sprintf("  ingress.yaml: |\n%s", indent(ingressCfg, 4)))
 	cm := `apiVersion: v1
 kind: ConfigMap
@@ -89,6 +90,24 @@ metadata:
 data:
 ` + strings.Join(configs, "\n")
 	return os.WriteFile(filepath.Join(manifestsDir, "envoy-configs.yaml"), []byte(cm), 0644)
+}
+
+func generatePlainLbEnvoyConfigs(pg *ParsedGraph, benchmarkName string, outDir string) error {
+	prefix := benchmarkName + "-"
+	entrySvc := pg.EntryMicroservice()
+	manifestsDir := filepath.Join(outDir, "k8s", "manifests")
+	if err := os.MkdirAll(manifestsDir, 0755); err != nil {
+		return err
+	}
+	ingressCfg := buildEnvoyIngressConfig(pg, prefix, entrySvc, sidecarAppPort, "LEAST_REQUEST", true)
+	cm := `apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: plain-lb-envoy-configs
+data:
+  ingress.yaml: |
+` + indent(ingressCfg, 4)
+	return os.WriteFile(filepath.Join(manifestsDir, "plain-lb-envoy-configs.yaml"), []byte(cm), 0644)
 }
 
 func buildEnvoyServiceConfig(pg *ParsedGraph, prefix, svcName, kn, entrySvc string) string {
@@ -244,17 +263,30 @@ func envoyLocalAppCluster(isEntry bool) string {
 }
 
 func envoyUpstreamCluster(prefix, targetKn, clusterName string, port int, h2Streams bool) string {
-	h2 := ""
+	return envoyUpstreamClusterOpts(prefix, targetKn, clusterName, port, h2Streams, "ROUND_ROBIN", false)
+}
+
+func envoyUpstreamClusterOpts(prefix, targetKn, clusterName string, port int, h2Streams bool, lbPolicy string, highCB bool) string {
+	extra := ""
 	if h2Streams {
-		h2 = fmt.Sprintf(`
+		extra += fmt.Sprintf(`
     http2_protocol_options:
       max_concurrent_streams: %d`, envoyMaxConcurrentStreams)
+	}
+	if highCB {
+		extra += fmt.Sprintf(`
+    circuit_breakers:
+      thresholds:
+      - priority: DEFAULT
+        max_connections: %d
+        max_pending_requests: %d
+        max_requests: %d`, envoyHighCircuitBreakers, envoyHighCircuitBreakers, envoyHighCircuitBreakers)
 	}
 	host := prefix + targetKn
 	return fmt.Sprintf(`  - name: %s
     connect_timeout: %s
     type: STRICT_DNS
-    lb_policy: ROUND_ROBIN
+    lb_policy: %s
     load_assignment:
       cluster_name: %s
       endpoints:
@@ -265,7 +297,7 @@ func envoyUpstreamCluster(prefix, targetKn, clusterName string, port int, h2Stre
                 address: %s
                 port_value: %d%s
 
-`, clusterName, envoyConnectTimeout, clusterName, host, port, h2)
+`, clusterName, envoyConnectTimeout, lbPolicy, clusterName, host, port, extra)
 }
 
 func envoyUpstreamClusters(pg *ParsedGraph, prefix, svcName string) []string {
@@ -286,7 +318,9 @@ func envoyUpstreamClusters(pg *ParsedGraph, prefix, svcName string) []string {
 	return out
 }
 
-func buildEnvoyIngressConfig(pg *ParsedGraph, prefix, entrySvc string) string {
+// upstreamPort 0 means per-handler inbound ports (envoy mesh). Otherwise all
+// entry clusters use that fixed port (plain-lb app :2000).
+func buildEnvoyIngressConfig(pg *ParsedGraph, prefix, entrySvc string, upstreamPort int, lbPolicy string, highCB bool) string {
 	entryKn := k8sName(entrySvc)
 	var b strings.Builder
 	fmt.Fprintf(&b, "node:\n  id: ingress\n  cluster: local\n\n")
@@ -301,8 +335,11 @@ func buildEnvoyIngressConfig(pg *ParsedGraph, prefix, entrySvc string) string {
 	b.WriteString("  clusters:\n")
 	for _, n := range pg.EntryInterfaces() {
 		cn := "entry-" + n.Interface
-		port := inboundPortForHandler(pg, entrySvc, n.Interface)
-		b.WriteString(envoyUpstreamCluster(prefix, entryKn, cn, port, false))
+		port := upstreamPort
+		if port == 0 {
+			port = inboundPortForHandler(pg, entrySvc, n.Interface)
+		}
+		b.WriteString(envoyUpstreamClusterOpts(prefix, entryKn, cn, port, false, lbPolicy, highCB))
 	}
 	return b.String()
 }
@@ -448,20 +485,32 @@ spec:
 }
 
 func generateIngressEnvoyYaml(pg *ParsedGraph, benchmarkName string, outDir string) error {
+	return writeIngressEnvoyYaml(pg, benchmarkName, outDir, "ingress-envoy.yaml", "envoy-configs", envoyIngressConcurrency, true)
+}
+
+func generateIngressEnvoyLbYaml(pg *ParsedGraph, benchmarkName string, outDir string) error {
+	concurrency := pg.UserEntryCount() * 2
+	return writeIngressEnvoyYaml(pg, benchmarkName, outDir, "ingress-envoy-lb.yaml", "plain-lb-envoy-configs", concurrency, false)
+}
+
+func writeIngressEnvoyYaml(pg *ParsedGraph, benchmarkName, outDir, filename, configMapName string, concurrency int, withStats bool) error {
 	manifestsDir := filepath.Join(outDir, "k8s", "manifests")
-	envoyCpu := envoyIngressConcurrency
 	nApis := pg.UserEntryCount()
 	var portSpecs []string
 	var svcPorts []string
 	for i := 0; i < nApis; i++ {
 		p := sidecarIngressBasePort + i
 		portSpecs = append(portSpecs, fmt.Sprintf("    - containerPort: %d", p))
-	portSpecs = append(portSpecs, fmt.Sprintf("    - containerPort: %d", envoyAdminPort))
 		svcPorts = append(svcPorts, fmt.Sprintf(`  - name: envoy-%d
     port: %d
     targetPort: %d
     nodePort: %d
     protocol: TCP`, p, p, p, p))
+	}
+	portSpecs = append(portSpecs, fmt.Sprintf("    - containerPort: %d", envoyAdminPort))
+	statsYAML := ""
+	if withStats {
+		statsYAML = envoyStatsContainerYAML
 	}
 	yaml := fmt.Sprintf(`apiVersion: v1
 kind: Pod
@@ -496,7 +545,7 @@ spec:
 %s  volumes:
   - name: config-volume
     configMap:
-      name: envoy-configs
+      name: %s
 ---
 apiVersion: v1
 kind: Service
@@ -510,8 +559,8 @@ spec:
     app: ingress
   ports:
 %s
-`, envoyImage, envoyIngressConcurrency, envoyCpu, envoyCpu, strings.Join(portSpecs, "\n"),
-		envoyStatsContainerYAML,
+`, envoyImage, concurrency, concurrency, concurrency, strings.Join(portSpecs, "\n"),
+		statsYAML, configMapName,
 		benchmarkName, strings.Join(svcPorts, "\n"))
-	return os.WriteFile(filepath.Join(manifestsDir, "ingress-envoy.yaml"), []byte(yaml), 0644)
+	return os.WriteFile(filepath.Join(manifestsDir, filename), []byte(yaml), 0644)
 }

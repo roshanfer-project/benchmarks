@@ -14,6 +14,7 @@ Deploy resource comparison across generated modes (from callgraph.json).
 | plain-lb | backend2 | 3 | — | 1 | 3 | — | — | — |
 | plain-lb | backend3 | 4 | — | 1 | 4 | — | — | — |
 | plain-lb | frontend | 2 | — | 1 | 2 | — | — | — |
+| plain-lb | ingress | — | 2 | 1 | — | — | — | — |
 | sidecar | backend1 | 3 | 2 | 1 | 3 | 3 | 0.0 | 1 |
 | sidecar | backend2 | 3 | 2 | 1 | 3 | 3 | 0.0 | 1 |
 | sidecar | backend3 | 4 | 2 | 1 | 4 | 4 | 0.0 | 1 |
@@ -55,7 +56,7 @@ Deploy resource comparison across generated modes (from callgraph.json).
 | mode | total_app_cores | total_sidecar_cores | app_sidecar_ratio |
 |------|-----------------|---------------------|-------------------|
 | plain | 12 | 0 | — |
-| plain-lb | 12 | 0 | — |
+| plain-lb | 12 | 2 | 6 |
 | sidecar | 12 | 10 | 1.2 |
 | sidecar-lb | 12 | 6 | 2 |
 | envoy | 12 | 5 | 2.4 |

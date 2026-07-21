@@ -36,6 +36,11 @@ if [ "$MODE" = "envoy" ]; then
   kubectl delete service -l app=ingress --ignore-not-found
   kubectl delete configmap envoy-configs --ignore-not-found
 fi
+if [ "$MODE" = "plain-lb" ]; then
+  kubectl delete pod -l app=ingress --ignore-not-found --wait=true
+  kubectl delete service -l app=ingress --ignore-not-found
+  kubectl delete configmap plain-lb-envoy-configs --ignore-not-found
+fi
 if [ "$MODE" = "rajomon" ] || [ "$MODE" = "dagor" ] || [ "$MODE" = "dagor-lb" ] || [ "$MODE" = "rajomon-lb" ]; then
   kubectl delete deployment -l app=rajomon-client --ignore-not-found --wait=true
   kubectl delete pod -l app=rajomon-client --ignore-not-found --wait=true
@@ -44,9 +49,6 @@ if [ "$MODE" = "rajomon" ] || [ "$MODE" = "dagor" ] || [ "$MODE" = "dagor-lb" ] 
   kubectl delete deployment -l app=frontend-grpc --ignore-not-found --wait=true
   kubectl delete pod -l app=frontend-grpc --ignore-not-found --wait=true
   kubectl delete service -l app=frontend-grpc --ignore-not-found
-fi
-if [ "$MODE" = "plain-lb" ]; then
-  kubectl delete service intermediate-diverse-entry --ignore-not-found
 fi
 echo "Destroy complete."
 exit "$fail"

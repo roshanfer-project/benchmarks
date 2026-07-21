@@ -28,7 +28,6 @@ spec:
       subPath: ingress.yaml
     ports:
     - containerPort: 3000
-    - containerPort: 9901
     - containerPort: 3001
     - containerPort: 9901
   - name: envoy-stats
