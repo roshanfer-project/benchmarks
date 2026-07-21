@@ -875,7 +875,7 @@ func generateSidecarConfigs(pg *ParsedGraph, benchmarkName string, svcNames []st
 		cfg := buildSidecarServiceConfig(pg, prefix, name, kn, entrySvc, false)
 		configs = append(configs, fmt.Sprintf("  %s.yaml: |\n%s", kn, indent(cfg, 4)))
 	}
-	ingressCfg := buildIngressConfig(pg, prefix, entrySvc)
+	ingressCfg := buildIngressConfig(pg, prefix, entrySvc, false)
 	configs = append(configs, fmt.Sprintf("  ingress.yaml: |\n%s", indent(ingressCfg, 4)))
 
 	cm := `apiVersion: v1
@@ -991,7 +991,7 @@ func generateSidecarLbConfigs(pg *ParsedGraph, benchmarkName string, svcNames []
 		cfg := buildSidecarServiceConfig(pg, prefix, name, kn, entrySvc, true)
 		configs = append(configs, fmt.Sprintf("  %s.yaml: |\n%s", kn, indent(cfg, 4)))
 	}
-	ingressCfg := buildIngressConfig(pg, prefix, entrySvc)
+	ingressCfg := buildIngressConfig(pg, prefix, entrySvc, true)
 	configs = append(configs, fmt.Sprintf("  ingress.yaml: |\n%s", indent(ingressCfg, 4)))
 
 	cm := `apiVersion: v1
@@ -1037,7 +1037,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/rwg_phases.sh"
 resolve_rwg_phases "$BASE" "$RATE" "$DURATION"
 `
 
-func buildIngressConfig(pg *ParsedGraph, prefix, entrySvc string) string {
+func buildIngressConfig(pg *ParsedGraph, prefix, entrySvc string, lb bool) string {
 	entryKn := k8sName(entrySvc)
 	entryHost := prefix + entryKn
 	numThreads := pg.UserEntryCount()
@@ -1049,6 +1049,10 @@ func buildIngressConfig(pg *ParsedGraph, prefix, entrySvc string) string {
 		listenPort := sidecarIngressBasePort + i
 		routing.WriteString(fmt.Sprintf("  %s:\n    upstream:\n      host: %s\n      port: %d\n    slo: %d\n    priority: %d\n", n.Interface, entryHost, sidecarIngressPort, ingressSLO, priority))
 		mapping.WriteString(fmt.Sprintf("  %s:\n    downstreams:\n      - %s\n    listen_port: %d\n", n.Interface, n.Interface, listenPort))
+	}
+	lbModeLine := ""
+	if lb {
+		lbModeLine = "lb_mode: True\n"
 	}
 	return fmt.Sprintf(`routing:
 %s
@@ -1064,11 +1068,11 @@ ingress_listener_port: 4000
 ingress_upstream_host: localhost
 ingress_upstream_port: %d
 is_ingress: True
-is_frontend: False
+%sis_frontend: False
 report_latency: True
 name: ingress
 `, strings.TrimSuffix(routing.String(), "\n"), strings.TrimSuffix(mapping.String(), "\n"),
-		numThreads, pg.EffectiveConnectionPoolSize(), sidecarIngressPort, sidecarAppPort)
+		numThreads, pg.EffectiveConnectionPoolSize(), sidecarIngressPort, sidecarAppPort, lbModeLine)
 }
 
 func generateSidecarEnv(pg *ParsedGraph, benchmarkName string, svcNames []string, outDir string) error {

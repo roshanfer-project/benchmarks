@@ -224,6 +224,7 @@ data:
     ingress_upstream_host: localhost
     ingress_upstream_port: 2000
     is_ingress: True
+    lb_mode: True
     is_frontend: False
     report_latency: True
     name: ingress
