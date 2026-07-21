@@ -16,9 +16,9 @@ spec:
       value: "1"
     resources:
       requests:
-        cpu: "1"
+        cpu: "2"
       limits:
-        cpu: "1"
+        cpu: "2"
     volumeMounts:
     - name: config-volume
       mountPath: /config.yaml

@@ -111,13 +111,8 @@ func envoyWorkloadSpec(pg *ParsedGraph, mode, svc string) ServiceDeploySpec {
 	}
 }
 
-func ingressSidecarSpec(pg *ParsedGraph, mode string, lb bool) ServiceDeploySpec {
-	var limit float64
-	if lb {
-		limit = float64(pg.UserEntryCount())
-	} else {
-		limit = float64(pg.UserEntryCount() * 2)
-	}
+func ingressSidecarSpec(pg *ParsedGraph, mode string, _ bool) ServiceDeploySpec {
+	limit := float64(pg.UserEntryCount() * 2)
 	return ServiceDeploySpec{
 		Mode:            mode,
 		Service:         "ingress",

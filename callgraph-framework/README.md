@@ -94,7 +94,7 @@ Sidecar admission control with **replication and sidecar-internal load balancing
 
 Load balancing across replicas uses the sidecar proxy’s PPM-queue waiting-count selection (DNS discovery via headless Services). **`load_balancing_policy`** in `callgraph.json` does not apply.
 
-CPU vs **sidecar**: K8s sidecar CPU uses a **1×** multiplier (`sidecar_cpu` per pod) instead of **2×**; ingress sidecar CPU is `UserEntryCount() × 1` instead of `× 2`. `num_threads` stays `sidecar_cpu` per replica; `cpu_count` (admission) is `cpu / replicas`.
+CPU vs **sidecar**: K8s sidecar CPU uses a **1×** multiplier (`sidecar_cpu` per pod) instead of **2×**; ingress is the exception and still uses `UserEntryCount() × 2` (same as **sidecar**). `num_threads` stays `sidecar_cpu` per replica; `cpu_count` (admission) is `cpu / replicas`.
 
 ```bash
 ./build.sh

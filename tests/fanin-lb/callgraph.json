@@ -28,7 +28,7 @@
         }
       ],
       "cpu": 2,
-      "replicas": 1,
+      "replicas": 2,
       "over_commitment": 1
     },
     {

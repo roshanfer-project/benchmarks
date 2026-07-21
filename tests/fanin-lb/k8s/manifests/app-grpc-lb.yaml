@@ -113,7 +113,7 @@ metadata:
   labels:
     app: frontend-grpc
 spec:
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
       app: frontend-grpc
@@ -127,12 +127,12 @@ spec:
         image: fanin-lb-frontend-grpc:latest
         resources:
           requests:
-            cpu: "2"
+            cpu: "1"
           limits:
-            cpu: "2"
+            cpu: "1"
         env:
         - name: GOMAXPROCS
-          value: "2"
+          value: "1"
         - name: POD_NAME
           valueFrom:
             fieldRef:
@@ -221,7 +221,7 @@ metadata:
   labels:
     app: rajomon-client
 spec:
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
       app: rajomon-client
@@ -235,12 +235,12 @@ spec:
         image: fanin-lb-rajomon-client:latest
         resources:
           requests:
-            cpu: "2"
+            cpu: "1"
           limits:
-            cpu: "2"
+            cpu: "1"
         env:
         - name: GOMAXPROCS
-          value: "2"
+          value: "1"
         - name: POD_NAME
           valueFrom:
             fieldRef:

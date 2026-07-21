@@ -1393,7 +1393,7 @@ spec:
 
 func generateIngressLbYaml(pg *ParsedGraph, benchmarkName string, outDir string) error {
 	manifestsDir := filepath.Join(outDir, "k8s", "manifests")
-	cpu := pg.UserEntryCount()
+	cpu := pg.UserEntryCount() * 2
 	nApis := pg.UserEntryCount()
 	var portSpecs []string
 	for i := 0; i < nApis; i++ {

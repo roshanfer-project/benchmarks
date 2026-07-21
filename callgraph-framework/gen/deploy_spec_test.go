@@ -42,4 +42,13 @@ func TestDeploySpecChain2SidecarModes(t *testing.T) {
 	if plainLb.SidecarCPULimit >= 0 {
 		t.Fatalf("plain-lb should have no sidecar limit")
 	}
+
+	ingressSidecar := byService("sidecar", "ingress")
+	if ingressSidecar.SidecarCPULimit != 2 {
+		t.Fatalf("sidecar ingress: %+v", ingressSidecar)
+	}
+	ingressLb := byService("sidecar-lb", "ingress")
+	if ingressLb.SidecarCPULimit != 2 {
+		t.Fatalf("sidecar-lb ingress: %+v", ingressLb)
+	}
 }
