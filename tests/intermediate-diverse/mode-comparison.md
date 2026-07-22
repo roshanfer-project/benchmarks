@@ -20,10 +20,10 @@ Deploy resource comparison across generated modes (from callgraph.json).
 | sidecar | backend3 | 3 | 2 | 1 | 3 | 3 | 0.0 | 1 |
 | sidecar | frontend | 2 | 2 | 1 | 2 | 2 | 1.0 | 1 |
 | sidecar | ingress | — | 6 | 1 | — | — | — | — |
-| sidecar-lb | backend1 | 1 | 1 | 1 | 1 | 1 | 0.0 | 1 |
-| sidecar-lb | backend2 | 2 | 1 | 1 | 2 | 2 | 0.0 | 1 |
-| sidecar-lb | backend3 | 3 | 1 | 1 | 3 | 3 | 0.0 | 1 |
-| sidecar-lb | frontend | 2 | 1 | 1 | 2 | 2 | 1.0 | 1 |
+| sidecar-lb | backend1 | 1 | 0.5 | 1 | 1 | 1 | 0.0 | 1 |
+| sidecar-lb | backend2 | 2 | 0.5 | 1 | 2 | 2 | 0.0 | 1 |
+| sidecar-lb | backend3 | 3 | 0.5 | 1 | 3 | 3 | 0.0 | 1 |
+| sidecar-lb | frontend | 2 | 0.5 | 1 | 2 | 2 | 1.0 | 1 |
 | sidecar-lb | ingress | — | 6 | 1 | — | — | — | — |
 | envoy | backend1 | 1 | 1 | 1 | 1 | — | — | — |
 | envoy | backend2 | 2 | 1 | 1 | 2 | — | — | — |
@@ -58,7 +58,7 @@ Deploy resource comparison across generated modes (from callgraph.json).
 | plain | 8 | 0 | — |
 | plain-lb | 8 | 6 | 1.33 |
 | sidecar | 8 | 14 | 0.571 |
-| sidecar-lb | 8 | 10 | 0.8 |
+| sidecar-lb | 8 | 8 | 1 |
 | envoy | 8 | 5 | 1.6 |
 | rajomon | 11 | 0 | — |
 | rajomon-lb | 10 | 0 | — |

@@ -1229,7 +1229,7 @@ func generateAppSidecarLbYaml(pg *ParsedGraph, benchmarkName string, svcNames []
 		k8sCPUStr := FormatK8sCPU(perCPU)
 		gomaxprocsStr := fmt.Sprintf("%d", GOMAXPROCSForPerReplicaCPU(perCPU))
 		sidecarCPU := pg.SidecarCPUForService(name)
-		sidecarCpuStr := fmt.Sprintf("%d", sidecarCPU)
+		sidecarCpuStr := FormatK8sCPU(float64(sidecarCPU) * 0.5)
 		svcYaml := fmt.Sprintf(`apiVersion: apps/v1
 kind: Deployment
 metadata:

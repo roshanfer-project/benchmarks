@@ -72,7 +72,7 @@ func sidecarWorkloadSpec(pg *ParsedGraph, mode, svc string, lb bool) ServiceDepl
 	if lb {
 		perCPU := PerReplicaCPU(cpu, replicas)
 		appCPU = perCPU
-		sidecarLimit = float64(sidecarCPU)
+		sidecarLimit = float64(sidecarCPU) * 0.5
 		gmp = GOMAXPROCSForPerReplicaCPU(perCPU)
 		reps = replicas
 	} else {

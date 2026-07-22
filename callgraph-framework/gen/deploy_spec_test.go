@@ -29,7 +29,7 @@ func TestDeploySpecChain2SidecarModes(t *testing.T) {
 	}
 
 	backendLb := byService("sidecar-lb", "backend")
-	if backendLb.AppCPULimit != 1 || backendLb.SidecarCPULimit != 1 ||
+	if backendLb.AppCPULimit != 1 || backendLb.SidecarCPULimit != 0.5 ||
 		backendLb.Replicas != 2 || backendLb.GOMAXPROCS != 1 ||
 		backendLb.CPUCount != 1 {
 		t.Fatalf("sidecar-lb backend: %+v", backendLb)
