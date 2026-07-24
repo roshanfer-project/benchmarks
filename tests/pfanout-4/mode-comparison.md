@@ -23,12 +23,24 @@ Deploy resource comparison across generated modes (from callgraph.json).
 | sidecar | backend4 | 4 | 2 | 1 | 4 | 4 | 0.0 | 1 |
 | sidecar | frontend | 2 | 2 | 1 | 2 | 2 | 1.0 | 1 |
 | sidecar | ingress | — | 2 | 1 | — | — | — | — |
-| sidecar-lb | backend1 | 3 | 0.5 | 1 | 3 | 3 | 0.0 | 1 |
-| sidecar-lb | backend2 | 3 | 0.5 | 1 | 3 | 3 | 0.0 | 1 |
-| sidecar-lb | backend3 | 4 | 0.5 | 1 | 4 | 4 | 0.0 | 1 |
-| sidecar-lb | backend4 | 4 | 0.5 | 1 | 4 | 4 | 0.0 | 1 |
-| sidecar-lb | frontend | 2 | 0.5 | 1 | 2 | 2 | 1.0 | 1 |
-| sidecar-lb | ingress | — | 2 | 1 | — | — | — | — |
+| approx | backend1 | 3 | 0.5 | 1 | 3 | 3 | 0.0 | 1 |
+| approx | backend2 | 3 | 0.5 | 1 | 3 | 3 | 0.0 | 1 |
+| approx | backend3 | 4 | 0.5 | 1 | 4 | 4 | 0.0 | 1 |
+| approx | backend4 | 4 | 0.5 | 1 | 4 | 4 | 0.0 | 1 |
+| approx | frontend | 2 | 0.5 | 1 | 2 | 2 | 1.0 | 1 |
+| approx | ingress | — | 2 | 1 | — | — | — | — |
+| approx-fcfs | backend1 | 3 | 0.5 | 1 | 3 | 3 | 0.0 | 1 |
+| approx-fcfs | backend2 | 3 | 0.5 | 1 | 3 | 3 | 0.0 | 1 |
+| approx-fcfs | backend3 | 4 | 0.5 | 1 | 4 | 4 | 0.0 | 1 |
+| approx-fcfs | backend4 | 4 | 0.5 | 1 | 4 | 4 | 0.0 | 1 |
+| approx-fcfs | frontend | 2 | 0.5 | 1 | 2 | 2 | 1.0 | 1 |
+| approx-fcfs | ingress | — | 2 | 1 | — | — | — | — |
+| approx-edf | backend1 | 3 | 0.5 | 1 | 3 | 3 | 0.0 | 1 |
+| approx-edf | backend2 | 3 | 0.5 | 1 | 3 | 3 | 0.0 | 1 |
+| approx-edf | backend3 | 4 | 0.5 | 1 | 4 | 4 | 0.0 | 1 |
+| approx-edf | backend4 | 4 | 0.5 | 1 | 4 | 4 | 0.0 | 1 |
+| approx-edf | frontend | 2 | 0.5 | 1 | 2 | 2 | 1.0 | 1 |
+| approx-edf | ingress | — | 2 | 1 | — | — | — | — |
 | envoy | backend1 | 3 | 1 | 1 | 3 | — | — | — |
 | envoy | backend2 | 3 | 1 | 1 | 3 | — | — | — |
 | envoy | backend3 | 4 | 1 | 1 | 4 | — | — | — |
@@ -67,7 +79,9 @@ Deploy resource comparison across generated modes (from callgraph.json).
 | plain | 16 | 0 | — |
 | plain-lb | 16 | 2 | 8 |
 | sidecar | 16 | 12 | 1.33 |
-| sidecar-lb | 16 | 4.5 | 3.56 |
+| approx | 16 | 4.5 | 3.56 |
+| approx-fcfs | 16 | 4.5 | 3.56 |
+| approx-edf | 16 | 4.5 | 3.56 |
 | envoy | 16 | 6 | 2.67 |
 | rajomon | 19 | 0 | — |
 | rajomon-lb | 18 | 0 | — |

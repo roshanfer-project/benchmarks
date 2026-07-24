@@ -39,7 +39,7 @@ spec:
   volumes:
   - name: config-volume
     configMap:
-      name: sidecar-lb-configs
+      name: approx-configs
 ---
 apiVersion: v1
 kind: Service

@@ -26,15 +26,20 @@ if [ "$MODE" = "sidecar" ]; then
   kubectl delete service -l app=ingress --ignore-not-found
   kubectl delete configmap sidecar-configs --ignore-not-found
 fi
-if [ "$MODE" = "sidecar-lb" ]; then
+if [ "$MODE" = "approx" ] || [ "$MODE" = "approx-fcfs" ] || [ "$MODE" = "approx-edf" ]; then
   kubectl delete pod -l app=ingress --ignore-not-found --wait=true
   kubectl delete service -l app=ingress --ignore-not-found
-  kubectl delete configmap sidecar-lb-configs --ignore-not-found
+  kubectl delete configmap approx-configs approx-fcfs-configs approx-edf-configs --ignore-not-found
 fi
 if [ "$MODE" = "envoy" ]; then
   kubectl delete pod -l app=ingress --ignore-not-found --wait=true
   kubectl delete service -l app=ingress --ignore-not-found
   kubectl delete configmap envoy-configs --ignore-not-found
+fi
+if [ "$MODE" = "plain-lb" ]; then
+  kubectl delete pod -l app=ingress --ignore-not-found --wait=true
+  kubectl delete service -l app=ingress --ignore-not-found
+  kubectl delete configmap plain-lb-envoy-configs --ignore-not-found
 fi
 if [ "$MODE" = "rajomon" ] || [ "$MODE" = "dagor" ] || [ "$MODE" = "dagor-lb" ] || [ "$MODE" = "rajomon-lb" ]; then
   kubectl delete deployment -l app=rajomon-client --ignore-not-found --wait=true
@@ -44,9 +49,6 @@ if [ "$MODE" = "rajomon" ] || [ "$MODE" = "dagor" ] || [ "$MODE" = "dagor-lb" ] 
   kubectl delete deployment -l app=ms-64512-grpc --ignore-not-found --wait=true
   kubectl delete pod -l app=ms-64512-grpc --ignore-not-found --wait=true
   kubectl delete service -l app=ms-64512-grpc --ignore-not-found
-fi
-if [ "$MODE" = "plain-lb" ]; then
-  kubectl delete service alibaba-large-entry --ignore-not-found
 fi
 echo "Destroy complete."
 exit "$fail"

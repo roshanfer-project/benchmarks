@@ -56,7 +56,8 @@ func (s *Server) Run() error {
 				utils.ContextPropagationInterceptor(),
 				utils.NewCounterState(serviceName).GetInterceptor()))
 		} else {
-			opts = append(opts, grpc.UnaryInterceptor(utils.ContextPropagationInterceptor()))
+			opts = append(opts, grpc.ChainUnaryInterceptor(
+				utils.ContextPropagationInterceptor()))
 		}
 	} else if useRajomon {
 		opts = append(opts, grpc.ChainUnaryInterceptor(

@@ -17,10 +17,18 @@ Deploy resource comparison across generated modes (from callgraph.json).
 | sidecar | backend2 | 2 | 2 | 1 | 2 | 2 | 0.0 | 1 |
 | sidecar | frontend | 3 | 2 | 1 | 3 | 3 | 1.0 | 1 |
 | sidecar | ingress | — | 6 | 1 | — | — | — | — |
-| sidecar-lb | backend1 | 2 | 0.5 | 1 | 2 | 2 | 0.0 | 1 |
-| sidecar-lb | backend2 | 2 | 0.5 | 1 | 2 | 2 | 0.0 | 1 |
-| sidecar-lb | frontend | 3 | 0.5 | 1 | 3 | 3 | 1.0 | 1 |
-| sidecar-lb | ingress | — | 6 | 1 | — | — | — | — |
+| approx | backend1 | 2 | 0.5 | 1 | 2 | 2 | 0.0 | 1 |
+| approx | backend2 | 2 | 0.5 | 1 | 2 | 2 | 0.0 | 1 |
+| approx | frontend | 3 | 0.5 | 1 | 3 | 3 | 1.0 | 1 |
+| approx | ingress | — | 6 | 1 | — | — | — | — |
+| approx-fcfs | backend1 | 2 | 0.5 | 1 | 2 | 2 | 0.0 | 1 |
+| approx-fcfs | backend2 | 2 | 0.5 | 1 | 2 | 2 | 0.0 | 1 |
+| approx-fcfs | frontend | 3 | 0.5 | 1 | 3 | 3 | 1.0 | 1 |
+| approx-fcfs | ingress | — | 6 | 1 | — | — | — | — |
+| approx-edf | backend1 | 2 | 0.5 | 1 | 2 | 2 | 0.0 | 1 |
+| approx-edf | backend2 | 2 | 0.5 | 1 | 2 | 2 | 0.0 | 1 |
+| approx-edf | frontend | 3 | 0.5 | 1 | 3 | 3 | 1.0 | 1 |
+| approx-edf | ingress | — | 6 | 1 | — | — | — | — |
 | envoy | backend1 | 2 | 1 | 1 | 2 | — | — | — |
 | envoy | backend2 | 2 | 1 | 1 | 2 | — | — | — |
 | envoy | frontend | 3 | 1 | 1 | 3 | — | — | — |
@@ -49,7 +57,9 @@ Deploy resource comparison across generated modes (from callgraph.json).
 | plain | 7 | 0 | — |
 | plain-lb | 7 | 6 | 1.17 |
 | sidecar | 7 | 12 | 0.583 |
-| sidecar-lb | 7 | 7.5 | 0.933 |
+| approx | 7 | 7.5 | 0.933 |
+| approx-fcfs | 7 | 7.5 | 0.933 |
+| approx-edf | 7 | 7.5 | 0.933 |
 | envoy | 7 | 4 | 1.75 |
 | rajomon | 11 | 0 | — |
 | rajomon-lb | 10 | 0 | — |

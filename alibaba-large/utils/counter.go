@@ -232,6 +232,7 @@ func (s *CounterState) PushAll() {
 		}
 		if err := pusher.Push(); err != nil {
 			logCounter.Error("Could not push to Pushgateway", "error", err)
+		} else {
 		}
 	}
 }

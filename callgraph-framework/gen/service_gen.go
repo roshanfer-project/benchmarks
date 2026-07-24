@@ -965,7 +965,7 @@ func (s *Server) Run() error {
 func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 	sidecar := utils.GetEnvVar("sidecar", false) == "true"
 	envoy := utils.GetEnvVar("envoy", false) == "true"
-	var rpcID, rpcLocalID string
+	var rpcID, rpcLocalID, deadline string
 	if sidecar {
 		rpcID = r.Header.Get("rpc-id")
 		if rpcID == "" {
@@ -975,6 +975,11 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 		rpcLocalID = r.Header.Get("rpc-local-id")
 		if rpcLocalID == "" {
 			http.Error(w, "rpc-local-id header required", http.StatusBadRequest)
+			return
+		}
+		deadline = r.Header.Get("deadline")
+		if deadline == "" {
+			http.Error(w, "deadline header required", http.StatusBadRequest)
 			return
 		}
 	} else if envoy {
@@ -991,7 +996,7 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	switch path {
 {{range .Handlers}}	case "{{.Interface}}":
-		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "{{.Interface}}", "rpc-id", rpcID, "rpc-local-id", rpcLocalID))
+		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "{{.Interface}}", "rpc-id", rpcID, "rpc-local-id", rpcLocalID, "deadline", deadline))
 {{if .Exponential}}		benchExpBusyLoop({{printf "%.9g" .ExponentialMean}})
 {{else if .Bimodal}}		u := benchFloat()
 		if u < {{printf "%.9g" .BimodalP0}} {
@@ -1038,7 +1043,7 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 		}
 {{else if .Downstreams}}		req := &pb.Request{}
 		var err error
-{{$api := .Interface}}{{range .Downstreams}}		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "{{$api}}", "rpc-id", rpcID, "rpc-local-id", rpcLocalID))
+{{$api := .Interface}}{{range .Downstreams}}		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "{{$api}}", "rpc-id", rpcID, "rpc-local-id", rpcLocalID, "deadline", deadline))
 		_, err = s.{{.ProtoMicroservice}}Client.{{.MethodName}}(ctx, req)
 		if err != nil {
 			log.Error("downstream call failed", "error", err)

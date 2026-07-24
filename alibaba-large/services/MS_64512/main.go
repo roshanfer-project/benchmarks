@@ -145,10 +145,9 @@ func (s *Server) Run() error {
 }
 
 func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
 	sidecar := utils.GetEnvVar("sidecar", false) == "true"
 	envoy := utils.GetEnvVar("envoy", false) == "true"
-	var rpcID, rpcLocalID string
+	var rpcID, rpcLocalID, deadline string
 	if sidecar {
 		rpcID = r.Header.Get("rpc-id")
 		if rpcID == "" {
@@ -158,6 +157,11 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 		rpcLocalID = r.Header.Get("rpc-local-id")
 		if rpcLocalID == "" {
 			http.Error(w, "rpc-local-id header required", http.StatusBadRequest)
+			return
+		}
+		deadline = r.Header.Get("deadline")
+		if deadline == "" {
+			http.Error(w, "deadline header required", http.StatusBadRequest)
 			return
 		}
 	} else if envoy {
@@ -171,127 +175,148 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	path := strings.TrimPrefix(r.URL.Path, "/")
+	ctx := r.Context()
 	switch path {
 	case "Z8trRkp4mp":
-		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "Z8trRkp4mp", "rpc-id", rpcID, "rpc-local-id", rpcLocalID))
+		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "Z8trRkp4mp", "rpc-id", rpcID, "rpc-local-id", rpcLocalID, "deadline", deadline))
 		utils.BusyLoop(160)
 
 		req := &pb.Request{}
 		var err error
+		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "Z8trRkp4mp", "rpc-id", rpcID, "rpc-local-id", rpcLocalID, "deadline", deadline))
 		_, err = s.MS_14758Client.MuJZ40NDv(ctx, req)
 		if err != nil {
 			log.Error("downstream call failed", "error", err)
 			http.Error(w, err.Error(), 500)
 			return
 		}
+		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "Z8trRkp4mp", "rpc-id", rpcID, "rpc-local-id", rpcLocalID, "deadline", deadline))
 		_, err = s.MS_19439Client.KvuxGZYcwm(ctx, req)
 		if err != nil {
 			log.Error("downstream call failed", "error", err)
 			http.Error(w, err.Error(), 500)
 			return
 		}
+		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "Z8trRkp4mp", "rpc-id", rpcID, "rpc-local-id", rpcLocalID, "deadline", deadline))
 		_, err = s.MS_21298Client.Te9DKpWLH7(ctx, req)
 		if err != nil {
 			log.Error("downstream call failed", "error", err)
 			http.Error(w, err.Error(), 500)
 			return
 		}
+		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "Z8trRkp4mp", "rpc-id", rpcID, "rpc-local-id", rpcLocalID, "deadline", deadline))
 		_, err = s.MS_21298Client.QRB35KFger(ctx, req)
 		if err != nil {
 			log.Error("downstream call failed", "error", err)
 			http.Error(w, err.Error(), 500)
 			return
 		}
+		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "Z8trRkp4mp", "rpc-id", rpcID, "rpc-local-id", rpcLocalID, "deadline", deadline))
 		_, err = s.MS_25781Client.QsLpARXiz2(ctx, req)
 		if err != nil {
 			log.Error("downstream call failed", "error", err)
 			http.Error(w, err.Error(), 500)
 			return
 		}
+		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "Z8trRkp4mp", "rpc-id", rpcID, "rpc-local-id", rpcLocalID, "deadline", deadline))
 		_, err = s.MS_25806Client.M0PIREyu4Tb(ctx, req)
 		if err != nil {
 			log.Error("downstream call failed", "error", err)
 			http.Error(w, err.Error(), 500)
 			return
 		}
+		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "Z8trRkp4mp", "rpc-id", rpcID, "rpc-local-id", rpcLocalID, "deadline", deadline))
 		_, err = s.MS_2687Client.VdboDuPbKj(ctx, req)
 		if err != nil {
 			log.Error("downstream call failed", "error", err)
 			http.Error(w, err.Error(), 500)
 			return
 		}
+		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "Z8trRkp4mp", "rpc-id", rpcID, "rpc-local-id", rpcLocalID, "deadline", deadline))
 		_, err = s.MS_40087Client.M2QxmWDHq1O(ctx, req)
 		if err != nil {
 			log.Error("downstream call failed", "error", err)
 			http.Error(w, err.Error(), 500)
 			return
 		}
+		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "Z8trRkp4mp", "rpc-id", rpcID, "rpc-local-id", rpcLocalID, "deadline", deadline))
 		_, err = s.MS_40087Client.M5ISZV1SCx(ctx, req)
 		if err != nil {
 			log.Error("downstream call failed", "error", err)
 			http.Error(w, err.Error(), 500)
 			return
 		}
+		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "Z8trRkp4mp", "rpc-id", rpcID, "rpc-local-id", rpcLocalID, "deadline", deadline))
 		_, err = s.MS_43032Client.ZSdnWDdKmj(ctx, req)
 		if err != nil {
 			log.Error("downstream call failed", "error", err)
 			http.Error(w, err.Error(), 500)
 			return
 		}
+		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "Z8trRkp4mp", "rpc-id", rpcID, "rpc-local-id", rpcLocalID, "deadline", deadline))
 		_, err = s.MS_51783Client.ZMa4ZJ012X(ctx, req)
 		if err != nil {
 			log.Error("downstream call failed", "error", err)
 			http.Error(w, err.Error(), 500)
 			return
 		}
+		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "Z8trRkp4mp", "rpc-id", rpcID, "rpc-local-id", rpcLocalID, "deadline", deadline))
 		_, err = s.MS_51787Client.RypaFB4PfJ(ctx, req)
 		if err != nil {
 			log.Error("downstream call failed", "error", err)
 			http.Error(w, err.Error(), 500)
 			return
 		}
+		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "Z8trRkp4mp", "rpc-id", rpcID, "rpc-local-id", rpcLocalID, "deadline", deadline))
 		_, err = s.MS_53792Client.M8JkkxghEWB(ctx, req)
 		if err != nil {
 			log.Error("downstream call failed", "error", err)
 			http.Error(w, err.Error(), 500)
 			return
 		}
+		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "Z8trRkp4mp", "rpc-id", rpcID, "rpc-local-id", rpcLocalID, "deadline", deadline))
 		_, err = s.MS_58796Client.AbNb_BH36(ctx, req)
 		if err != nil {
 			log.Error("downstream call failed", "error", err)
 			http.Error(w, err.Error(), 500)
 			return
 		}
+		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "Z8trRkp4mp", "rpc-id", rpcID, "rpc-local-id", rpcLocalID, "deadline", deadline))
 		_, err = s.MS_62039Client.NK4Gw2Phix(ctx, req)
 		if err != nil {
 			log.Error("downstream call failed", "error", err)
 			http.Error(w, err.Error(), 500)
 			return
 		}
+		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "Z8trRkp4mp", "rpc-id", rpcID, "rpc-local-id", rpcLocalID, "deadline", deadline))
 		_, err = s.MS_66921Client.EFOECNqigM(ctx, req)
 		if err != nil {
 			log.Error("downstream call failed", "error", err)
 			http.Error(w, err.Error(), 500)
 			return
 		}
+		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "Z8trRkp4mp", "rpc-id", rpcID, "rpc-local-id", rpcLocalID, "deadline", deadline))
 		_, err = s.MS_67465Client.WIe9Cm5AqE(ctx, req)
 		if err != nil {
 			log.Error("downstream call failed", "error", err)
 			http.Error(w, err.Error(), 500)
 			return
 		}
+		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "Z8trRkp4mp", "rpc-id", rpcID, "rpc-local-id", rpcLocalID, "deadline", deadline))
 		_, err = s.MS_70124Client.V0Gqd6H7Nw(ctx, req)
 		if err != nil {
 			log.Error("downstream call failed", "error", err)
 			http.Error(w, err.Error(), 500)
 			return
 		}
+		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "Z8trRkp4mp", "rpc-id", rpcID, "rpc-local-id", rpcLocalID, "deadline", deadline))
 		_, err = s.MS_9105Client.ByihMu7_9Z(ctx, req)
 		if err != nil {
 			log.Error("downstream call failed", "error", err)
 			http.Error(w, err.Error(), 500)
 			return
 		}
+		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "Z8trRkp4mp", "rpc-id", rpcID, "rpc-local-id", rpcLocalID, "deadline", deadline))
 		_, err = s.MS_9105Client.MsD67GoyH2(ctx, req)
 		if err != nil {
 			log.Error("downstream call failed", "error", err)

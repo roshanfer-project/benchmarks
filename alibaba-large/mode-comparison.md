@@ -64,6 +64,7 @@ Deploy resource comparison across generated modes (from callgraph.json).
 | plain-lb | MS_70124 | 3 | — | 1 | 3 | — | — | — |
 | plain-lb | MS_7103 | 7 | — | 1 | 7 | — | — | — |
 | plain-lb | MS_9105 | 6 | — | 1 | 6 | — | — | — |
+| plain-lb | ingress | — | 2 | 1 | — | — | — | — |
 | sidecar | MS_12657 | 3 | 2 | 1 | 3 | 3 | 0.0 | 1 |
 | sidecar | MS_14758 | 3 | 2 | 1 | 3 | 3 | 0.0 | 1 |
 | sidecar | MS_18750 | 3 | 2 | 1 | 3 | 3 | 0.0 | 1 |
@@ -94,36 +95,96 @@ Deploy resource comparison across generated modes (from callgraph.json).
 | sidecar | MS_7103 | 7 | 2 | 1 | 7 | 7 | 0.0 | 1 |
 | sidecar | MS_9105 | 6 | 2 | 1 | 6 | 6 | 0.0 | 1 |
 | sidecar | ingress | — | 2 | 1 | — | — | — | — |
-| sidecar-lb | MS_12657 | 3 | 1 | 1 | 3 | 3 | 0.0 | 1 |
-| sidecar-lb | MS_14758 | 3 | 1 | 1 | 3 | 3 | 0.0 | 1 |
-| sidecar-lb | MS_18750 | 3 | 1 | 1 | 3 | 3 | 0.0 | 1 |
-| sidecar-lb | MS_19439 | 5 | 1 | 1 | 5 | 5 | 1.0 | 1 |
-| sidecar-lb | MS_21298 | 5 | 1 | 1 | 5 | 5 | 1.0 | 1 |
-| sidecar-lb | MS_25781 | 3 | 1 | 1 | 3 | 3 | 1.0 | 1 |
-| sidecar-lb | MS_25806 | 8 | 1 | 1 | 8 | 8 | 0.0 | 1 |
-| sidecar-lb | MS_2687 | 4 | 1 | 1 | 4 | 4 | 0.0 | 1 |
-| sidecar-lb | MS_33572 | 4 | 1 | 1 | 4 | 4 | 0.0 | 1 |
-| sidecar-lb | MS_38190 | 4 | 1 | 1 | 4 | 4 | 0.0 | 1 |
-| sidecar-lb | MS_40087 | 6 | 1 | 1 | 6 | 6 | 0.0 | 1 |
-| sidecar-lb | MS_41667 | 4 | 1 | 1 | 4 | 4 | 0.0 | 1 |
-| sidecar-lb | MS_43032 | 4 | 1 | 1 | 4 | 4 | 0.0 | 1 |
-| sidecar-lb | MS_43754 | 4 | 1 | 1 | 4 | 4 | 0.0 | 1 |
-| sidecar-lb | MS_44246 | 4 | 1 | 1 | 4 | 4 | 0.0 | 1 |
-| sidecar-lb | MS_45067 | 4 | 1 | 1 | 4 | 4 | 0.0 | 1 |
-| sidecar-lb | MS_51783 | 4 | 1 | 1 | 4 | 4 | 0.0 | 1 |
-| sidecar-lb | MS_51787 | 4 | 1 | 1 | 4 | 4 | 1.0 | 1 |
-| sidecar-lb | MS_53792 | 4 | 1 | 1 | 4 | 4 | 1.0 | 1 |
-| sidecar-lb | MS_56113 | 8 | 1 | 1 | 8 | 8 | 0.0 | 1 |
-| sidecar-lb | MS_5720 | 4 | 1 | 1 | 4 | 4 | 1.0 | 1 |
-| sidecar-lb | MS_58796 | 4 | 1 | 1 | 4 | 4 | 1.0 | 1 |
-| sidecar-lb | MS_62039 | 4 | 1 | 1 | 4 | 4 | 1.0 | 1 |
-| sidecar-lb | MS_64512 | 5 | 1 | 1 | 5 | 5 | 1.0 | 1 |
-| sidecar-lb | MS_66921 | 4 | 1 | 1 | 4 | 4 | 1.0 | 1 |
-| sidecar-lb | MS_67465 | 4 | 1 | 1 | 4 | 4 | 1.0 | 1 |
-| sidecar-lb | MS_70124 | 3 | 1 | 1 | 3 | 3 | 1.0 | 1 |
-| sidecar-lb | MS_7103 | 7 | 1 | 1 | 7 | 7 | 0.0 | 1 |
-| sidecar-lb | MS_9105 | 6 | 1 | 1 | 6 | 6 | 0.0 | 1 |
-| sidecar-lb | ingress | — | 1 | 1 | — | — | — | — |
+| approx | MS_12657 | 3 | 0.5 | 1 | 3 | 3 | 0.0 | 1 |
+| approx | MS_14758 | 3 | 0.5 | 1 | 3 | 3 | 0.0 | 1 |
+| approx | MS_18750 | 3 | 0.5 | 1 | 3 | 3 | 0.0 | 1 |
+| approx | MS_19439 | 5 | 0.5 | 1 | 5 | 5 | 1.0 | 1 |
+| approx | MS_21298 | 5 | 0.5 | 1 | 5 | 5 | 1.0 | 1 |
+| approx | MS_25781 | 3 | 0.5 | 1 | 3 | 3 | 1.0 | 1 |
+| approx | MS_25806 | 8 | 0.5 | 1 | 8 | 8 | 0.0 | 1 |
+| approx | MS_2687 | 4 | 0.5 | 1 | 4 | 4 | 0.0 | 1 |
+| approx | MS_33572 | 4 | 0.5 | 1 | 4 | 4 | 0.0 | 1 |
+| approx | MS_38190 | 4 | 0.5 | 1 | 4 | 4 | 0.0 | 1 |
+| approx | MS_40087 | 6 | 0.5 | 1 | 6 | 6 | 0.0 | 1 |
+| approx | MS_41667 | 4 | 0.5 | 1 | 4 | 4 | 0.0 | 1 |
+| approx | MS_43032 | 4 | 0.5 | 1 | 4 | 4 | 0.0 | 1 |
+| approx | MS_43754 | 4 | 0.5 | 1 | 4 | 4 | 0.0 | 1 |
+| approx | MS_44246 | 4 | 0.5 | 1 | 4 | 4 | 0.0 | 1 |
+| approx | MS_45067 | 4 | 0.5 | 1 | 4 | 4 | 0.0 | 1 |
+| approx | MS_51783 | 4 | 0.5 | 1 | 4 | 4 | 0.0 | 1 |
+| approx | MS_51787 | 4 | 0.5 | 1 | 4 | 4 | 1.0 | 1 |
+| approx | MS_53792 | 4 | 0.5 | 1 | 4 | 4 | 1.0 | 1 |
+| approx | MS_56113 | 8 | 0.5 | 1 | 8 | 8 | 0.0 | 1 |
+| approx | MS_5720 | 4 | 0.5 | 1 | 4 | 4 | 1.0 | 1 |
+| approx | MS_58796 | 4 | 0.5 | 1 | 4 | 4 | 1.0 | 1 |
+| approx | MS_62039 | 4 | 0.5 | 1 | 4 | 4 | 1.0 | 1 |
+| approx | MS_64512 | 5 | 0.5 | 1 | 5 | 5 | 1.0 | 1 |
+| approx | MS_66921 | 4 | 0.5 | 1 | 4 | 4 | 1.0 | 1 |
+| approx | MS_67465 | 4 | 0.5 | 1 | 4 | 4 | 1.0 | 1 |
+| approx | MS_70124 | 3 | 0.5 | 1 | 3 | 3 | 1.0 | 1 |
+| approx | MS_7103 | 7 | 0.5 | 1 | 7 | 7 | 0.0 | 1 |
+| approx | MS_9105 | 6 | 0.5 | 1 | 6 | 6 | 0.0 | 1 |
+| approx | ingress | — | 2 | 1 | — | — | — | — |
+| approx-fcfs | MS_12657 | 3 | 0.5 | 1 | 3 | 3 | 0.0 | 1 |
+| approx-fcfs | MS_14758 | 3 | 0.5 | 1 | 3 | 3 | 0.0 | 1 |
+| approx-fcfs | MS_18750 | 3 | 0.5 | 1 | 3 | 3 | 0.0 | 1 |
+| approx-fcfs | MS_19439 | 5 | 0.5 | 1 | 5 | 5 | 1.0 | 1 |
+| approx-fcfs | MS_21298 | 5 | 0.5 | 1 | 5 | 5 | 1.0 | 1 |
+| approx-fcfs | MS_25781 | 3 | 0.5 | 1 | 3 | 3 | 1.0 | 1 |
+| approx-fcfs | MS_25806 | 8 | 0.5 | 1 | 8 | 8 | 0.0 | 1 |
+| approx-fcfs | MS_2687 | 4 | 0.5 | 1 | 4 | 4 | 0.0 | 1 |
+| approx-fcfs | MS_33572 | 4 | 0.5 | 1 | 4 | 4 | 0.0 | 1 |
+| approx-fcfs | MS_38190 | 4 | 0.5 | 1 | 4 | 4 | 0.0 | 1 |
+| approx-fcfs | MS_40087 | 6 | 0.5 | 1 | 6 | 6 | 0.0 | 1 |
+| approx-fcfs | MS_41667 | 4 | 0.5 | 1 | 4 | 4 | 0.0 | 1 |
+| approx-fcfs | MS_43032 | 4 | 0.5 | 1 | 4 | 4 | 0.0 | 1 |
+| approx-fcfs | MS_43754 | 4 | 0.5 | 1 | 4 | 4 | 0.0 | 1 |
+| approx-fcfs | MS_44246 | 4 | 0.5 | 1 | 4 | 4 | 0.0 | 1 |
+| approx-fcfs | MS_45067 | 4 | 0.5 | 1 | 4 | 4 | 0.0 | 1 |
+| approx-fcfs | MS_51783 | 4 | 0.5 | 1 | 4 | 4 | 0.0 | 1 |
+| approx-fcfs | MS_51787 | 4 | 0.5 | 1 | 4 | 4 | 1.0 | 1 |
+| approx-fcfs | MS_53792 | 4 | 0.5 | 1 | 4 | 4 | 1.0 | 1 |
+| approx-fcfs | MS_56113 | 8 | 0.5 | 1 | 8 | 8 | 0.0 | 1 |
+| approx-fcfs | MS_5720 | 4 | 0.5 | 1 | 4 | 4 | 1.0 | 1 |
+| approx-fcfs | MS_58796 | 4 | 0.5 | 1 | 4 | 4 | 1.0 | 1 |
+| approx-fcfs | MS_62039 | 4 | 0.5 | 1 | 4 | 4 | 1.0 | 1 |
+| approx-fcfs | MS_64512 | 5 | 0.5 | 1 | 5 | 5 | 1.0 | 1 |
+| approx-fcfs | MS_66921 | 4 | 0.5 | 1 | 4 | 4 | 1.0 | 1 |
+| approx-fcfs | MS_67465 | 4 | 0.5 | 1 | 4 | 4 | 1.0 | 1 |
+| approx-fcfs | MS_70124 | 3 | 0.5 | 1 | 3 | 3 | 1.0 | 1 |
+| approx-fcfs | MS_7103 | 7 | 0.5 | 1 | 7 | 7 | 0.0 | 1 |
+| approx-fcfs | MS_9105 | 6 | 0.5 | 1 | 6 | 6 | 0.0 | 1 |
+| approx-fcfs | ingress | — | 2 | 1 | — | — | — | — |
+| approx-edf | MS_12657 | 3 | 0.5 | 1 | 3 | 3 | 0.0 | 1 |
+| approx-edf | MS_14758 | 3 | 0.5 | 1 | 3 | 3 | 0.0 | 1 |
+| approx-edf | MS_18750 | 3 | 0.5 | 1 | 3 | 3 | 0.0 | 1 |
+| approx-edf | MS_19439 | 5 | 0.5 | 1 | 5 | 5 | 1.0 | 1 |
+| approx-edf | MS_21298 | 5 | 0.5 | 1 | 5 | 5 | 1.0 | 1 |
+| approx-edf | MS_25781 | 3 | 0.5 | 1 | 3 | 3 | 1.0 | 1 |
+| approx-edf | MS_25806 | 8 | 0.5 | 1 | 8 | 8 | 0.0 | 1 |
+| approx-edf | MS_2687 | 4 | 0.5 | 1 | 4 | 4 | 0.0 | 1 |
+| approx-edf | MS_33572 | 4 | 0.5 | 1 | 4 | 4 | 0.0 | 1 |
+| approx-edf | MS_38190 | 4 | 0.5 | 1 | 4 | 4 | 0.0 | 1 |
+| approx-edf | MS_40087 | 6 | 0.5 | 1 | 6 | 6 | 0.0 | 1 |
+| approx-edf | MS_41667 | 4 | 0.5 | 1 | 4 | 4 | 0.0 | 1 |
+| approx-edf | MS_43032 | 4 | 0.5 | 1 | 4 | 4 | 0.0 | 1 |
+| approx-edf | MS_43754 | 4 | 0.5 | 1 | 4 | 4 | 0.0 | 1 |
+| approx-edf | MS_44246 | 4 | 0.5 | 1 | 4 | 4 | 0.0 | 1 |
+| approx-edf | MS_45067 | 4 | 0.5 | 1 | 4 | 4 | 0.0 | 1 |
+| approx-edf | MS_51783 | 4 | 0.5 | 1 | 4 | 4 | 0.0 | 1 |
+| approx-edf | MS_51787 | 4 | 0.5 | 1 | 4 | 4 | 1.0 | 1 |
+| approx-edf | MS_53792 | 4 | 0.5 | 1 | 4 | 4 | 1.0 | 1 |
+| approx-edf | MS_56113 | 8 | 0.5 | 1 | 8 | 8 | 0.0 | 1 |
+| approx-edf | MS_5720 | 4 | 0.5 | 1 | 4 | 4 | 1.0 | 1 |
+| approx-edf | MS_58796 | 4 | 0.5 | 1 | 4 | 4 | 1.0 | 1 |
+| approx-edf | MS_62039 | 4 | 0.5 | 1 | 4 | 4 | 1.0 | 1 |
+| approx-edf | MS_64512 | 5 | 0.5 | 1 | 5 | 5 | 1.0 | 1 |
+| approx-edf | MS_66921 | 4 | 0.5 | 1 | 4 | 4 | 1.0 | 1 |
+| approx-edf | MS_67465 | 4 | 0.5 | 1 | 4 | 4 | 1.0 | 1 |
+| approx-edf | MS_70124 | 3 | 0.5 | 1 | 3 | 3 | 1.0 | 1 |
+| approx-edf | MS_7103 | 7 | 0.5 | 1 | 7 | 7 | 0.0 | 1 |
+| approx-edf | MS_9105 | 6 | 0.5 | 1 | 6 | 6 | 0.0 | 1 |
+| approx-edf | ingress | — | 2 | 1 | — | — | — | — |
 | envoy | MS_12657 | 3 | 1 | 1 | 3 | — | — | — |
 | envoy | MS_14758 | 3 | 1 | 1 | 3 | — | — | — |
 | envoy | MS_18750 | 3 | 1 | 1 | 3 | — | — | — |
@@ -280,9 +341,11 @@ Deploy resource comparison across generated modes (from callgraph.json).
 | mode | total_app_cores | total_sidecar_cores | app_sidecar_ratio |
 |------|-----------------|---------------------|-------------------|
 | plain | 129 | 0 | — |
-| plain-lb | 129 | 0 | — |
+| plain-lb | 129 | 2 | 64.5 |
 | sidecar | 129 | 60 | 2.15 |
-| sidecar-lb | 129 | 30 | 4.3 |
+| approx | 129 | 16.5 | 7.82 |
+| approx-fcfs | 129 | 16.5 | 7.82 |
+| approx-edf | 129 | 16.5 | 7.82 |
 | envoy | 129 | 30 | 4.3 |
 | rajomon | 135 | 0 | — |
 | rajomon-lb | 134 | 0 | — |

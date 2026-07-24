@@ -151,13 +151,13 @@ func GenerateK8s(pg *ParsedGraph, benchmarkName string, registry string, outDir 
 	if err := generateIngressYaml(pg, benchmarkName, outDir); err != nil {
 		return err
 	}
-	if err := generateSidecarLbConfigs(pg, benchmarkName, svcNames, outDir); err != nil {
+	if err := generateApproxConfigs(pg, benchmarkName, svcNames, outDir); err != nil {
 		return err
 	}
-	if err := generateSidecarLbEnv(pg, benchmarkName, svcNames, outDir); err != nil {
+	if err := generateApproxEnv(pg, benchmarkName, svcNames, outDir); err != nil {
 		return err
 	}
-	if err := generateAppSidecarLbYaml(pg, benchmarkName, svcNames, outDir); err != nil {
+	if err := generateAppApproxYaml(pg, benchmarkName, svcNames, outDir); err != nil {
 		return err
 	}
 	if err := generateIngressLbYaml(pg, benchmarkName, outDir); err != nil {
@@ -813,7 +813,7 @@ func generateSidecarConfigs(pg *ParsedGraph, benchmarkName string, svcNames []st
 	var configs []string
 	for _, name := range svcNames {
 		kn := k8sName(name)
-		cfg := buildSidecarServiceConfig(pg, prefix, name, kn, entrySvc, false)
+		cfg := buildSidecarServiceConfig(pg, prefix, name, kn, entrySvc, false, "")
 		configs = append(configs, fmt.Sprintf("  %s.yaml: |\n%s", kn, indent(cfg, 4)))
 	}
 	ingressCfg := buildIngressConfig(pg, prefix, entrySvc, false)
@@ -837,7 +837,7 @@ func indent(s string, n int) string {
 	return strings.Join(lines, "\n")
 }
 
-func buildSidecarServiceConfig(pg *ParsedGraph, prefix, svcName, kn, entrySvc string, lb bool) string {
+func buildSidecarServiceConfig(pg *ParsedGraph, prefix, svcName, kn, entrySvc string, lb bool, approxMode string) string {
 	var b strings.Builder
 	var ringSize, bufCount, bufSize int
 	isEntry := svcName == entrySvc
@@ -915,10 +915,18 @@ func buildSidecarServiceConfig(pg *ParsedGraph, prefix, svcName, kn, entrySvc st
 		b.WriteString(fmt.Sprintf("is_frontend: True\nfrontend_pool_connections: %d\n", pg.EffectiveConnectionPoolSize()))
 	}
 	b.WriteString(fmt.Sprintf("cpu_count: %d\nover_commitment: %.1f\n", int(cpuCount), overCommitment))
+	switch approxMode {
+	case "approx":
+		b.WriteString("mesh_late_binding: False\n")
+	case "approx-fcfs":
+		b.WriteString("mesh_late_binding: True\nlate_binding_type: fcfs\n")
+	case "approx-edf":
+		b.WriteString("mesh_late_binding: True\nlate_binding_type: edf\n")
+	}
 	return b.String()
 }
 
-func generateSidecarLbConfigs(pg *ParsedGraph, benchmarkName string, svcNames []string, outDir string) error {
+func generateApproxConfigs(pg *ParsedGraph, benchmarkName string, svcNames []string, outDir string) error {
 	prefix := benchmarkName + "-"
 	entrySvc := pg.EntryMicroservice()
 	manifestsDir := filepath.Join(outDir, "k8s", "manifests")
@@ -926,32 +934,38 @@ func generateSidecarLbConfigs(pg *ParsedGraph, benchmarkName string, svcNames []
 		return err
 	}
 
-	var configs []string
-	for _, name := range svcNames {
-		kn := k8sName(name)
-		cfg := buildSidecarServiceConfig(pg, prefix, name, kn, entrySvc, true)
-		configs = append(configs, fmt.Sprintf("  %s.yaml: |\n%s", kn, indent(cfg, 4)))
-	}
-	ingressCfg := buildIngressConfig(pg, prefix, entrySvc, true)
-	configs = append(configs, fmt.Sprintf("  ingress.yaml: |\n%s", indent(ingressCfg, 4)))
+	for _, mode := range []string{"approx", "approx-fcfs", "approx-edf"} {
+		var configs []string
+		for _, name := range svcNames {
+			kn := k8sName(name)
+			cfg := buildSidecarServiceConfig(pg, prefix, name, kn, entrySvc, true, mode)
+			configs = append(configs, fmt.Sprintf("  %s.yaml: |\n%s", kn, indent(cfg, 4)))
+		}
+		ingressCfg := buildIngressConfig(pg, prefix, entrySvc, true)
+		configs = append(configs, fmt.Sprintf("  ingress.yaml: |\n%s", indent(ingressCfg, 4)))
 
-	cm := `apiVersion: v1
+		cmName := mode + "-configs"
+		cm := fmt.Sprintf(`apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: sidecar-lb-configs
+  name: %s
 data:
-` + strings.Join(configs, "\n")
-	return os.WriteFile(filepath.Join(manifestsDir, "sidecar-lb-configs.yaml"), []byte(cm), 0644)
+`, cmName) + strings.Join(configs, "\n")
+		if err := os.WriteFile(filepath.Join(manifestsDir, cmName+".yaml"), []byte(cm), 0644); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
-func generateSidecarLbEnv(pg *ParsedGraph, benchmarkName string, svcNames []string, outDir string) error {
+func generateApproxEnv(pg *ParsedGraph, benchmarkName string, svcNames []string, outDir string) error {
 	lines := []string{"sidecar=true", "", "PORT=2000"}
 	for _, name := range svcNames {
 		lines = append(lines, name+"_PORT=2000", name+"_EGRESS=localhost:4000")
 	}
 	lines = append(lines, "", "PROM_ADDR=prometheus-pushgateway:9091")
 	k8sDir := filepath.Join(outDir, "k8s")
-	return os.WriteFile(filepath.Join(k8sDir, "sidecar-lb.env"), []byte(strings.Join(lines, "\n")), 0644)
+	return os.WriteFile(filepath.Join(k8sDir, "approx.env"), []byte(strings.Join(lines, "\n")), 0644)
 }
 
 const sidecarIngressBasePort = 3000
@@ -1214,7 +1228,7 @@ spec:
 	return os.WriteFile(filepath.Join(manifestsDir, "ingress.yaml"), []byte(yaml), 0644)
 }
 
-func generateAppSidecarLbYaml(pg *ParsedGraph, benchmarkName string, svcNames []string, outDir string) error {
+func generateAppApproxYaml(pg *ParsedGraph, benchmarkName string, svcNames []string, outDir string) error {
 	prefix := benchmarkName + "-"
 	manifestsDir := filepath.Join(outDir, "k8s", "manifests")
 	if err := os.MkdirAll(manifestsDir, 0755); err != nil {
@@ -1292,7 +1306,7 @@ spec:
       volumes:
       - name: config-volume
         configMap:
-          name: sidecar-lb-configs
+          name: approx-configs
 ---
 apiVersion: v1
 kind: Service
@@ -1328,7 +1342,7 @@ spec:
 			prefix, kn, kn, kn,
 			sidecarIngressPort, sidecarIngressPort, sidecarIngressPort, sidecarIngressPort,
 			sidecarEgressPort, sidecarEgressPort, sidecarEgressPort, sidecarEgressPort)
-		outPath := filepath.Join(manifestsDir, kn+"-sidecar-lb.yaml")
+		outPath := filepath.Join(manifestsDir, kn+"-approx.yaml")
 		if err := os.WriteFile(outPath, []byte(svcYaml), 0644); err != nil {
 			return err
 		}
@@ -1399,7 +1413,7 @@ spec:
   volumes:
   - name: config-volume
     configMap:
-      name: sidecar-lb-configs
+      name: approx-configs
 ---
 apiVersion: v1
 kind: Service
@@ -1670,7 +1684,7 @@ BENCH={{.BenchmarkName}}
 WAIT_TIMEOUT=${WAIT_TIMEOUT:-120}
 
 if [ "$MODE" = "plain" ] && [ "$ARG2" = "debug" ]; then
-  echo "deploy.sh: debug only with sidecar or sidecar-lb; use ./deploy.sh sidecar debug or ./deploy.sh sidecar-lb debug" >&2
+  echo "deploy.sh: debug only with sidecar or approx*; use ./deploy.sh sidecar debug or ./deploy.sh approx debug" >&2
   exit 1
 fi
 if [ "$MODE" = "plain-lb" ] && [ -n "$ARG2" ]; then
@@ -1681,7 +1695,7 @@ if [ "$MODE" = "sidecar" ] && [ -n "$ARG2" ] && [ "$ARG2" != "debug" ]; then
   echo "deploy.sh: unknown second argument: $ARG2 (expected: debug)" >&2
   exit 1
 fi
-if [ "$MODE" = "sidecar-lb" ] && [ -n "$ARG2" ] && [ "$ARG2" != "debug" ]; then
+if { [ "$MODE" = "approx" ] || [ "$MODE" = "approx-fcfs" ] || [ "$MODE" = "approx-edf" ]; } && [ -n "$ARG2" ] && [ "$ARG2" != "debug" ]; then
   echo "deploy.sh: unknown second argument: $ARG2 (expected: debug)" >&2
   exit 1
 fi
@@ -1690,7 +1704,7 @@ if { [ "$MODE" = "rajomon" ] || [ "$MODE" = "dagor" ] || [ "$MODE" = "dagor-lb" 
   exit 1
 fi
 SIDECAR_DEBUG=0
-if { [ "$MODE" = "sidecar" ] || [ "$MODE" = "sidecar-lb" ]; } && [ "$ARG2" = "debug" ]; then
+if { [ "$MODE" = "sidecar" ] || [ "$MODE" = "approx" ] || [ "$MODE" = "approx-fcfs" ] || [ "$MODE" = "approx-edf" ]; } && [ "$ARG2" = "debug" ]; then
   SIDECAR_DEBUG=1
 fi
 
@@ -1722,7 +1736,7 @@ kubectl_wait_ready_or_fail() {
 
 sidecar_debug_require_yq() {
   command -v yq >/dev/null 2>&1 || {
-    echo "deploy.sh sidecar/sidecar-lb debug needs mikefarah yq v4: https://github.com/mikefarah/yq" >&2
+    echo "deploy.sh sidecar/approx* debug needs mikefarah yq v4: https://github.com/mikefarah/yq" >&2
     exit 1
   }
 }
@@ -1814,21 +1828,22 @@ if [ "$MODE" = "sidecar" ]; then
   fi
   kubectl apply -f "$TMP_DIR/ingress.yaml"
   kubectl_wait_ready_or_fail ingress 30
-elif [ "$MODE" = "sidecar-lb" ]; then
+elif [ "$MODE" = "approx" ] || [ "$MODE" = "approx-fcfs" ] || [ "$MODE" = "approx-edf" ]; then
   if [ "$SIDECAR_DEBUG" = "1" ]; then
     sidecar_debug_require_yq
     sidecar_debug_merge_glog_file
   fi
-  cat k8s/sidecar-lb.env > "$TMP_DIR/sidecar_lb_merged.env"
-  echo "" >> "$TMP_DIR/sidecar_lb_merged.env"
-  echo "queuing_export=${queuing_export}" >> "$TMP_DIR/sidecar_lb_merged.env"
-  kubectl create configmap {{.BenchmarkName}}-config --from-env-file="$TMP_DIR/sidecar_lb_merged.env" --dry-run=client -o yaml > "$TMP_DIR/configmap.yaml"
+  CM_NAME="${MODE}-configs"
+  cat k8s/approx.env > "$TMP_DIR/approx_merged.env"
+  echo "" >> "$TMP_DIR/approx_merged.env"
+  echo "queuing_export=${queuing_export}" >> "$TMP_DIR/approx_merged.env"
+  kubectl create configmap {{.BenchmarkName}}-config --from-env-file="$TMP_DIR/approx_merged.env" --dry-run=client -o yaml > "$TMP_DIR/configmap.yaml"
   kubectl apply -f "$TMP_DIR/configmap.yaml"
-  cp k8s/manifests/sidecar-lb-configs.yaml "$TMP_DIR/sidecar-lb-configs.yaml"
+  cp "k8s/manifests/${CM_NAME}.yaml" "$TMP_DIR/${CM_NAME}.yaml"
   if [ -n "${SIDECAR_OVER_COMMIT:-}" ]; then
-    echo "deploy.sh: SIDECAR_OVER_COMMIT=${SIDECAR_OVER_COMMIT} (patch all over_commitment in sidecar-lb-configs)"
+    echo "deploy.sh: SIDECAR_OVER_COMMIT=${SIDECAR_OVER_COMMIT} (patch all over_commitment in ${CM_NAME})"
     export SIDECAR_OVER_COMMIT
-    perl -i -pe 's/(over_commitment:\s*)[\d.]+/${1}$ENV{SIDECAR_OVER_COMMIT}/g' "$TMP_DIR/sidecar-lb-configs.yaml"
+    perl -i -pe 's/(over_commitment:\s*)[\d.]+/${1}$ENV{SIDECAR_OVER_COMMIT}/g' "$TMP_DIR/${CM_NAME}.yaml"
     awk -v want="$SIDECAR_OVER_COMMIT" '
       /over_commitment:/ {
         if ($2 != want) {
@@ -1836,25 +1851,27 @@ elif [ "$MODE" = "sidecar-lb" ]; then
           exit 1
         }
       }
-    ' "$TMP_DIR/sidecar-lb-configs.yaml"
+    ' "$TMP_DIR/${CM_NAME}.yaml"
   fi
-  kubectl apply -f "$TMP_DIR/sidecar-lb-configs.yaml"
+  kubectl apply -f "$TMP_DIR/${CM_NAME}.yaml"
 
   kubectl apply -f k8s/manifests/prometheus.yaml
   kubectl_wait_ready_or_fail prometheus-pushgateway 60
   kubectl_wait_ready_or_fail prometheus 60
 
   for SVC in {{range $i, $e := .K8sOrder}}{{if $i}} {{end}}{{$e}}{{end}}; do
-    sed "s|sidecar-sidecar:latest|${REGISTRY}/sidecar-sidecar:${TAG}|g" "k8s/manifests/${SVC}-sidecar-lb.yaml" | \
-    sed "s|${BENCH}-${SVC}:latest|${REGISTRY}/${BENCH}-${SVC}:${TAG}|g" > "$TMP_DIR/${SVC}-sidecar-lb.yaml"
+    sed "s|sidecar-sidecar:latest|${REGISTRY}/sidecar-sidecar:${TAG}|g" "k8s/manifests/${SVC}-approx.yaml" | \
+    sed "s|${BENCH}-${SVC}:latest|${REGISTRY}/${BENCH}-${SVC}:${TAG}|g" | \
+    sed "s|name: approx-configs|name: ${CM_NAME}|g" > "$TMP_DIR/${SVC}-approx.yaml"
     if [ "$SIDECAR_DEBUG" = "1" ]; then
-      sidecar_debug_patch_workload_yaml "$TMP_DIR/${SVC}-sidecar-lb.yaml"
+      sidecar_debug_patch_workload_yaml "$TMP_DIR/${SVC}-approx.yaml"
     fi
-    kubectl apply -f "$TMP_DIR/${SVC}-sidecar-lb.yaml"
+    kubectl apply -f "$TMP_DIR/${SVC}-approx.yaml"
     kubectl_wait_ready_or_fail "${SVC}" "${WAIT_TIMEOUT}"
   done
 
-  sed "s|sidecar-sidecar:latest|${REGISTRY}/sidecar-sidecar:${TAG}|g" k8s/manifests/ingress-lb.yaml > "$TMP_DIR/ingress-lb.yaml"
+  sed "s|sidecar-sidecar:latest|${REGISTRY}/sidecar-sidecar:${TAG}|g" k8s/manifests/ingress-lb.yaml | \
+  sed "s|name: approx-configs|name: ${CM_NAME}|g" > "$TMP_DIR/ingress-lb.yaml"
   if [ "$SIDECAR_DEBUG" = "1" ]; then
     sidecar_debug_patch_workload_yaml "$TMP_DIR/ingress-lb.yaml"
   fi
@@ -2178,10 +2195,10 @@ if [ "$MODE" = "sidecar" ]; then
   kubectl delete service -l app=ingress --ignore-not-found
   kubectl delete configmap sidecar-configs --ignore-not-found
 fi
-if [ "$MODE" = "sidecar-lb" ]; then
+if [ "$MODE" = "approx" ] || [ "$MODE" = "approx-fcfs" ] || [ "$MODE" = "approx-edf" ]; then
   kubectl delete pod -l app=ingress --ignore-not-found --wait=true
   kubectl delete service -l app=ingress --ignore-not-found
-  kubectl delete configmap sidecar-lb-configs --ignore-not-found
+  kubectl delete configmap approx-configs approx-fcfs-configs approx-edf-configs --ignore-not-found
 fi
 if [ "$MODE" = "envoy" ]; then
   kubectl delete pod -l app=ingress --ignore-not-found --wait=true
@@ -2224,7 +2241,7 @@ for svc in ` + trimmed + `; do
   for pod in $(kubectl get pods -l app=$svc -o jsonpath='{.items[*].metadata.name}'); do
     (
       kubectl logs "$pod" > "$OUTPUT_DIR/${pod}.log" 2>&1
-      if [ "$MODE" = "sidecar" ] || [ "$MODE" = "sidecar-lb" ]; then
+      if [ "$MODE" = "sidecar" ] || [ "$MODE" = "approx" ] || [ "$MODE" = "approx-fcfs" ] || [ "$MODE" = "approx-edf" ]; then
         kubectl logs "$pod" -c sidecar > "$OUTPUT_DIR/${pod}-sidecar.log" 2>&1
       fi
       if [ "$MODE" = "envoy" ]; then
@@ -2236,7 +2253,7 @@ for svc in ` + trimmed + `; do
 done
 for pid in "${log_pids[@]}"; do wait "$pid" || true; done
 
-if [ "$MODE" = "sidecar" ] || [ "$MODE" = "sidecar-lb" ]; then
+if [ "$MODE" = "sidecar" ] || [ "$MODE" = "approx" ] || [ "$MODE" = "approx-fcfs" ] || [ "$MODE" = "approx-edf" ]; then
   declare -a ing_pids=()
   for pod in $(kubectl get pods -l app=ingress -o jsonpath='{.items[*].metadata.name}'); do
     (
@@ -2274,7 +2291,7 @@ if [ "$MODE" = "envoy" ]; then
   for pid in "${stats_pids[@]}"; do wait "$pid" || true; done
 fi
 
-if { [ "$MODE" = "sidecar" ] || [ "$MODE" = "sidecar-lb" ]; } && [ "${COLLECT_SIDECAR_NANOLOG:-}" = "1" ]; then
+if { [ "$MODE" = "sidecar" ] || [ "$MODE" = "approx" ] || [ "$MODE" = "approx-fcfs" ] || [ "$MODE" = "approx-edf" ]; } && [ "${COLLECT_SIDECAR_NANOLOG:-}" = "1" ]; then
   declare -a cp_pids=()
   for svc in ` + trimmed + `; do
     for pod in $(kubectl get pods -l app=$svc -o jsonpath='{.items[*].metadata.name}' 2>/dev/null); do

@@ -56,7 +56,7 @@ func (s *Server) Run() error {
 func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 	sidecar := utils.GetEnvVar("sidecar", false) == "true"
 	envoy := utils.GetEnvVar("envoy", false) == "true"
-	var rpcID, rpcLocalID string
+	var rpcID, rpcLocalID, deadline string
 	if sidecar {
 		rpcID = r.Header.Get("rpc-id")
 		if rpcID == "" {
@@ -66,6 +66,11 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 		rpcLocalID = r.Header.Get("rpc-local-id")
 		if rpcLocalID == "" {
 			http.Error(w, "rpc-local-id header required", http.StatusBadRequest)
+			return
+		}
+		deadline = r.Header.Get("deadline")
+		if deadline == "" {
+			http.Error(w, "deadline header required", http.StatusBadRequest)
 			return
 		}
 	} else if envoy {
@@ -82,17 +87,17 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	switch path {
 	case "f1":
-		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "f1", "rpc-id", rpcID, "rpc-local-id", rpcLocalID))
+		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "f1", "rpc-id", rpcID, "rpc-local-id", rpcLocalID, "deadline", deadline))
 		utils.BusyLoop(320)
 
 
 	case "f2":
-		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "f2", "rpc-id", rpcID, "rpc-local-id", rpcLocalID))
+		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "f2", "rpc-id", rpcID, "rpc-local-id", rpcLocalID, "deadline", deadline))
 		utils.BusyLoop(480)
 
 
 	case "f3":
-		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "f3", "rpc-id", rpcID, "rpc-local-id", rpcLocalID))
+		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "f3", "rpc-id", rpcID, "rpc-local-id", rpcLocalID, "deadline", deadline))
 		utils.BusyLoop(640)
 
 

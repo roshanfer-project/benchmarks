@@ -8,7 +8,7 @@ BENCH=alibaba-large
 WAIT_TIMEOUT=${WAIT_TIMEOUT:-120}
 
 if [ "$MODE" = "plain" ] && [ "$ARG2" = "debug" ]; then
-  echo "deploy.sh: debug only with sidecar or sidecar-lb; use ./deploy.sh sidecar debug or ./deploy.sh sidecar-lb debug" >&2
+  echo "deploy.sh: debug only with sidecar or approx*; use ./deploy.sh sidecar debug or ./deploy.sh approx debug" >&2
   exit 1
 fi
 if [ "$MODE" = "plain-lb" ] && [ -n "$ARG2" ]; then
@@ -19,7 +19,7 @@ if [ "$MODE" = "sidecar" ] && [ -n "$ARG2" ] && [ "$ARG2" != "debug" ]; then
   echo "deploy.sh: unknown second argument: $ARG2 (expected: debug)" >&2
   exit 1
 fi
-if [ "$MODE" = "sidecar-lb" ] && [ -n "$ARG2" ] && [ "$ARG2" != "debug" ]; then
+if { [ "$MODE" = "approx" ] || [ "$MODE" = "approx-fcfs" ] || [ "$MODE" = "approx-edf" ]; } && [ -n "$ARG2" ] && [ "$ARG2" != "debug" ]; then
   echo "deploy.sh: unknown second argument: $ARG2 (expected: debug)" >&2
   exit 1
 fi
@@ -28,7 +28,7 @@ if { [ "$MODE" = "rajomon" ] || [ "$MODE" = "dagor" ] || [ "$MODE" = "dagor-lb" 
   exit 1
 fi
 SIDECAR_DEBUG=0
-if { [ "$MODE" = "sidecar" ] || [ "$MODE" = "sidecar-lb" ]; } && [ "$ARG2" = "debug" ]; then
+if { [ "$MODE" = "sidecar" ] || [ "$MODE" = "approx" ] || [ "$MODE" = "approx-fcfs" ] || [ "$MODE" = "approx-edf" ]; } && [ "$ARG2" = "debug" ]; then
   SIDECAR_DEBUG=1
 fi
 
@@ -60,7 +60,7 @@ kubectl_wait_ready_or_fail() {
 
 sidecar_debug_require_yq() {
   command -v yq >/dev/null 2>&1 || {
-    echo "deploy.sh sidecar/sidecar-lb debug needs mikefarah yq v4: https://github.com/mikefarah/yq" >&2
+    echo "deploy.sh sidecar/approx* debug needs mikefarah yq v4: https://github.com/mikefarah/yq" >&2
     exit 1
   }
 }
@@ -152,21 +152,22 @@ if [ "$MODE" = "sidecar" ]; then
   fi
   kubectl apply -f "$TMP_DIR/ingress.yaml"
   kubectl_wait_ready_or_fail ingress 30
-elif [ "$MODE" = "sidecar-lb" ]; then
+elif [ "$MODE" = "approx" ] || [ "$MODE" = "approx-fcfs" ] || [ "$MODE" = "approx-edf" ]; then
   if [ "$SIDECAR_DEBUG" = "1" ]; then
     sidecar_debug_require_yq
     sidecar_debug_merge_glog_file
   fi
-  cat k8s/sidecar-lb.env > "$TMP_DIR/sidecar_lb_merged.env"
-  echo "" >> "$TMP_DIR/sidecar_lb_merged.env"
-  echo "queuing_export=${queuing_export}" >> "$TMP_DIR/sidecar_lb_merged.env"
-  kubectl create configmap alibaba-large-config --from-env-file="$TMP_DIR/sidecar_lb_merged.env" --dry-run=client -o yaml > "$TMP_DIR/configmap.yaml"
+  CM_NAME="${MODE}-configs"
+  cat k8s/approx.env > "$TMP_DIR/approx_merged.env"
+  echo "" >> "$TMP_DIR/approx_merged.env"
+  echo "queuing_export=${queuing_export}" >> "$TMP_DIR/approx_merged.env"
+  kubectl create configmap alibaba-large-config --from-env-file="$TMP_DIR/approx_merged.env" --dry-run=client -o yaml > "$TMP_DIR/configmap.yaml"
   kubectl apply -f "$TMP_DIR/configmap.yaml"
-  cp k8s/manifests/sidecar-lb-configs.yaml "$TMP_DIR/sidecar-lb-configs.yaml"
+  cp "k8s/manifests/${CM_NAME}.yaml" "$TMP_DIR/${CM_NAME}.yaml"
   if [ -n "${SIDECAR_OVER_COMMIT:-}" ]; then
-    echo "deploy.sh: SIDECAR_OVER_COMMIT=${SIDECAR_OVER_COMMIT} (patch all over_commitment in sidecar-lb-configs)"
+    echo "deploy.sh: SIDECAR_OVER_COMMIT=${SIDECAR_OVER_COMMIT} (patch all over_commitment in ${CM_NAME})"
     export SIDECAR_OVER_COMMIT
-    perl -i -pe 's/(over_commitment:\s*)[\d.]+/${1}$ENV{SIDECAR_OVER_COMMIT}/g' "$TMP_DIR/sidecar-lb-configs.yaml"
+    perl -i -pe 's/(over_commitment:\s*)[\d.]+/${1}$ENV{SIDECAR_OVER_COMMIT}/g' "$TMP_DIR/${CM_NAME}.yaml"
     awk -v want="$SIDECAR_OVER_COMMIT" '
       /over_commitment:/ {
         if ($2 != want) {
@@ -174,25 +175,27 @@ elif [ "$MODE" = "sidecar-lb" ]; then
           exit 1
         }
       }
-    ' "$TMP_DIR/sidecar-lb-configs.yaml"
+    ' "$TMP_DIR/${CM_NAME}.yaml"
   fi
-  kubectl apply -f "$TMP_DIR/sidecar-lb-configs.yaml"
+  kubectl apply -f "$TMP_DIR/${CM_NAME}.yaml"
 
   kubectl apply -f k8s/manifests/prometheus.yaml
   kubectl_wait_ready_or_fail prometheus-pushgateway 60
   kubectl_wait_ready_or_fail prometheus 60
 
   for SVC in ms-14758 ms-12657 ms-45067 ms-7103 ms-19439 ms-25806 ms-21298 ms-25781 ms-2687 ms-40087 ms-43032 ms-51783 ms-44246 ms-56113 ms-51787 ms-41667 ms-33572 ms-5720 ms-53792 ms-38190 ms-58796 ms-18750 ms-62039 ms-43754 ms-66921 ms-67465 ms-70124 ms-9105 ms-64512; do
-    sed "s|sidecar-sidecar:latest|${REGISTRY}/sidecar-sidecar:${TAG}|g" "k8s/manifests/${SVC}-sidecar-lb.yaml" | \
-    sed "s|${BENCH}-${SVC}:latest|${REGISTRY}/${BENCH}-${SVC}:${TAG}|g" > "$TMP_DIR/${SVC}-sidecar-lb.yaml"
+    sed "s|sidecar-sidecar:latest|${REGISTRY}/sidecar-sidecar:${TAG}|g" "k8s/manifests/${SVC}-approx.yaml" | \
+    sed "s|${BENCH}-${SVC}:latest|${REGISTRY}/${BENCH}-${SVC}:${TAG}|g" | \
+    sed "s|name: approx-configs|name: ${CM_NAME}|g" > "$TMP_DIR/${SVC}-approx.yaml"
     if [ "$SIDECAR_DEBUG" = "1" ]; then
-      sidecar_debug_patch_workload_yaml "$TMP_DIR/${SVC}-sidecar-lb.yaml"
+      sidecar_debug_patch_workload_yaml "$TMP_DIR/${SVC}-approx.yaml"
     fi
-    kubectl apply -f "$TMP_DIR/${SVC}-sidecar-lb.yaml"
+    kubectl apply -f "$TMP_DIR/${SVC}-approx.yaml"
     kubectl_wait_ready_or_fail "${SVC}" "${WAIT_TIMEOUT}"
   done
 
-  sed "s|sidecar-sidecar:latest|${REGISTRY}/sidecar-sidecar:${TAG}|g" k8s/manifests/ingress-lb.yaml > "$TMP_DIR/ingress-lb.yaml"
+  sed "s|sidecar-sidecar:latest|${REGISTRY}/sidecar-sidecar:${TAG}|g" k8s/manifests/ingress-lb.yaml | \
+  sed "s|name: approx-configs|name: ${CM_NAME}|g" > "$TMP_DIR/ingress-lb.yaml"
   if [ "$SIDECAR_DEBUG" = "1" ]; then
     sidecar_debug_patch_workload_yaml "$TMP_DIR/ingress-lb.yaml"
   fi
@@ -407,6 +410,7 @@ elif [ "$MODE" = "rajomon-lb" ]; then
 elif [ "$MODE" = "plain-lb" ]; then
   kubectl create configmap alibaba-large-config --from-env-file=k8s/plain-lb.env --dry-run=client -o yaml > "$TMP_DIR/configmap.yaml"
   kubectl apply -f "$TMP_DIR/configmap.yaml"
+  kubectl apply -f k8s/manifests/plain-lb-envoy-configs.yaml
 
   kubectl apply -f k8s/manifests/prometheus.yaml
   kubectl_wait_ready_or_fail prometheus-pushgateway 60
@@ -430,7 +434,8 @@ elif [ "$MODE" = "plain-lb" ]; then
     exit 1
   fi
 
-  kubectl apply -f k8s/manifests/entry-lb.yaml
+  kubectl apply -f k8s/manifests/ingress-envoy-lb.yaml
+  kubectl_wait_ready_or_fail ingress 30
 else
   kubectl create configmap alibaba-large-config --from-env-file=k8s/plain.env --dry-run=client -o yaml > "$TMP_DIR/configmap.yaml"
   kubectl apply -f "$TMP_DIR/configmap.yaml"
