@@ -3,6 +3,7 @@ set -e
 
 # Get script directory
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+REPO_ROOT="$( cd "$SCRIPT_DIR/../.." &> /dev/null && pwd )"
 HOSTS_FILE="${HOSTS_FILE:-"$SCRIPT_DIR/hosts.txt"}"
 CONFIG_FILE="$SCRIPT_DIR/../k8s/config.env" # Re-use k8s config if available, or just for SSH_OPTS
 
@@ -30,13 +31,31 @@ if [ ! -f "$HOSTS_FILE" ]; then
 fi
 
 FORCE_PROVISION="false"
+CLI_BRANCH=""
 while [[ "$#" -gt 0 ]]; do
     case $1 in
         -f|--force) FORCE_PROVISION="true" ;;
+        --branch)
+            [[ -z "${2:-}" ]] && { echo "Missing value for --branch"; exit 1; }
+            CLI_BRANCH="$2"
+            shift
+            ;;
         *) echo "Unknown parameter passed: $1"; exit 1 ;;
     esac
     shift
 done
+
+# BRANCH env wins over CLI only if CLI unset; prefer explicit CLI then env then local HEAD.
+if [ -n "$CLI_BRANCH" ]; then
+    BRANCH="$CLI_BRANCH"
+elif [ -z "${BRANCH:-}" ]; then
+    BRANCH="$(git -C "$REPO_ROOT" branch --show-current 2>/dev/null || true)"
+fi
+if [ -z "$BRANCH" ]; then
+    log_error "No branch specified (--branch / BRANCH) and cannot detect local active branch."
+    exit 1
+fi
+log_info "Provisioning branch: $BRANCH (same name required on roshanfer-experments and benchmarks)"
 
 mapfile -t HOSTS < <(grep -vE '^\s*#|^\s*$' "$HOSTS_FILE")
 
@@ -72,14 +91,32 @@ provision_single_host() {
     parse_host_entry "$entry"
     local node_user="$CURRENT_USER"
     local node_host="$CURRENT_HOST"
+    local force_host="$FORCE_PROVISION"
 
     log_loc() { echo -e "[${node_host}] ${BLUE}[INFO]${NC} $1"; }
     ok_loc() { echo -e "[${node_host}] ${GREEN}[SUCCESS]${NC} $1"; }
 
-    log_loc "Provisioning ($node_user)..."
+    log_loc "Provisioning ($node_user) branch=$BRANCH..."
 
-    if [ "$FORCE_PROVISION" != "true" ] && ssh_exec "$node_user" "$node_host" "[ -f .roshanfer_provisioned ]"; then
-        ok_loc "Already provisioned (.roshanfer_provisioned). Skipping (-f to force)."
+    REPO_URL="git@github.com:farzad1132/roshanfer-experments.git"
+    DIR_NAME="roshanfer-experments"
+
+    # Wrong branch on remote -> wipe and force re-provision.
+    if ssh_exec "$node_user" "$node_host" "[ -d '$DIR_NAME' ]"; then
+        remote_parent="$(ssh_exec "$node_user" "$node_host" "git -C '$DIR_NAME' branch --show-current 2>/dev/null" || true)"
+        remote_bench=""
+        if ssh_exec "$node_user" "$node_host" "[ -d '$DIR_NAME/benchmarks/.git' ] || [ -f '$DIR_NAME/benchmarks/.git' ]"; then
+            remote_bench="$(ssh_exec "$node_user" "$node_host" "git -C '$DIR_NAME/benchmarks' branch --show-current 2>/dev/null" || true)"
+        fi
+        if [ "$remote_parent" != "$BRANCH" ] || [ "$remote_bench" != "$BRANCH" ]; then
+            log_loc "Wrong branch (parent='$remote_parent' benchmarks='$remote_bench'; want '$BRANCH'). Wiping repo."
+            ssh_exec "$node_user" "$node_host" "rm -rf '$DIR_NAME' && rm -f .roshanfer_provisioned"
+            force_host="true"
+        fi
+    fi
+
+    if [ "$force_host" != "true" ] && ssh_exec "$node_user" "$node_host" "[ -f .roshanfer_provisioned ]"; then
+        ok_loc "Already provisioned on $BRANCH (.roshanfer_provisioned). Skipping (-f to force)."
         return 0
     fi
 
@@ -100,22 +137,23 @@ provision_single_host() {
     log_loc "[2/4] Installing Go..."
     cat "$SCRIPT_DIR/install_go.sh" | ssh_exec "$node_user" "$node_host" "bash -s"
 
-    log_loc "[3/4] Clone / pull repo..."
+    log_loc "[3/4] Clone / pull repo (branch=$BRANCH)..."
     ssh_exec "$node_user" "$node_host" "ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null"
-    REPO_URL="git@github.com:farzad1132/roshanfer-experments.git"
-    DIR_NAME="roshanfer-experments"
 
     CLONE_CMD="if [ ! -d '$DIR_NAME' ]; then
-                   git clone $REPO_URL $DIR_NAME;
+                   git clone -b '$BRANCH' $REPO_URL $DIR_NAME;
                else
-                   echo 'Repo exists, pulling latest...';
-                   cd $DIR_NAME && git pull;
+                   echo 'Repo exists on $BRANCH, pulling latest...';
+                   cd $DIR_NAME && git fetch origin && git checkout '$BRANCH' && git pull --ff-only origin '$BRANCH';
                fi"
 
     ssh_exec "$node_user" "$node_host" "$CLONE_CMD"
 
     log_loc "Initializing submodules (benchmarks, rwg)..."
     ssh_exec "$node_user" "$node_host" "cd $DIR_NAME && git submodule update --init --recursive benchmarks rwg"
+
+    log_loc "Checking out benchmarks on $BRANCH..."
+    ssh_exec "$node_user" "$node_host" "cd $DIR_NAME/benchmarks && git fetch origin '$BRANCH' && git checkout '$BRANCH' && git pull --ff-only origin '$BRANCH' && git submodule update --init --recursive"
 
     log_loc "Building rwg..."
     ssh_exec "$node_user" "$node_host" "cd $DIR_NAME/rwg && /usr/local/go/bin/go build ."

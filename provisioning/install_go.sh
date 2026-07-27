@@ -10,6 +10,38 @@ GO_URL="https://go.dev/dl/go${GO_VERSION}.${OS}-${ARCH}.tar.gz"
 INSTALL_DIR="/usr/local"
 GO_ROOT="${INSTALL_DIR}/go"
 
+# Configure environment variables
+PATH_EXPORT="export PATH=\$PATH:${GO_ROOT}/bin"
+
+configure_shell() {
+    local shell_rc="$1"
+    if [ -f "$shell_rc" ]; then
+        if grep -q "${GO_ROOT}/bin" "$shell_rc"; then
+            echo "Go path already set in $shell_rc"
+        else
+            echo "Adding Go path to $shell_rc"
+            echo "" >> "$shell_rc"
+            echo "# Go configuration" >> "$shell_rc"
+            echo "$PATH_EXPORT" >> "$shell_rc"
+        fi
+    fi
+}
+
+# Skip download if the requested version is already installed.
+if [ -x "${GO_ROOT}/bin/go" ]; then
+    installed="$("${GO_ROOT}/bin/go" version 2>/dev/null || true)"
+    if echo "$installed" | grep -q "go${GO_VERSION}"; then
+        echo "Go ${GO_VERSION} already installed at ${GO_ROOT}; skipping download."
+        configure_shell "$HOME/.bashrc"
+        configure_shell "$HOME/.zshrc"
+        configure_shell "$HOME/.profile"
+        echo "Current go version:"
+        ${GO_ROOT}/bin/go version
+        exit 0
+    fi
+    echo "Found different Go at ${GO_ROOT}: $installed — reinstalling ${GO_VERSION}."
+fi
+
 echo "Installing Go ${GO_VERSION}..."
 
 # Download Go
@@ -35,23 +67,6 @@ sudo tar -C ${INSTALL_DIR} -xzf go.tar.gz
 rm go.tar.gz
 
 echo "Go ${GO_VERSION} has been installed to ${GO_ROOT}."
-
-# Configure environment variables
-PATH_EXPORT="export PATH=\$PATH:${GO_ROOT}/bin"
-
-configure_shell() {
-    local shell_rc="$1"
-    if [ -f "$shell_rc" ]; then
-        if grep -q "${GO_ROOT}/bin" "$shell_rc"; then
-            echo "Go path already set in $shell_rc"
-        else
-            echo "Adding Go path to $shell_rc"
-            echo "" >> "$shell_rc"
-            echo "# Go configuration" >> "$shell_rc"
-            echo "$PATH_EXPORT" >> "$shell_rc"
-        fi
-    fi
-}
 
 configure_shell "$HOME/.bashrc"
 configure_shell "$HOME/.zshrc"
