@@ -631,15 +631,27 @@ import (
 	"google.golang.org/grpc/keepalive"
 {{if .WRR}}	"google.golang.org/grpc/orca"
 	_ "google.golang.org/grpc/balancer/weightedroundrobin"
-{{end}}{{if .LeastRequest}}	_ "google.golang.org/grpc/balancer/leastrequest"
-{{end}}	_ "google.golang.org/grpc/resolver/dns"
+{{end}}	_ "google.golang.org/grpc/balancer/leastrequest"
+	_ "google.golang.org/grpc/balancer/roundrobin"
+	_ "google.golang.org/grpc/resolver/dns"
 )
+
+func lbServiceConfig() string {
+	switch os.Getenv("load_balancing_policy") {
+	case "round_robin":
+		return ` + "`" + `{"loadBalancingConfig":[{"round_robin":{}}]}` + "`" + `
+	case "weighted_round_robin":
+		return ` + "`" + `{"loadBalancingConfig":[{"weighted_round_robin":{"blackoutPeriod":"1s"}}]}` + "`" + `
+	default:
+		return ` + "`" + `{"loadBalancingConfig":[{"least_request_experimental":{}}]}` + "`" + `
+	}
+}
 
 func GetConn(addr string, extra ...grpc.DialOption) *grpc.ClientConn {
 	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
 	if os.Getenv("plain_lb") == "true" {
 		addr = "dns:///" + addr
-		opts = append(opts, grpc.WithDefaultServiceConfig(` + "`{{.LBConfig}}`" + `))
+		opts = append(opts, grpc.WithDefaultServiceConfig(lbServiceConfig()))
 	}
 	opts = append(opts, extra...)
 	conn, err := grpc.NewClient(addr, opts...)
@@ -653,7 +665,7 @@ func GetRajomonClient(addr string, interceptor grpc.DialOption) *grpc.ClientConn
 	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials()), interceptor}
 	if os.Getenv("plain_lb") == "true" {
 		addr = "dns:///" + addr
-		opts = append([]grpc.DialOption{grpc.WithDefaultServiceConfig(` + "`{{.LBConfig}}`" + `)}, opts...)
+		opts = append([]grpc.DialOption{grpc.WithDefaultServiceConfig(lbServiceConfig())}, opts...)
 	}
 	conn, err := grpc.NewClient(addr, opts...)
 	if err != nil {
@@ -667,28 +679,19 @@ func GetServerOptions() []grpc.ServerOption {
 		grpc.KeepaliveParams(keepalive.ServerParameters{Timeout: 120 * time.Second}),
 		grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{PermitWithoutStream: true}),
 	}
-{{if .WRR}}	if os.Getenv("plain_lb") == "true" {
+{{if .WRR}}	if os.Getenv("plain_lb") == "true" && os.Getenv("load_balancing_policy") == "weighted_round_robin" {
 		opts = append(opts, orca.CallMetricsServerOption(nil))
 	}
 {{end}}	return opts
 }
 `
-	lbConfig := `{"loadBalancingConfig":[{"least_request_experimental":{}}]}`
-	switch pg.LoadBalancingPolicy {
-	case "weighted_round_robin":
-		lbConfig = `{"loadBalancingConfig":[{"weighted_round_robin":{"blackoutPeriod":"1s"}}]}`
-	case "round_robin":
-		lbConfig = `{"loadBalancingConfig":[{"round_robin":{}}]}`
-	}
 	t, err := template.New("grpc").Parse(tmpl)
 	if err != nil {
 		return err
 	}
 	var b bytes.Buffer
 	if err := t.Execute(&b, map[string]interface{}{
-		"WRR":          pg.LoadBalancingPolicy == "weighted_round_robin",
-		"LeastRequest": pg.LoadBalancingPolicy != "round_robin" && pg.LoadBalancingPolicy != "weighted_round_robin",
-		"LBConfig":     lbConfig,
+		"WRR": pg.LoadBalancingPolicy == "weighted_round_robin",
 	}); err != nil {
 		return err
 	}

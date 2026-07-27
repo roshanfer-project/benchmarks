@@ -92,7 +92,7 @@ data:
 	return os.WriteFile(filepath.Join(manifestsDir, "envoy-configs.yaml"), []byte(cm), 0644)
 }
 
-func generatePlainLbEnvoyConfigs(pg *ParsedGraph, benchmarkName string, outDir string) error {
+func generateP2cEnvoyConfigs(pg *ParsedGraph, benchmarkName string, outDir string) error {
 	prefix := benchmarkName + "-"
 	entrySvc := pg.EntryMicroservice()
 	manifestsDir := filepath.Join(outDir, "k8s", "manifests")
@@ -103,11 +103,11 @@ func generatePlainLbEnvoyConfigs(pg *ParsedGraph, benchmarkName string, outDir s
 	cm := `apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: plain-lb-envoy-configs
+  name: p2c-envoy-configs
 data:
   ingress.yaml: |
 ` + indent(ingressCfg, 4)
-	return os.WriteFile(filepath.Join(manifestsDir, "plain-lb-envoy-configs.yaml"), []byte(cm), 0644)
+	return os.WriteFile(filepath.Join(manifestsDir, "p2c-envoy-configs.yaml"), []byte(cm), 0644)
 }
 
 func buildEnvoyServiceConfig(pg *ParsedGraph, prefix, svcName, kn, entrySvc string) string {
@@ -319,7 +319,7 @@ func envoyUpstreamClusters(pg *ParsedGraph, prefix, svcName string) []string {
 }
 
 // upstreamPort 0 means per-handler inbound ports (envoy mesh). Otherwise all
-// entry clusters use that fixed port (plain-lb app :2000).
+// entry clusters use that fixed port (p2c/wrr app :2000).
 func buildEnvoyIngressConfig(pg *ParsedGraph, prefix, entrySvc string, upstreamPort int, lbPolicy string, highCB bool) string {
 	entryKn := k8sName(entrySvc)
 	var b strings.Builder
@@ -490,7 +490,7 @@ func generateIngressEnvoyYaml(pg *ParsedGraph, benchmarkName string, outDir stri
 
 func generateIngressEnvoyLbYaml(pg *ParsedGraph, benchmarkName string, outDir string) error {
 	concurrency := pg.UserEntryCount() * 2
-	return writeIngressEnvoyYaml(pg, benchmarkName, outDir, "ingress-envoy-lb.yaml", "plain-lb-envoy-configs", concurrency, false)
+	return writeIngressEnvoyYaml(pg, benchmarkName, outDir, "ingress-envoy-lb.yaml", "p2c-envoy-configs", concurrency, false)
 }
 
 func writeIngressEnvoyYaml(pg *ParsedGraph, benchmarkName, outDir, filename, configMapName string, concurrency int, withStats bool) error {

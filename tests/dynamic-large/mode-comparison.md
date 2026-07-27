@@ -15,16 +15,26 @@ Deploy resource comparison across generated modes (from callgraph.json).
 | plain | backend7 | 1 | — | 1 | 1 | — | — | — |
 | plain | backend8 | 2 | — | 1 | 2 | — | — | — |
 | plain | frontend | 3 | — | 1 | 3 | — | — | — |
-| plain-lb | backend1 | 5 | — | 1 | 5 | — | — | — |
-| plain-lb | backend2 | 2 | — | 1 | 2 | — | — | — |
-| plain-lb | backend3 | 3 | — | 1 | 3 | — | — | — |
-| plain-lb | backend4 | 3 | — | 1 | 3 | — | — | — |
-| plain-lb | backend5 | 1 | — | 1 | 1 | — | — | — |
-| plain-lb | backend6 | 1 | — | 1 | 1 | — | — | — |
-| plain-lb | backend7 | 1 | — | 1 | 1 | — | — | — |
-| plain-lb | backend8 | 2 | — | 1 | 2 | — | — | — |
-| plain-lb | frontend | 3 | — | 1 | 3 | — | — | — |
-| plain-lb | ingress | — | 2 | 1 | — | — | — | — |
+| p2c | backend1 | 5 | — | 1 | 5 | — | — | — |
+| p2c | backend2 | 2 | — | 1 | 2 | — | — | — |
+| p2c | backend3 | 3 | — | 1 | 3 | — | — | — |
+| p2c | backend4 | 3 | — | 1 | 3 | — | — | — |
+| p2c | backend5 | 1 | — | 1 | 1 | — | — | — |
+| p2c | backend6 | 1 | — | 1 | 1 | — | — | — |
+| p2c | backend7 | 1 | — | 1 | 1 | — | — | — |
+| p2c | backend8 | 2 | — | 1 | 2 | — | — | — |
+| p2c | frontend | 3 | — | 1 | 3 | — | — | — |
+| p2c | ingress | — | 2 | 1 | — | — | — | — |
+| wrr | backend1 | 5 | — | 1 | 5 | — | — | — |
+| wrr | backend2 | 2 | — | 1 | 2 | — | — | — |
+| wrr | backend3 | 3 | — | 1 | 3 | — | — | — |
+| wrr | backend4 | 3 | — | 1 | 3 | — | — | — |
+| wrr | backend5 | 1 | — | 1 | 1 | — | — | — |
+| wrr | backend6 | 1 | — | 1 | 1 | — | — | — |
+| wrr | backend7 | 1 | — | 1 | 1 | — | — | — |
+| wrr | backend8 | 2 | — | 1 | 2 | — | — | — |
+| wrr | frontend | 3 | — | 1 | 3 | — | — | — |
+| wrr | ingress | — | 2 | 1 | — | — | — | — |
 | sidecar | backend1 | 5 | 2 | 1 | 5 | 5 | 0.0 | 1 |
 | sidecar | backend2 | 2 | 2 | 1 | 2 | 2 | 0.0 | 1 |
 | sidecar | backend3 | 3 | 2 | 1 | 3 | 3 | 0.0 | 1 |
@@ -121,7 +131,8 @@ Deploy resource comparison across generated modes (from callgraph.json).
 | mode | total_app_cores | total_sidecar_cores | app_sidecar_ratio |
 |------|-----------------|---------------------|-------------------|
 | plain | 21 | 0 | — |
-| plain-lb | 21 | 2 | 10.5 |
+| p2c | 21 | 2 | 10.5 |
+| wrr | 21 | 2 | 10.5 |
 | sidecar | 21 | 20 | 1.05 |
 | approx | 21 | 6.5 | 3.23 |
 | approx-fcfs | 21 | 6.5 | 3.23 |

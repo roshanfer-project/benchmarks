@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: plain-lb-envoy-configs
+  name: p2c-envoy-configs
 data:
   ingress.yaml: |
     node:
@@ -56,7 +56,7 @@ data:
             - endpoint:
                 address:
                   socket_address:
-                    address: pfanout-4-frontend
+                    address: ingress-stress-frontend
                     port_value: 2000
         circuit_breakers:
           thresholds:

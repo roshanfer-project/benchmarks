@@ -519,7 +519,7 @@ func (pg *ParsedGraph) ReplicasForService(svcName string) int {
 	return 1
 }
 
-// PerReplicaCPU returns cpu/replicas for plain-lb and dagor-lb pod resources.
+// PerReplicaCPU returns cpu/replicas for p2c/wrr and dagor-lb pod resources.
 func PerReplicaCPU(cpu float64, replicas int) float64 {
 	return cpu / float64(replicas)
 }

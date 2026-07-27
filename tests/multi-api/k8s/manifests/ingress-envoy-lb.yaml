@@ -34,7 +34,7 @@ spec:
   volumes:
   - name: config-volume
     configMap:
-      name: plain-lb-envoy-configs
+      name: p2c-envoy-configs
 ---
 apiVersion: v1
 kind: Service

@@ -17,7 +17,7 @@ Generates the benchmark, `callgraph.pdf`, and mode comparison tables (`mode-comp
 
 ### Mode comparison tables
 
-At codegen time, `cmd/gen` emits deploy-resource tables comparing all supported modes (`plain`, `plain-lb`, `sidecar`, `approx`, `approx-fcfs`, `approx-edf`, `envoy`, `rajomon`, `dagor`, and LB variants). Values use the same formulas as K8s manifest generation: per-service `app_cpu_limit`, `sidecar_cpu_limit`, `replicas`, `GOMAXPROCS`, and sidecar `cpu_count` / `over_commitment` / `num_threads`. A cluster-totals section sums app and sidecar cores per mode.
+At codegen time, `cmd/gen` emits deploy-resource tables comparing all supported modes (`plain`, `p2c`, `wrr`, `sidecar`, `approx`, `approx-fcfs`, `approx-edf`, `envoy`, `rajomon`, `dagor`, and LB variants). Values use the same formulas as K8s manifest generation: per-service `app_cpu_limit`, `sidecar_cpu_limit`, `replicas`, `GOMAXPROCS`, and sidecar `cpu_count` / `over_commitment` / `num_threads`. A cluster-totals section sums app and sidecar cores per mode.
 
 ### Visualizer
 
@@ -49,7 +49,7 @@ With `-paper`, `viz` runs `render_service_pdf.py` using **the repository root `.
 ## Scripts
 
 - `build.sh [tag]` — build the sidecar (if present), build all workload images with `docker buildx bake` (shared compile + parallel final stages), then push every image in parallel (`REGISTRY`, `TAG`, `BENCH` env vars behave as before).
-- `deploy.sh [plain|plain-lb|sidecar|approx|approx-fcfs|approx-edf|rajomon|rajomon-lb|dagor|dagor-lb|envoy]` — deploy to K8s (uses `TAG`, `REGISTRY`). `./deploy.sh sidecar debug` or `./deploy.sh approx debug` (also `approx-fcfs` / `approx-edf`) enables workload debug (see below). `debug` is only valid with `sidecar` or approx modes, not with plain, plain-lb, rajomon, rajomon-lb, dagor, dagor-lb, or envoy. **envoy** uses `envoyproxy/envoy:v1.32-latest` sidecars (no SLO queuing, no `SIDECAR_OVER_COMMIT`). For **sidecar** and **approx\***: if **`SIDECAR_OVER_COMMIT`** is set (non-empty), every `over_commitment:` field in `sidecar-configs.yaml` / `${MODE}-configs.yaml` is rewritten to that value before apply (needs `perl` on PATH); omit it to keep values from `callgraph.json` codegen.
+- `deploy.sh [plain|p2c|wrr|sidecar|approx|approx-fcfs|approx-edf|rajomon|rajomon-lb|dagor|dagor-lb|envoy]` — deploy to K8s (uses `TAG`, `REGISTRY`). `./deploy.sh sidecar debug` or `./deploy.sh approx debug` (also `approx-fcfs` / `approx-edf`) enables workload debug (see below). `debug` is only valid with `sidecar` or approx modes, not with plain, p2c, wrr, rajomon, rajomon-lb, dagor, dagor-lb, or envoy. **envoy** uses `envoyproxy/envoy:v1.32-latest` sidecars (no SLO queuing, no `SIDECAR_OVER_COMMIT`). For **sidecar** and **approx\***: if **`SIDECAR_OVER_COMMIT`** is set (non-empty), every `over_commitment:` field in `sidecar-configs.yaml` / `${MODE}-configs.yaml` is rewritten to that value before apply (needs `perl` on PATH); omit it to keep values from `callgraph.json` codegen.
 - `destroy.sh` — tear down
 - `collect_logs.sh` — collect pod logs. If the environment variable `COLLECT_SIDECAR_NANOLOG=1` is set (done by `exec` when `--nanolog-debug` is enabled) and mode is `sidecar` or an approx mode, the script also `kubectl cp`s `/compressedLog` from each sidecar container into `$OUTPUT_DIR` as `*-sidecar.clog` (plus ingress as `*-ingress-sidecar.clog`). Decompression uses `benchmarks/sidecar/external/NanoLog/runtime/decompressor` from the repo checkout that runs the executor.
 
@@ -149,7 +149,7 @@ Use **`destroy.sh dagor`** to remove `rajomon-client`, the `*-grpc` entry pod, a
 
 ### dagor-lb mode
 
-DAGOR admission control with **plain-lb** replication and client-side gRPC load balancing. Same gRPC topology as **dagor** (`k8s/manifests/app-grpc-lb.yaml`, HTTP entry **`rajomon-client`**, gRPC entry **`<entry>-grpc`**). Env template: **`k8s/dagor-lb.env`** (`dagor=true`, `plain_lb=true`). The `replicas` and `load_balancing_policy` fields in `callgraph.json` apply (Deployments, per-replica CPU, headless internal Services — see **plain-lb**).
+DAGOR admission control with **p2c/wrr**-style replication and client-side gRPC load balancing. Same gRPC topology as **dagor** (`k8s/manifests/app-grpc-lb.yaml`, HTTP entry **`rajomon-client`**, gRPC entry **`<entry>-grpc`**). Env template: **`k8s/dagor-lb.env`** (`dagor=true`, `plain_lb=true`). The `replicas` and `load_balancing_policy` fields in `callgraph.json` apply (Deployments, per-replica CPU, headless internal Services — see **p2c** / **wrr**).
 
 **Tuning:** same per-benchmark `dagor` defaults and runtime **`Alpha` / `Beta`** overrides as dagor (shell env or `deploy_env` in experiment JSON).
 
@@ -163,7 +163,7 @@ Use **`destroy.sh dagor-lb`** to remove `rajomon-client`, the `*-grpc` entry wor
 
 ### rajomon-lb mode
 
-Rajomon admission control with **plain-lb** replication and client-side gRPC load balancing. Same gRPC topology as **rajomon** (`k8s/manifests/app-grpc-lb.yaml`, HTTP entry **`rajomon-client`** (single replica), gRPC entry **`<entry>-grpc`**). Env template: **`k8s/rajomon-lb.env`** (`rajomon=true`, `plain_lb=true`). The `replicas` and `load_balancing_policy` fields in `callgraph.json` apply (Deployments, per-replica CPU, headless internal Services — see **plain-lb**).
+Rajomon admission control with **p2c/wrr**-style replication and client-side gRPC load balancing. Same gRPC topology as **rajomon** (`k8s/manifests/app-grpc-lb.yaml`, HTTP entry **`rajomon-client`** (single replica), gRPC entry **`<entry>-grpc`**). Env template: **`k8s/rajomon-lb.env`** (`rajomon=true`, `plain_lb=true`). The `replicas` and `load_balancing_policy` fields in `callgraph.json` apply (Deployments, per-replica CPU, headless internal Services — see **p2c** / **wrr**).
 
 Each replicated gRPC workload gets a unique Rajomon identity **`serviceName-<podSuffix>`** (from `POD_NAME`) so `priceAggregation: maximal` tracks the max price across all downstream replicas. The end-user **`rajomon-client`** stays a single replica with name **`client`**.
 
@@ -176,15 +176,18 @@ Each replicated gRPC workload gets a unique Rajomon identity **`serviceName-<pod
 
 Use **`destroy.sh rajomon-lb`** to tear down. Load tests use the same URLs as plain/rajomon: `http://<node>:3000/<interface>` (`run-plain.sh`).
 
-### plain-lb mode
+### p2c and wrr modes
 
-Like **plain**, but supports multiple replicas per microservice via the `replicas` field in `callgraph.json`. Deploy with `./deploy.sh plain-lb`; tear down with `./destroy.sh plain-lb`. Load tests use per-API NodePorts like sidecar (`run.sh`): `http://<node>:3000/<interface>`, `http://<node>:3001/<interface>`, …
+Like **plain**, but supports multiple replicas per microservice via the `replicas` field in `callgraph.json`. Both modes share LB Deployments, headless Services, and the Envoy ingress; they differ only in the client gRPC load-balancing policy pinned by the env file. Deploy with `./deploy.sh p2c` or `./deploy.sh wrr`; tear down with `./destroy.sh p2c` / `./destroy.sh wrr`. Plot/display labels are **P2C** and **WRR**. Load tests use per-API NodePorts like sidecar (`run.sh`): `http://<node>:3000/<interface>`, `http://<node>:3001/<interface>`, …
 
 - Workloads are **Deployments** (not Pods). Per-replica CPU = `cpu / replicas` (fractional allowed) for requests and limits. `GOMAXPROCS = ceil(cpu / replicas)`. Requires `cpu / replicas > 0`.
 - Internal gRPC services use **headless** Services (`clusterIP: None`) so clients can discover all pod IPs.
-- gRPC clients use **dns:///** load balancing when `plain_lb=true` (set in `k8s/plain-lb.env`, `k8s/dagor-lb.env`, or `k8s/rajomon-lb.env`). Policy is set by **`load_balancing_policy`** in `callgraph.json` (default **`least_request`**, power-of-two-choices over active RPC counts). Set **`round_robin`** for round-robin. Set **`weighted_round_robin`** for WRR with `blackoutPeriod: 1s`; gRPC servers then report per-call ORCA **QPS** (1s window, all RPCs), **EPS** (1s window, failed RPCs only — e.g. DAGOR admission drops), and **CPU utilization** (process CPU via `Getrusage`, normalized by `GOMAXPROCS`). WRR uses EPS via the default `error_utilization_penalty` to deprioritize backends with high error rates.
+- gRPC clients use **dns:///** load balancing when `plain_lb=true` (set in `k8s/p2c.env`, `k8s/wrr.env`, `k8s/dagor-lb.env`, or `k8s/rajomon-lb.env`). Policy is read at runtime from **`load_balancing_policy`**:
+  - **p2c** (`k8s/p2c.env`): always **`least_request`** (power-of-two-choices over active RPC counts; gRPC `choiceCount` defaults to 2).
+  - **wrr** (`k8s/wrr.env`): always **`round_robin`** (simple RR, not weighted).
+  - **dagor-lb / rajomon-lb**: policy from **`load_balancing_policy`** in `callgraph.json` (default **`least_request`**). Set **`round_robin`** or **`weighted_round_robin`** (ORCA call metrics with `blackoutPeriod: 1s`; servers report QPS / EPS / CPU utilization). Weighted WRR uses EPS via the default `error_utilization_penalty` to deprioritize backends with high error rates.
 - Prometheus pushes keep `job=<serviceName>` for all modes. In replicated `plain_lb=true` modes, each pod also pushes with Pushgateway grouping label `instance=<podSuffix>` so replicas do not overwrite each other; `collector.py` writes these as per-replica keys like `backend1-<podSuffix>` in `prometheus.json`. Non-LB modes keep bare keys like `backend1`.
-- HTTP entry is a dedicated **Envoy** ingress Pod (`ingress-envoy-lb.yaml`) with NodePorts `3000+i` per user API. Upstream is the frontend headless Service on port **2000** over **HTTP/1** (`LEAST_REQUEST`, `STRICT_DNS`). Ingress CPU and `--concurrency` are `UserEntryCount() × 2` (same core budget as approx ingress).
+- HTTP entry is a dedicated **Envoy** ingress Pod (`ingress-envoy-lb.yaml`) with NodePorts `3000+i` per user API. Upstream is the frontend headless Service on port **2000** over **HTTP/1** (`LEAST_REQUEST`, `STRICT_DNS`). Ingress CPU and `--concurrency` are `UserEntryCount() × 2` (same core budget as approx ingress). ConfigMap: `p2c-envoy-configs` (shared by p2c and wrr).
 
 ## Call Graph Format
 
@@ -205,9 +208,9 @@ Like **plain**, but supports multiple replicas per microservice via the `replica
   }
   ```
 
-- `load_balancing_policy` (optional, default `least_request`, **plain-lb, dagor-lb, and rajomon-lb**): gRPC client load balancer — `least_request` (P2C over active RPC counts), `round_robin`, or `weighted_round_robin` (WRR enables ORCA server metrics).
+- `load_balancing_policy` (optional, default `least_request`, **dagor-lb and rajomon-lb**): gRPC client load balancer — `least_request` (P2C over active RPC counts), `round_robin`, or `weighted_round_robin` (enables ORCA server metrics). Modes **p2c** and **wrr** pin policy in their env files and ignore this field.
 - `dagor` (optional, **dagor and dagor-lb**): per-benchmark DAGOR defaults written to `dagor_init/dagor-config.go` — `queuing_thresh_ms` (default `2`), `alpha` (default `0.45`), `beta` (default `0.01`). All fields optional; omitted fields use framework defaults. Runtime env `Alpha` / `Beta` still override at deploy time.
-- `nodes`: one per microservice; `id`, `interfaces` (see **service time** below), `cpu` (optional, default 1, used for cpu_count in sidecar config and app resources), `replicas` (optional, default 1, **plain-lb, dagor-lb, rajomon-lb, and approx\***), `sidecar_cpu` (optional, default 1, used for num_threads in sidecar config; k8s sidecar gets 2× this in **sidecar**, 0.5× in **approx\***), `over_commitment` (optional, default 0, must be in [0,1]; written to sidecar config)
+- `nodes`: one per microservice; `id`, `interfaces` (see **service time** below), `cpu` (optional, default 1, used for cpu_count in sidecar config and app resources), `replicas` (optional, default 1, **p2c, wrr, dagor-lb, rajomon-lb, and approx\***), `sidecar_cpu` (optional, default 1, used for num_threads in sidecar config; k8s sidecar gets 2× this in **sidecar**, 0.5× in **approx\***), `over_commitment` (optional, default 0, must be in [0,1]; written to sidecar config)
 
 ### Service time per interface
 

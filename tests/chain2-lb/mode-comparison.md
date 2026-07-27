@@ -8,9 +8,12 @@ Deploy resource comparison across generated modes (from callgraph.json).
 |------|---------|---------------|-------------------|----------|------------|-----------|-----------------|-------------|
 | plain | backend | 3 | — | 1 | 3 | — | — | — |
 | plain | frontend | 2 | — | 1 | 2 | — | — | — |
-| plain-lb | backend | 1 | — | 3 | 1 | — | — | — |
-| plain-lb | frontend | 2 | — | 1 | 2 | — | — | — |
-| plain-lb | ingress | — | 2 | 1 | — | — | — | — |
+| p2c | backend | 1 | — | 3 | 1 | — | — | — |
+| p2c | frontend | 2 | — | 1 | 2 | — | — | — |
+| p2c | ingress | — | 2 | 1 | — | — | — | — |
+| wrr | backend | 1 | — | 3 | 1 | — | — | — |
+| wrr | frontend | 2 | — | 1 | 2 | — | — | — |
+| wrr | ingress | — | 2 | 1 | — | — | — | — |
 | sidecar | backend | 3 | 2 | 1 | 3 | 3 | 0.0 | 1 |
 | sidecar | frontend | 2 | 2 | 1 | 2 | 2 | 1.0 | 1 |
 | sidecar | ingress | — | 2 | 1 | — | — | — | — |
@@ -44,7 +47,8 @@ Deploy resource comparison across generated modes (from callgraph.json).
 | mode | total_app_cores | total_sidecar_cores | app_sidecar_ratio |
 |------|-----------------|---------------------|-------------------|
 | plain | 5 | 0 | — |
-| plain-lb | 5 | 2 | 2.5 |
+| p2c | 5 | 2 | 2.5 |
+| wrr | 5 | 2 | 2.5 |
 | sidecar | 5 | 6 | 0.833 |
 | approx | 5 | 4 | 1.25 |
 | approx-fcfs | 5 | 4 | 1.25 |

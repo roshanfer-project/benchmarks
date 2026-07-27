@@ -7,8 +7,10 @@ Deploy resource comparison across generated modes (from callgraph.json).
 | mode | service | app_cpu_limit | sidecar_cpu_limit | replicas | GOMAXPROCS | cpu_count | over_commitment | num_threads |
 |------|---------|---------------|-------------------|----------|------------|-----------|-----------------|-------------|
 | plain | frontend | 5 | — | 1 | 5 | — | — | — |
-| plain-lb | frontend | 5 | — | 1 | 5 | — | — | — |
-| plain-lb | ingress | — | 4 | 1 | — | — | — | — |
+| p2c | frontend | 5 | — | 1 | 5 | — | — | — |
+| p2c | ingress | — | 4 | 1 | — | — | — | — |
+| wrr | frontend | 5 | — | 1 | 5 | — | — | — |
+| wrr | ingress | — | 4 | 1 | — | — | — | — |
 | sidecar | frontend | 5 | 2 | 1 | 5 | 5 | 0.0 | 1 |
 | sidecar | ingress | — | 4 | 1 | — | — | — | — |
 | approx | frontend | 5 | 0.5 | 1 | 5 | 5 | 0.0 | 1 |
@@ -33,7 +35,8 @@ Deploy resource comparison across generated modes (from callgraph.json).
 | mode | total_app_cores | total_sidecar_cores | app_sidecar_ratio |
 |------|-----------------|---------------------|-------------------|
 | plain | 5 | 0 | — |
-| plain-lb | 5 | 4 | 1.25 |
+| p2c | 5 | 4 | 1.25 |
+| wrr | 5 | 4 | 1.25 |
 | sidecar | 5 | 6 | 0.833 |
 | approx | 5 | 4.5 | 1.11 |
 | approx-fcfs | 5 | 4.5 | 1.11 |

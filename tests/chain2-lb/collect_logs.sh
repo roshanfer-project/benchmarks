@@ -30,7 +30,7 @@ if [ "$MODE" = "sidecar" ] || [ "$MODE" = "approx" ] || [ "$MODE" = "approx-fcfs
   for pid in "${ing_pids[@]}"; do wait "$pid" || true; done
 fi
 
-if [ "$MODE" = "envoy" ] || [ "$MODE" = "plain-lb" ]; then
+if [ "$MODE" = "envoy" ] || [ "$MODE" = "p2c" ] || [ "$MODE" = "wrr" ]; then
   declare -a ing_pids=()
   for pod in $(kubectl get pods -l app=ingress -o jsonpath='{.items[*].metadata.name}'); do
     (

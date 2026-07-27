@@ -136,7 +136,7 @@ func GenerateK8s(pg *ParsedGraph, benchmarkName string, registry string, outDir 
 	if err := generateAppLbYaml(pg, benchmarkName, svcNames, outDir); err != nil {
 		return err
 	}
-	if err := generatePlainLbEnv(pg, benchmarkName, svcNames, outDir); err != nil {
+	if err := generateClientLbEnvs(pg, benchmarkName, svcNames, outDir); err != nil {
 		return err
 	}
 	if err := generateSidecarConfigs(pg, benchmarkName, svcNames, outDir); err != nil {
@@ -175,7 +175,7 @@ func GenerateK8s(pg *ParsedGraph, benchmarkName string, registry string, outDir 
 	if err := generateIngressEnvoyYaml(pg, benchmarkName, outDir); err != nil {
 		return err
 	}
-	if err := generatePlainLbEnvoyConfigs(pg, benchmarkName, outDir); err != nil {
+	if err := generateP2cEnvoyConfigs(pg, benchmarkName, outDir); err != nil {
 		return err
 	}
 	if err := generateIngressEnvoyLbYaml(pg, benchmarkName, outDir); err != nil {
@@ -370,22 +370,35 @@ spec:
 	return nil
 }
 
-func generatePlainLbEnv(pg *ParsedGraph, benchmarkName string, svcNames []string, outDir string) error {
+func generateClientLbEnvs(pg *ParsedGraph, benchmarkName string, svcNames []string, outDir string) error {
 	prefix := benchmarkName + "-"
-	lines := []string{
-		"plain_lb=true",
-		"load_balancing_policy=" + pg.LoadBalancingPolicy,
-		"",
-	}
+	addrLines := []string{}
 	for _, name := range svcNames {
 		podName := k8sName(name)
 		svcDNS := prefix + podName + ":" + fmt.Sprintf("%d", port)
-		lines = append(lines, name+"_ADDR="+svcDNS)
+		addrLines = append(addrLines, name+"_ADDR="+svcDNS)
 	}
-	lines = append(lines, "PORT="+fmt.Sprintf("%d", port))
-	lines = append(lines, "", "PROM_ADDR=prometheus-pushgateway:9091")
+	addrLines = append(addrLines, "PORT="+fmt.Sprintf("%d", port))
+	addrLines = append(addrLines, "", "PROM_ADDR=prometheus-pushgateway:9091")
 	k8sDir := filepath.Join(outDir, "k8s")
-	return os.WriteFile(filepath.Join(k8sDir, "plain-lb.env"), []byte(strings.Join(lines, "\n")), 0644)
+	for _, mode := range []struct {
+		file   string
+		policy string
+	}{
+		{"p2c.env", "least_request"},
+		{"wrr.env", "round_robin"},
+	} {
+		lines := []string{
+			"plain_lb=true",
+			"load_balancing_policy=" + mode.policy,
+			"",
+		}
+		lines = append(lines, addrLines...)
+		if err := os.WriteFile(filepath.Join(k8sDir, mode.file), []byte(strings.Join(lines, "\n")), 0644); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func generatePlainEnv(pg *ParsedGraph, benchmarkName string, svcNames []string, outDir string) error {
@@ -1687,8 +1700,8 @@ if [ "$MODE" = "plain" ] && [ "$ARG2" = "debug" ]; then
   echo "deploy.sh: debug only with sidecar or approx*; use ./deploy.sh sidecar debug or ./deploy.sh approx debug" >&2
   exit 1
 fi
-if [ "$MODE" = "plain-lb" ] && [ -n "$ARG2" ]; then
-  echo "deploy.sh: plain-lb mode does not take a second argument" >&2
+if { [ "$MODE" = "p2c" ] || [ "$MODE" = "wrr" ]; } && [ -n "$ARG2" ]; then
+  echo "deploy.sh: p2c and wrr modes do not take a second argument" >&2
   exit 1
 fi
 if [ "$MODE" = "sidecar" ] && [ -n "$ARG2" ] && [ "$ARG2" != "debug" ]; then
@@ -2083,10 +2096,10 @@ elif [ "$MODE" = "rajomon-lb" ]; then
     echo "deploy.sh (rajomon-lb): one or more workloads failed readiness" >&2
     exit 1
   fi
-elif [ "$MODE" = "plain-lb" ]; then
-  kubectl create configmap {{.BenchmarkName}}-config --from-env-file=k8s/plain-lb.env --dry-run=client -o yaml > "$TMP_DIR/configmap.yaml"
+elif [ "$MODE" = "p2c" ] || [ "$MODE" = "wrr" ]; then
+  kubectl create configmap {{.BenchmarkName}}-config --from-env-file=k8s/${MODE}.env --dry-run=client -o yaml > "$TMP_DIR/configmap.yaml"
   kubectl apply -f "$TMP_DIR/configmap.yaml"
-  kubectl apply -f k8s/manifests/plain-lb-envoy-configs.yaml
+  kubectl apply -f k8s/manifests/p2c-envoy-configs.yaml
 
   kubectl apply -f k8s/manifests/prometheus.yaml
   kubectl_wait_ready_or_fail prometheus-pushgateway 60
@@ -2106,7 +2119,7 @@ elif [ "$MODE" = "plain-lb" ]; then
     wait "$pid" || deploy_fail=1
   done
   if [ "$deploy_fail" -ne 0 ]; then
-    echo "deploy.sh (plain-lb): one or more workloads failed readiness" >&2
+    echo "deploy.sh (${MODE}): one or more workloads failed readiness" >&2
     exit 1
   fi
 
@@ -2205,10 +2218,10 @@ if [ "$MODE" = "envoy" ]; then
   kubectl delete service -l app=ingress --ignore-not-found
   kubectl delete configmap envoy-configs --ignore-not-found
 fi
-if [ "$MODE" = "plain-lb" ]; then
+if [ "$MODE" = "p2c" ] || [ "$MODE" = "wrr" ]; then
   kubectl delete pod -l app=ingress --ignore-not-found --wait=true
   kubectl delete service -l app=ingress --ignore-not-found
-  kubectl delete configmap plain-lb-envoy-configs --ignore-not-found
+  kubectl delete configmap p2c-envoy-configs --ignore-not-found
 fi
 if [ "$MODE" = "rajomon" ] || [ "$MODE" = "dagor" ] || [ "$MODE" = "dagor-lb" ] || [ "$MODE" = "rajomon-lb" ]; then
   kubectl delete deployment -l app=rajomon-client --ignore-not-found --wait=true
@@ -2264,7 +2277,7 @@ if [ "$MODE" = "sidecar" ] || [ "$MODE" = "approx" ] || [ "$MODE" = "approx-fcfs
   for pid in "${ing_pids[@]}"; do wait "$pid" || true; done
 fi
 
-if [ "$MODE" = "envoy" ] || [ "$MODE" = "plain-lb" ]; then
+if [ "$MODE" = "envoy" ] || [ "$MODE" = "p2c" ] || [ "$MODE" = "wrr" ]; then
   declare -a ing_pids=()
   for pod in $(kubectl get pods -l app=ingress -o jsonpath='{.items[*].metadata.name}'); do
     (

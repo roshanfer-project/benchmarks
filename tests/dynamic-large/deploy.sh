@@ -11,8 +11,8 @@ if [ "$MODE" = "plain" ] && [ "$ARG2" = "debug" ]; then
   echo "deploy.sh: debug only with sidecar or approx*; use ./deploy.sh sidecar debug or ./deploy.sh approx debug" >&2
   exit 1
 fi
-if [ "$MODE" = "plain-lb" ] && [ -n "$ARG2" ]; then
-  echo "deploy.sh: plain-lb mode does not take a second argument" >&2
+if { [ "$MODE" = "p2c" ] || [ "$MODE" = "wrr" ]; } && [ -n "$ARG2" ]; then
+  echo "deploy.sh: p2c and wrr modes do not take a second argument" >&2
   exit 1
 fi
 if [ "$MODE" = "sidecar" ] && [ -n "$ARG2" ] && [ "$ARG2" != "debug" ]; then
@@ -407,10 +407,10 @@ elif [ "$MODE" = "rajomon-lb" ]; then
     echo "deploy.sh (rajomon-lb): one or more workloads failed readiness" >&2
     exit 1
   fi
-elif [ "$MODE" = "plain-lb" ]; then
-  kubectl create configmap dynamic-large-config --from-env-file=k8s/plain-lb.env --dry-run=client -o yaml > "$TMP_DIR/configmap.yaml"
+elif [ "$MODE" = "p2c" ] || [ "$MODE" = "wrr" ]; then
+  kubectl create configmap dynamic-large-config --from-env-file=k8s/${MODE}.env --dry-run=client -o yaml > "$TMP_DIR/configmap.yaml"
   kubectl apply -f "$TMP_DIR/configmap.yaml"
-  kubectl apply -f k8s/manifests/plain-lb-envoy-configs.yaml
+  kubectl apply -f k8s/manifests/p2c-envoy-configs.yaml
 
   kubectl apply -f k8s/manifests/prometheus.yaml
   kubectl_wait_ready_or_fail prometheus-pushgateway 60
@@ -430,7 +430,7 @@ elif [ "$MODE" = "plain-lb" ]; then
     wait "$pid" || deploy_fail=1
   done
   if [ "$deploy_fail" -ne 0 ]; then
-    echo "deploy.sh (plain-lb): one or more workloads failed readiness" >&2
+    echo "deploy.sh (${MODE}): one or more workloads failed readiness" >&2
     exit 1
   fi
 

@@ -36,10 +36,10 @@ if [ "$MODE" = "envoy" ]; then
   kubectl delete service -l app=ingress --ignore-not-found
   kubectl delete configmap envoy-configs --ignore-not-found
 fi
-if [ "$MODE" = "plain-lb" ]; then
+if [ "$MODE" = "p2c" ] || [ "$MODE" = "wrr" ]; then
   kubectl delete pod -l app=ingress --ignore-not-found --wait=true
   kubectl delete service -l app=ingress --ignore-not-found
-  kubectl delete configmap plain-lb-envoy-configs --ignore-not-found
+  kubectl delete configmap p2c-envoy-configs --ignore-not-found
 fi
 if [ "$MODE" = "rajomon" ] || [ "$MODE" = "dagor" ] || [ "$MODE" = "dagor-lb" ] || [ "$MODE" = "rajomon-lb" ]; then
   kubectl delete deployment -l app=rajomon-client --ignore-not-found --wait=true

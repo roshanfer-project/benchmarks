@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: plain-lb-envoy-configs
+  name: p2c-envoy-configs
 data:
   ingress.yaml: |
     node:

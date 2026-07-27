@@ -10,11 +10,16 @@ Deploy resource comparison across generated modes (from callgraph.json).
 | plain | backend2 | 2 | — | 1 | 2 | — | — | — |
 | plain | frontend | 2 | — | 1 | 2 | — | — | — |
 | plain | shared | 4 | — | 1 | 4 | — | — | — |
-| plain-lb | backend1 | 1 | — | 3 | 1 | — | — | — |
-| plain-lb | backend2 | 1 | — | 2 | 1 | — | — | — |
-| plain-lb | frontend | 1 | — | 2 | 1 | — | — | — |
-| plain-lb | shared | 1 | — | 4 | 1 | — | — | — |
-| plain-lb | ingress | — | 4 | 1 | — | — | — | — |
+| p2c | backend1 | 1 | — | 3 | 1 | — | — | — |
+| p2c | backend2 | 1 | — | 2 | 1 | — | — | — |
+| p2c | frontend | 1 | — | 2 | 1 | — | — | — |
+| p2c | shared | 1 | — | 4 | 1 | — | — | — |
+| p2c | ingress | — | 4 | 1 | — | — | — | — |
+| wrr | backend1 | 1 | — | 3 | 1 | — | — | — |
+| wrr | backend2 | 1 | — | 2 | 1 | — | — | — |
+| wrr | frontend | 1 | — | 2 | 1 | — | — | — |
+| wrr | shared | 1 | — | 4 | 1 | — | — | — |
+| wrr | ingress | — | 4 | 1 | — | — | — | — |
 | sidecar | backend1 | 3 | 2 | 1 | 3 | 3 | 1.0 | 1 |
 | sidecar | backend2 | 2 | 2 | 1 | 2 | 2 | 1.0 | 1 |
 | sidecar | frontend | 2 | 2 | 1 | 2 | 2 | 1.0 | 1 |
@@ -66,7 +71,8 @@ Deploy resource comparison across generated modes (from callgraph.json).
 | mode | total_app_cores | total_sidecar_cores | app_sidecar_ratio |
 |------|-----------------|---------------------|-------------------|
 | plain | 11 | 0 | — |
-| plain-lb | 11 | 4 | 2.75 |
+| p2c | 11 | 4 | 2.75 |
+| wrr | 11 | 4 | 2.75 |
 | sidecar | 11 | 12 | 0.917 |
 | approx | 11 | 9.5 | 1.16 |
 | approx-fcfs | 11 | 9.5 | 1.16 |
