@@ -116,7 +116,22 @@ provision_single_host() {
     fi
 
     if [ "$force_host" != "true" ] && ssh_exec "$node_user" "$node_host" "[ -f .roshanfer_provisioned ]"; then
-        ok_loc "Already provisioned on $BRANCH (.roshanfer_provisioned). Skipping (-f to force)."
+        # Fetch and pull if parent or benchmarks is behind origin/$BRANCH.
+        ssh_exec "$node_user" "$node_host" "git -C '$DIR_NAME' fetch origin && git -C '$DIR_NAME/benchmarks' fetch origin"
+        parent_behind="$(ssh_exec "$node_user" "$node_host" "git -C '$DIR_NAME' rev-list --count HEAD..origin/$BRANCH" || echo 0)"
+        bench_behind="$(ssh_exec "$node_user" "$node_host" "git -C '$DIR_NAME/benchmarks' rev-list --count HEAD..origin/$BRANCH" || echo 0)"
+        parent_behind="${parent_behind//$'\r'/}"
+        bench_behind="${bench_behind//$'\r'/}"
+        if [ "${parent_behind:-0}" -gt 0 ] || [ "${bench_behind:-0}" -gt 0 ]; then
+            log_loc "Behind origin/$BRANCH (parent=$parent_behind benchmarks=$bench_behind commits). Pulling..."
+            ssh_exec "$node_user" "$node_host" "cd '$DIR_NAME' && git pull --ff-only origin '$BRANCH' && git submodule update --init rwg"
+            ssh_exec "$node_user" "$node_host" "cd '$DIR_NAME/benchmarks' && git pull --ff-only origin '$BRANCH' && git submodule update --init --recursive"
+            log_loc "Rebuilding rwg after pull..."
+            ssh_exec "$node_user" "$node_host" "cd '$DIR_NAME/rwg' && /usr/local/go/bin/go build ."
+            ok_loc "Pulled up to date on $BRANCH"
+            return 0
+        fi
+        ok_loc "Already provisioned on $BRANCH and up to date. Skipping (-f to force)."
         return 0
     fi
 
