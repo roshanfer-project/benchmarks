@@ -1,0 +1,20 @@
+applications:
+- callgraph:
+    MS_25806: []
+    MS_2687: []
+    MS_40087: []
+    MS_44246: []
+    MS_51787:
+    - MS_25806
+    - MS_44246
+    - MS_56113
+    MS_56113: []
+    MS_70124:
+    - MS_56113
+    ms-64512-grpc:
+    - MS_2687
+    - MS_40087
+    - MS_51787
+    - MS_70124
+  entrypoint: ms-64512-grpc
+  interface: Z8trRkp4mp

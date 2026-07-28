@@ -1,0 +1,38 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: ms-44246
+  labels:
+    app: ms-44246
+spec:
+  containers:
+  - name: app
+    image: alibaba-lb-ms-44246:latest
+    resources:
+      requests:
+        cpu: "4"
+      limits:
+        cpu: "4"
+    env:
+    - name: GOMAXPROCS
+      value: "4"
+    envFrom:
+    - configMapRef:
+        name: alibaba-lb-config
+    ports:
+    - containerPort: 2000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alibaba-lb-ms-44246
+  labels:
+    app: ms-44246
+spec:
+  selector:
+    app: ms-44246
+  ports:
+  - name: http
+    port: 2000
+    targetPort: 2000
+    protocol: TCP

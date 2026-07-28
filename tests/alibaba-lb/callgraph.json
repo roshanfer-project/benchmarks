@@ -1,0 +1,177 @@
+{
+  "nodes": [
+    {
+      "id": "USER",
+      "interfaces": [
+        {
+          "name": "USER",
+          "avg_rt": 0
+        }
+      ],
+      "cpu": 1
+    },
+    {
+      "id": "MS_64512",
+      "interfaces": [
+        {
+          "name": "Z8trRkp4mp",
+          "exponential": {
+            "mean": 0.5
+          },
+          "slo": 600,
+          "priority": 0
+        }
+      ],
+      "cpu": 5,
+      "replicas": 5,
+      "over_commitment": 1
+    },
+    {
+      "id": "MS_40087",
+      "interfaces": [
+        {
+          "name": "2QxmWDHq1o",
+          "exponential": {
+            "mean": 0.8
+          }
+        },
+        {
+          "name": "M5ISZV1sCx",
+          "exponential": {
+            "mean": 0.8
+          }
+        }
+      ],
+      "cpu": 6,
+      "replicas": 6
+    },
+    {
+      "id": "MS_2687",
+      "interfaces": [
+        {
+          "name": "VdboDuPbKj",
+          "exponential": {
+            "mean": 0.8
+          }
+        }
+      ],
+      "cpu": 4,
+      "replicas": 4
+    },
+    {
+      "id": "MS_70124",
+      "interfaces": [
+        {
+          "name": "v0gqd6H7nw",
+          "exponential": {
+            "mean": 1
+          }
+        }
+      ],
+      "cpu": 3,
+      "replicas": 3,
+      "over_commitment": 1
+    },
+    {
+      "id": "MS_51787",
+      "interfaces": [
+        {
+          "name": "rypaFB4pfJ",
+          "exponential": {
+            "mean": 0.8
+          }
+        }
+      ],
+      "cpu": 4,
+      "replicas": 4,
+      "over_commitment": 1
+    },
+    {
+      "id": "MS_56113",
+      "interfaces": [
+        {
+          "name": "0PIREyu4tb",
+          "exponential": {
+            "mean": 2
+          }
+        },
+        {
+          "name": "KuU4P3BCru",
+          "exponential": {
+            "mean": 2
+          }
+        }
+      ],
+      "cpu": 8,
+      "replicas": 8
+    },
+    {
+      "id": "MS_44246",
+      "interfaces": [
+        {
+          "name": "nRLDYEHBqx",
+          "exponential": {
+            "mean": 0.8
+          }
+        }
+      ],
+      "cpu": 4,
+      "replicas": 4
+    },
+    {
+      "id": "MS_25806",
+      "interfaces": [
+        {
+          "name": "FQN3ARekoW",
+          "exponential": {
+            "mean": 2
+          }
+        }
+      ],
+      "cpu": 8,
+      "replicas": 8
+    }
+  ],
+  "edges": [
+    {
+      "source": "USER",
+      "target": "MS_64512:Z8trRkp4mp"
+    },
+    {
+      "source": "MS_64512:Z8trRkp4mp",
+      "target": "MS_2687:VdboDuPbKj"
+    },
+    {
+      "source": "MS_64512:Z8trRkp4mp",
+      "target": "MS_40087:2QxmWDHq1o"
+    },
+    {
+      "source": "MS_64512:Z8trRkp4mp",
+      "target": "MS_40087:M5ISZV1sCx"
+    },
+    {
+      "source": "MS_64512:Z8trRkp4mp",
+      "target": "MS_51787:rypaFB4pfJ"
+    },
+    {
+      "source": "MS_64512:Z8trRkp4mp",
+      "target": "MS_70124:v0gqd6H7nw"
+    },
+    {
+      "source": "MS_51787:rypaFB4pfJ",
+      "target": "MS_44246:nRLDYEHBqx"
+    },
+    {
+      "source": "MS_51787:rypaFB4pfJ",
+      "target": "MS_56113:KuU4P3BCru"
+    },
+    {
+      "source": "MS_51787:rypaFB4pfJ",
+      "target": "MS_25806:FQN3ARekoW"
+    },
+    {
+      "source": "MS_70124:v0gqd6H7nw",
+      "target": "MS_56113:0PIREyu4tb"
+    }
+  ]
+}

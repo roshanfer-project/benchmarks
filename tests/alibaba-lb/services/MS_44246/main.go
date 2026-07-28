@@ -1,0 +1,151 @@
+package main
+
+import (
+	"context"
+	"fmt"
+	"net"
+	"alibabalb/pkg"
+	pb "alibabalb/protobuf"
+	dagor "alibabalb/dagor"
+	dagorinit "alibabalb/dagor_init"
+	rajomoninit "alibabalb/rajomon_init"
+	"alibabalb/utils"
+
+	"github.com/pennsail/rajomon"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/reflection"
+	"math/rand"
+	"os"
+	"strconv"
+	"sync"
+	"time"
+)
+
+var benchRng struct {
+	mu sync.Mutex
+	r  *rand.Rand
+}
+
+func init() {
+	seed := time.Now().UnixNano()
+	if s := os.Getenv("ROUTING_SEED"); s != "" {
+		if v, err := strconv.ParseInt(s, 10, 64); err == nil {
+			seed = v
+		}
+	}
+	benchRng.r = rand.New(rand.NewSource(seed))
+}
+
+func benchFloat() float64 {
+	benchRng.mu.Lock()
+	defer benchRng.mu.Unlock()
+	return benchRng.r.Float64()
+}
+
+func benchExpBusyLoop(mean float64) {
+	benchRng.mu.Lock()
+	rt := benchRng.r.ExpFloat64() * mean
+	benchRng.mu.Unlock()
+	repeats := int(rt * 320)
+	if repeats < 1 {
+		repeats = 1
+	}
+	utils.BusyLoop(repeats)
+}
+
+
+type Server struct {
+	pb.UnimplementedMS_44246Server
+}
+
+const serviceName = "MS_44246"
+var log = utils.GetLogger(serviceName)
+
+func (s *Server) Run() error {
+	log.Info("Initializing gRPC server...")
+	opts := pkg.GetServerOptions()
+	sidecar := utils.GetEnvVar("sidecar", false) == "true"
+	envoy := utils.GetEnvVar("envoy", false) == "true"
+	if sidecar && envoy {
+		panic("sidecar and envoy cannot both be enabled")
+	}
+	meshProxy := sidecar || envoy
+	useRajomon := utils.GetEnvVar("rajomon", false) == "true"
+	useDagor := utils.GetEnvVar("dagor", false) == "true"
+	queuingExport := utils.GetEnvVar("queuing_export", false) == "true"
+	if !meshProxy && useRajomon && useDagor {
+		panic("rajomon and dagor cannot both be enabled")
+	}
+	var priceTable *rajomon.PriceTable
+	var dagorNode *dagor.Dagor
+	if useRajomon && !meshProxy {
+		priceTable = rajomoninit.GetPriceTable(rajomoninit.InstanceName(serviceName), false)
+	}
+	if useDagor && !meshProxy {
+		dagorNode = dagorinit.GetDagorNode(serviceName, false, false)
+	}
+	if meshProxy {
+		if sidecar && queuingExport {
+			opts = append(opts, grpc.ChainUnaryInterceptor(
+				utils.ContextPropagationInterceptor(),
+				utils.NewCounterState(serviceName).GetInterceptor()))
+		} else {
+			opts = append(opts, grpc.ChainUnaryInterceptor(
+				utils.ContextPropagationInterceptor()))
+		}
+	} else if useRajomon {
+		opts = append(opts, grpc.ChainUnaryInterceptor(
+			utils.ContextPropagationInterceptor(),
+			utils.NewCounterState(serviceName).GetInterceptor(),
+			priceTable.UnaryInterceptor))
+	} else if useDagor {
+		opts = append(opts, grpc.ChainUnaryInterceptor(
+			utils.ContextPropagationInterceptor(),
+			utils.NewCounterState(serviceName).GetInterceptor(),
+			dagorNode.UnaryInterceptorServer))
+	} else {
+		opts = append(opts, grpc.ChainUnaryInterceptor(
+			utils.ContextPropagationInterceptor(),
+			utils.NewCounterState(serviceName).GetInterceptor()))
+	}
+	srv := grpc.NewServer(opts...)
+	pb.RegisterMS_44246Server(srv, s)
+
+	reflection.Register(srv)
+	port := 2000
+	if meshProxy {
+		port = utils.StrToInt(utils.GetEnvVar("MS_44246_PORT", true))
+	}
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+	if err != nil {
+		return fmt.Errorf("failed to listen: %v", err)
+	}
+	return srv.Serve(lis)
+}
+
+
+func (s *Server) NRLDYEHBqx(ctx context.Context, req *pb.Request) (*pb.Response, error) {
+	benchExpBusyLoop(0.8)
+
+	md, _ := metadata.FromIncomingContext(ctx)
+	api := ""
+	if v := md.Get("api"); len(v) == 1 {
+		api = v[0]
+	}
+	switch api {
+	case "Z8trRkp4mp":
+
+	default:
+	}
+	return &pb.Response{}, nil
+}
+
+
+func main() {
+	s := &Server{}
+	log.Info("Starting server...")
+	if err := s.Run(); err != nil {
+		log.Error("Server failed", "error", err)
+	}
+}

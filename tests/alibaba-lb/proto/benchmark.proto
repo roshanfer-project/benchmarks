@@ -1,0 +1,43 @@
+syntax = "proto3";
+
+package benchmark;
+
+option go_package = "alibabalb/protobuf";
+
+message Request { string payload = 1; }
+message Response { string payload = 1; }
+
+service MS_25806 {
+  rpc FQN3ARekoW(Request) returns (Response);
+}
+
+service MS_2687 {
+  rpc VdboDuPbKj(Request) returns (Response);
+}
+
+service MS_40087 {
+  rpc M2QxmWDHq1o(Request) returns (Response);
+  rpc M5ISZV1sCx(Request) returns (Response);
+}
+
+service MS_44246 {
+  rpc nRLDYEHBqx(Request) returns (Response);
+}
+
+service MS_51787 {
+  rpc rypaFB4pfJ(Request) returns (Response);
+}
+
+service MS_56113 {
+  rpc M0PIREyu4tb(Request) returns (Response);
+  rpc KuU4P3BCru(Request) returns (Response);
+}
+
+service MS_64512 {
+  rpc Z8trRkp4mp(Request) returns (Response);
+}
+
+service MS_70124 {
+  rpc v0gqd6H7nw(Request) returns (Response);
+}
+
