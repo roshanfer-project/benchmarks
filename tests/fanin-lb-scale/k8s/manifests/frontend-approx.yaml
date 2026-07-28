@@ -5,7 +5,7 @@ metadata:
   labels:
     app: frontend
 spec:
-  replicas: 10
+  replicas: 4
   selector:
     matchLabels:
       app: frontend
@@ -19,12 +19,12 @@ spec:
         image: fanin-lb-scale-frontend:latest
         resources:
           requests:
-            cpu: "1"
+            cpu: "3"
           limits:
-            cpu: "1"
+            cpu: "3"
         env:
         - name: GOMAXPROCS
-          value: "1"
+          value: "3"
         - name: POD_NAME
           valueFrom:
             fieldRef:
@@ -43,9 +43,9 @@ spec:
           value: "1"
         resources:
           requests:
-            cpu: "0.5"
+            cpu: "1"
           limits:
-            cpu: "0.5"
+            cpu: "1"
         volumeMounts:
         - name: config-volume
           mountPath: /config.yaml

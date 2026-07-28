@@ -143,7 +143,7 @@ func (s *Server) Run() error {
 
 
 func (s *Server) F4(ctx context.Context, req *pb.Request) (*pb.Response, error) {
-	benchExpBusyLoop(1)
+	benchExpBusyLoop(1.5)
 
 	md, _ := metadata.FromIncomingContext(ctx)
 	api := ""

@@ -25,20 +25,20 @@ Deploy resource comparison across generated modes (from callgraph.json).
 | sidecar | frontend | 2 | 2 | 1 | 2 | 2 | 1.0 | 1 |
 | sidecar | shared | 5 | 2 | 1 | 5 | 5 | 0.0 | 1 |
 | sidecar | ingress | — | 2 | 1 | — | — | — | — |
-| approx | backend1 | 3 | 0.5 | 1 | 3 | 3 | 1.0 | 1 |
-| approx | backend2 | 3 | 0.5 | 1 | 3 | 3 | 1.0 | 1 |
-| approx | frontend | 2 | 0.5 | 1 | 2 | 2 | 1.0 | 1 |
-| approx | shared | 5 | 0.5 | 1 | 5 | 5 | 0.0 | 1 |
+| approx | backend1 | 3 | 1 | 1 | 3 | 3 | 1.0 | 1 |
+| approx | backend2 | 3 | 1 | 1 | 3 | 3 | 1.0 | 1 |
+| approx | frontend | 2 | 1 | 1 | 2 | 2 | 1.0 | 1 |
+| approx | shared | 5 | 1 | 1 | 5 | 5 | 0.0 | 1 |
 | approx | ingress | — | 2 | 1 | — | — | — | — |
-| approx-fcfs | backend1 | 3 | 0.5 | 1 | 3 | 3 | 1.0 | 1 |
-| approx-fcfs | backend2 | 3 | 0.5 | 1 | 3 | 3 | 1.0 | 1 |
-| approx-fcfs | frontend | 2 | 0.5 | 1 | 2 | 2 | 1.0 | 1 |
-| approx-fcfs | shared | 5 | 0.5 | 1 | 5 | 5 | 0.0 | 1 |
+| approx-fcfs | backend1 | 3 | 1 | 1 | 3 | 3 | 1.0 | 1 |
+| approx-fcfs | backend2 | 3 | 1 | 1 | 3 | 3 | 1.0 | 1 |
+| approx-fcfs | frontend | 2 | 1 | 1 | 2 | 2 | 1.0 | 1 |
+| approx-fcfs | shared | 5 | 1 | 1 | 5 | 5 | 0.0 | 1 |
 | approx-fcfs | ingress | — | 2 | 1 | — | — | — | — |
-| approx-edf | backend1 | 3 | 0.5 | 1 | 3 | 3 | 1.0 | 1 |
-| approx-edf | backend2 | 3 | 0.5 | 1 | 3 | 3 | 1.0 | 1 |
-| approx-edf | frontend | 2 | 0.5 | 1 | 2 | 2 | 1.0 | 1 |
-| approx-edf | shared | 5 | 0.5 | 1 | 5 | 5 | 0.0 | 1 |
+| approx-edf | backend1 | 3 | 1 | 1 | 3 | 3 | 1.0 | 1 |
+| approx-edf | backend2 | 3 | 1 | 1 | 3 | 3 | 1.0 | 1 |
+| approx-edf | frontend | 2 | 1 | 1 | 2 | 2 | 1.0 | 1 |
+| approx-edf | shared | 5 | 1 | 1 | 5 | 5 | 0.0 | 1 |
 | approx-edf | ingress | — | 2 | 1 | — | — | — | — |
 | envoy | backend1 | 3 | 1 | 1 | 3 | — | — | — |
 | envoy | backend2 | 3 | 1 | 1 | 3 | — | — | — |
@@ -74,9 +74,9 @@ Deploy resource comparison across generated modes (from callgraph.json).
 | p2c | 13 | 2 | 6.5 |
 | wrr | 13 | 2 | 6.5 |
 | sidecar | 13 | 10 | 1.3 |
-| approx | 13 | 4 | 3.25 |
-| approx-fcfs | 13 | 4 | 3.25 |
-| approx-edf | 13 | 4 | 3.25 |
+| approx | 13 | 6 | 2.17 |
+| approx-fcfs | 13 | 6 | 2.17 |
+| approx-edf | 13 | 6 | 2.17 |
 | envoy | 13 | 5 | 2.6 |
 | rajomon | 16 | 0 | — |
 | rajomon-lb | 15 | 0 | — |

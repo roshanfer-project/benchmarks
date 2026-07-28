@@ -10,12 +10,12 @@ spec:
     image: fanin-lb-scale-frontend:latest
     resources:
       requests:
-        cpu: "10"
+        cpu: "12"
       limits:
-        cpu: "10"
+        cpu: "12"
     env:
     - name: GOMAXPROCS
-      value: "10"
+      value: "12"
     envFrom:
     - configMapRef:
         name: fanin-lb-scale-config

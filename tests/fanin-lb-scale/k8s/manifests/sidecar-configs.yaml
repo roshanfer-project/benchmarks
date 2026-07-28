@@ -24,7 +24,7 @@ data:
     ingress_upstream_port: 2000
     report_latency: True
     name: backend1
-    cpu_count: 10
+    cpu_count: 8
     over_commitment: 1.0
     
   backend2.yaml: |
@@ -47,7 +47,7 @@ data:
     ingress_upstream_port: 2000
     report_latency: True
     name: backend2
-    cpu_count: 10
+    cpu_count: 8
     over_commitment: 1.0
     
   frontend.yaml: |
@@ -84,7 +84,7 @@ data:
     name: frontend
     is_frontend: True
     frontend_pool_connections: 200
-    cpu_count: 10
+    cpu_count: 12
     over_commitment: 1.0
     
   shared.yaml: |
@@ -109,13 +109,13 @@ data:
         upstream:
           host: fanin-lb-scale-frontend
           port: 3000
-        slo: 33
+        slo: 38
         priority: 0
       g1:
         upstream:
           host: fanin-lb-scale-frontend
           port: 3000
-        slo: 19
+        slo: 25
         priority: 0
     mapping:
       f1:

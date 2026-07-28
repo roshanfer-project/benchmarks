@@ -16,23 +16,19 @@
       "interfaces": [
         {
           "name": "f1",
-          "exponential": {
-            "mean": 0.5
-          },
-          "slo": 35,
+          "avg_rt": 0.5,
+          "slo": 40,
           "priority": 0
         },
         {
           "name": "g1",
-          "exponential": {
-            "mean": 0.5
-          },
-          "slo": 20,
+          "avg_rt": 0.5,
+          "slo": 26,
           "priority": 0
         }
       ],
-      "cpu": 10,
-      "replicas": 10,
+      "cpu": 12,
+      "replicas": 4,
       "over_commitment": 1
     },
     {
@@ -53,8 +49,8 @@
           "priority": 0
         }
       ],
-      "cpu": 10,
-      "replicas": 10,
+      "cpu": 8,
+      "replicas": 8,
       "over_commitment": 1
     },
     {
@@ -63,13 +59,13 @@
         {
           "name": "f4",
           "exponential": {
-            "mean": 1
+            "mean": 1.5
           },
           "priority": 0
         }
       ],
-      "cpu": 10,
-      "replicas": 10,
+      "cpu": 8,
+      "replicas": 8,
       "over_commitment": 1
     },
     {

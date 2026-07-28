@@ -45,35 +45,35 @@ Deploy resource comparison across generated modes (from callgraph.json).
 | sidecar | backend8 | 2 | 2 | 1 | 2 | 2 | 0.0 | 1 |
 | sidecar | frontend | 3 | 2 | 1 | 3 | 3 | 0.0 | 1 |
 | sidecar | ingress | — | 2 | 1 | — | — | — | — |
-| approx | backend1 | 5 | 0.5 | 1 | 5 | 5 | 0.0 | 1 |
-| approx | backend2 | 2 | 0.5 | 1 | 2 | 2 | 0.0 | 1 |
-| approx | backend3 | 3 | 0.5 | 1 | 3 | 3 | 0.0 | 1 |
-| approx | backend4 | 3 | 0.5 | 1 | 3 | 3 | 0.0 | 1 |
-| approx | backend5 | 1 | 0.5 | 1 | 1 | 1 | 0.0 | 1 |
-| approx | backend6 | 1 | 0.5 | 1 | 1 | 1 | 0.0 | 1 |
-| approx | backend7 | 1 | 0.5 | 1 | 1 | 1 | 0.0 | 1 |
-| approx | backend8 | 2 | 0.5 | 1 | 2 | 2 | 0.0 | 1 |
-| approx | frontend | 3 | 0.5 | 1 | 3 | 3 | 0.0 | 1 |
+| approx | backend1 | 5 | 1 | 1 | 5 | 5 | 0.0 | 1 |
+| approx | backend2 | 2 | 1 | 1 | 2 | 2 | 0.0 | 1 |
+| approx | backend3 | 3 | 1 | 1 | 3 | 3 | 0.0 | 1 |
+| approx | backend4 | 3 | 1 | 1 | 3 | 3 | 0.0 | 1 |
+| approx | backend5 | 1 | 1 | 1 | 1 | 1 | 0.0 | 1 |
+| approx | backend6 | 1 | 1 | 1 | 1 | 1 | 0.0 | 1 |
+| approx | backend7 | 1 | 1 | 1 | 1 | 1 | 0.0 | 1 |
+| approx | backend8 | 2 | 1 | 1 | 2 | 2 | 0.0 | 1 |
+| approx | frontend | 3 | 1 | 1 | 3 | 3 | 0.0 | 1 |
 | approx | ingress | — | 2 | 1 | — | — | — | — |
-| approx-fcfs | backend1 | 5 | 0.5 | 1 | 5 | 5 | 0.0 | 1 |
-| approx-fcfs | backend2 | 2 | 0.5 | 1 | 2 | 2 | 0.0 | 1 |
-| approx-fcfs | backend3 | 3 | 0.5 | 1 | 3 | 3 | 0.0 | 1 |
-| approx-fcfs | backend4 | 3 | 0.5 | 1 | 3 | 3 | 0.0 | 1 |
-| approx-fcfs | backend5 | 1 | 0.5 | 1 | 1 | 1 | 0.0 | 1 |
-| approx-fcfs | backend6 | 1 | 0.5 | 1 | 1 | 1 | 0.0 | 1 |
-| approx-fcfs | backend7 | 1 | 0.5 | 1 | 1 | 1 | 0.0 | 1 |
-| approx-fcfs | backend8 | 2 | 0.5 | 1 | 2 | 2 | 0.0 | 1 |
-| approx-fcfs | frontend | 3 | 0.5 | 1 | 3 | 3 | 0.0 | 1 |
+| approx-fcfs | backend1 | 5 | 1 | 1 | 5 | 5 | 0.0 | 1 |
+| approx-fcfs | backend2 | 2 | 1 | 1 | 2 | 2 | 0.0 | 1 |
+| approx-fcfs | backend3 | 3 | 1 | 1 | 3 | 3 | 0.0 | 1 |
+| approx-fcfs | backend4 | 3 | 1 | 1 | 3 | 3 | 0.0 | 1 |
+| approx-fcfs | backend5 | 1 | 1 | 1 | 1 | 1 | 0.0 | 1 |
+| approx-fcfs | backend6 | 1 | 1 | 1 | 1 | 1 | 0.0 | 1 |
+| approx-fcfs | backend7 | 1 | 1 | 1 | 1 | 1 | 0.0 | 1 |
+| approx-fcfs | backend8 | 2 | 1 | 1 | 2 | 2 | 0.0 | 1 |
+| approx-fcfs | frontend | 3 | 1 | 1 | 3 | 3 | 0.0 | 1 |
 | approx-fcfs | ingress | — | 2 | 1 | — | — | — | — |
-| approx-edf | backend1 | 5 | 0.5 | 1 | 5 | 5 | 0.0 | 1 |
-| approx-edf | backend2 | 2 | 0.5 | 1 | 2 | 2 | 0.0 | 1 |
-| approx-edf | backend3 | 3 | 0.5 | 1 | 3 | 3 | 0.0 | 1 |
-| approx-edf | backend4 | 3 | 0.5 | 1 | 3 | 3 | 0.0 | 1 |
-| approx-edf | backend5 | 1 | 0.5 | 1 | 1 | 1 | 0.0 | 1 |
-| approx-edf | backend6 | 1 | 0.5 | 1 | 1 | 1 | 0.0 | 1 |
-| approx-edf | backend7 | 1 | 0.5 | 1 | 1 | 1 | 0.0 | 1 |
-| approx-edf | backend8 | 2 | 0.5 | 1 | 2 | 2 | 0.0 | 1 |
-| approx-edf | frontend | 3 | 0.5 | 1 | 3 | 3 | 0.0 | 1 |
+| approx-edf | backend1 | 5 | 1 | 1 | 5 | 5 | 0.0 | 1 |
+| approx-edf | backend2 | 2 | 1 | 1 | 2 | 2 | 0.0 | 1 |
+| approx-edf | backend3 | 3 | 1 | 1 | 3 | 3 | 0.0 | 1 |
+| approx-edf | backend4 | 3 | 1 | 1 | 3 | 3 | 0.0 | 1 |
+| approx-edf | backend5 | 1 | 1 | 1 | 1 | 1 | 0.0 | 1 |
+| approx-edf | backend6 | 1 | 1 | 1 | 1 | 1 | 0.0 | 1 |
+| approx-edf | backend7 | 1 | 1 | 1 | 1 | 1 | 0.0 | 1 |
+| approx-edf | backend8 | 2 | 1 | 1 | 2 | 2 | 0.0 | 1 |
+| approx-edf | frontend | 3 | 1 | 1 | 3 | 3 | 0.0 | 1 |
 | approx-edf | ingress | — | 2 | 1 | — | — | — | — |
 | envoy | backend1 | 5 | 1 | 1 | 5 | — | — | — |
 | envoy | backend2 | 2 | 1 | 1 | 2 | — | — | — |
@@ -134,9 +134,9 @@ Deploy resource comparison across generated modes (from callgraph.json).
 | p2c | 21 | 2 | 10.5 |
 | wrr | 21 | 2 | 10.5 |
 | sidecar | 21 | 20 | 1.05 |
-| approx | 21 | 6.5 | 3.23 |
-| approx-fcfs | 21 | 6.5 | 3.23 |
-| approx-edf | 21 | 6.5 | 3.23 |
+| approx | 21 | 11 | 1.91 |
+| approx-fcfs | 21 | 11 | 1.91 |
+| approx-edf | 21 | 11 | 1.91 |
 | envoy | 21 | 10 | 2.1 |
 | rajomon | 25 | 0 | — |
 | rajomon-lb | 24 | 0 | — |

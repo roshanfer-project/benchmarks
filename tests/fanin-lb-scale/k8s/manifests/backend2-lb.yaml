@@ -5,7 +5,7 @@ metadata:
   labels:
     app: backend2
 spec:
-  replicas: 10
+  replicas: 8
   selector:
     matchLabels:
       app: backend2

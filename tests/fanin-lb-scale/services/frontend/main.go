@@ -10,47 +10,10 @@ import (
 	"faninlbscale/pkg"
 	pb "faninlbscale/protobuf"
 	"google.golang.org/grpc"
-	"math/rand"
-	"os"
-	"strconv"
-	"sync"
 	"sync/atomic"
-	"time"
 )
 
 var envoyRPCSeq uint64
-
-var benchRng struct {
-	mu sync.Mutex
-	r  *rand.Rand
-}
-
-func init() {
-	seed := time.Now().UnixNano()
-	if s := os.Getenv("ROUTING_SEED"); s != "" {
-		if v, err := strconv.ParseInt(s, 10, 64); err == nil {
-			seed = v
-		}
-	}
-	benchRng.r = rand.New(rand.NewSource(seed))
-}
-
-func benchFloat() float64 {
-	benchRng.mu.Lock()
-	defer benchRng.mu.Unlock()
-	return benchRng.r.Float64()
-}
-
-func benchExpBusyLoop(mean float64) {
-	benchRng.mu.Lock()
-	rt := benchRng.r.ExpFloat64() * mean
-	benchRng.mu.Unlock()
-	repeats := int(rt * 320)
-	if repeats < 1 {
-		repeats = 1
-	}
-	utils.BusyLoop(repeats)
-}
 
 
 type Server struct {
@@ -142,7 +105,7 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 	switch path {
 	case "f1":
 		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "f1", "rpc-id", rpcID, "rpc-local-id", rpcLocalID, "deadline", deadline))
-		benchExpBusyLoop(0.5)
+		utils.BusyLoop(160)
 
 		req := &pb.Request{}
 		var err error
@@ -164,7 +127,7 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 
 	case "g1":
 		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "g1", "rpc-id", rpcID, "rpc-local-id", rpcLocalID, "deadline", deadline))
-		benchExpBusyLoop(0.5)
+		utils.BusyLoop(160)
 
 		req := &pb.Request{}
 		var err error

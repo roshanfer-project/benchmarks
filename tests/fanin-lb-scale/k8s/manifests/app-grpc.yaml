@@ -11,12 +11,12 @@ spec:
     image: fanin-lb-scale-backend1:latest
     resources:
       requests:
-        cpu: "10"
+        cpu: "8"
       limits:
-        cpu: "10"
+        cpu: "8"
     env:
     - name: GOMAXPROCS
-      value: "10"
+      value: "8"
     envFrom:
     - configMapRef:
         name: fanin-lb-scale-config
@@ -52,12 +52,12 @@ spec:
     image: fanin-lb-scale-backend2:latest
     resources:
       requests:
-        cpu: "10"
+        cpu: "8"
       limits:
-        cpu: "10"
+        cpu: "8"
     env:
     - name: GOMAXPROCS
-      value: "10"
+      value: "8"
     envFrom:
     - configMapRef:
         name: fanin-lb-scale-config
@@ -93,12 +93,12 @@ spec:
     image: fanin-lb-scale-frontend-grpc:latest
     resources:
       requests:
-        cpu: "10"
+        cpu: "12"
       limits:
-        cpu: "10"
+        cpu: "12"
     env:
     - name: GOMAXPROCS
-      value: "10"
+      value: "12"
     envFrom:
     - configMapRef:
         name: fanin-lb-scale-config
@@ -175,12 +175,12 @@ spec:
     image: fanin-lb-scale-rajomon-client:latest
     resources:
       requests:
-        cpu: "11"
+        cpu: "13"
       limits:
-        cpu: "11"
+        cpu: "13"
     env:
     - name: GOMAXPROCS
-      value: "11"
+      value: "13"
     envFrom:
     - configMapRef:
         name: fanin-lb-scale-config
