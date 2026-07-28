@@ -18,7 +18,7 @@
           "exponential": {
             "mean": 0.5
           },
-          "slo": 600,
+          "slo": 90,
           "priority": 0
         }
       ],
