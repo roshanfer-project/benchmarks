@@ -102,7 +102,7 @@ ConfigMaps: `approx-configs.yaml`, `approx-fcfs-configs.yaml`, `approx-edf-confi
 
 Load balancing across replicas uses the sidecar proxy’s PPM-queue waiting-count selection (DNS discovery via headless Services). **`load_balancing_policy`** in `callgraph.json` does not apply.
 
-CPU vs **sidecar**: K8s sidecar CPU uses a **0.5×** multiplier (`0.5 × sidecar_cpu` per pod) instead of **2×**; ingress is the exception and still uses `UserEntryCount() × 2` (same as **sidecar**). `num_threads` stays `sidecar_cpu` per replica; `cpu_count` (admission) is `cpu / replicas`.
+CPU vs **sidecar**: K8s sidecar CPU uses a **1×** multiplier (`1 × sidecar_cpu` per pod) instead of **2×**; ingress is the exception and still uses `UserEntryCount() × 2` (same as **sidecar**). `num_threads` stays `sidecar_cpu` per replica; `cpu_count` (admission) is `cpu / replicas`.
 
 ```bash
 ./build.sh
@@ -210,7 +210,7 @@ Like **plain**, but supports multiple replicas per microservice via the `replica
 
 - `load_balancing_policy` (optional, default `least_request`, **dagor-lb and rajomon-lb**): gRPC client load balancer — `least_request` (P2C over active RPC counts), `round_robin`, or `weighted_round_robin` (enables ORCA server metrics). Modes **p2c** and **wrr** pin policy in their env files and ignore this field.
 - `dagor` (optional, **dagor and dagor-lb**): per-benchmark DAGOR defaults written to `dagor_init/dagor-config.go` — `queuing_thresh_ms` (default `2`), `alpha` (default `0.45`), `beta` (default `0.01`). All fields optional; omitted fields use framework defaults. Runtime env `Alpha` / `Beta` still override at deploy time.
-- `nodes`: one per microservice; `id`, `interfaces` (see **service time** below), `cpu` (optional, default 1, used for cpu_count in sidecar config and app resources), `replicas` (optional, default 1, **p2c, wrr, dagor-lb, rajomon-lb, and approx\***), `sidecar_cpu` (optional, default 1, used for num_threads in sidecar config; k8s sidecar gets 2× this in **sidecar**, 0.5× in **approx\***), `over_commitment` (optional, default 0, must be in [0,1]; written to sidecar config)
+- `nodes`: one per microservice; `id`, `interfaces` (see **service time** below), `cpu` (optional, default 1, used for cpu_count in sidecar config and app resources), `replicas` (optional, default 1, **p2c, wrr, dagor-lb, rajomon-lb, and approx\***), `sidecar_cpu` (optional, default 1, used for num_threads in sidecar config; k8s sidecar gets 2× this in **sidecar**, 1× in **approx\***), `over_commitment` (optional, default 0, must be in [0,1]; written to sidecar config), `connection_pool_size` (optional, default 200; **entry service only**) — sets both `frontend_pool_connections` and `ingress_pool_connections` in **sidecar** / **approx\*** ConfigMaps
 
 ### Service time per interface
 
