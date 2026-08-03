@@ -84,9 +84,26 @@ export SIDECAR_GLOG_VMODULE=event_loop=3
 
 Optional `k8s/sidecar-debug-glog.env` under **this** benchmark’s `k8s/` (next to that benchmark’s `deploy.sh`). A file in another directory (e.g. `tests/one-service/k8s/...`) is not read when you deploy from `tests/fan-out-dynamic-0-9` — copy, symlink, or recreate it there. Same variable names as above, `#` comments allowed; script reads it only in the debug branch (both `sidecar debug` and `approx* debug`). **Precedence:** values already set in the environment win; the file fills `SIDECAR_GLOG_V` / `SIDECAR_GLOG_VMODULE` only when those variables are unset, so `SIDECAR_GLOG_V=3 ./deploy.sh sidecar debug` overrides a value from the file.
 
-### Sidecar over-commitment override
+### Over-commitment
 
-For latency-vs-throughput sweeps over admission **over-commitment**, set **`SIDECAR_OVER_COMMIT`** when deploying **sidecar** or **approx\*** mode (e.g. `0`, `0.2`, `1`). `deploy.sh` stages `sidecar-configs.yaml` or `${MODE}-configs.yaml`, replaces each embedded `over_commitment:` value with `SIDECAR_OVER_COMMIT`, then applies the patched manifest (**requires `perl` on PATH**). After patching, the script checks every `over_commitment:` line matches **`SIDECAR_OVER_COMMIT`** and exits non‑zero otherwise (catch perl/path/format failures). Only snippets that already contain `over_commitment` are affected (ingress blocks typically do not). The experiment executor forwards **`deploy_env`** into the deploy environment.
+`over_commitment` is a sidecar admission parameter written into per-service snippets in `sidecar-configs.yaml` and `approx*-configs.yaml`. It must be in `[0, 1]` when set.
+
+**Modes that use it:** **sidecar**, **approx**, **approx-fcfs**, **approx-edf**. Other modes (plain, p2c, wrr, envoy, rajomon, dagor, and LB variants) do not emit or apply `over_commitment`.
+
+**Defaults when omitted from `callgraph.json`:**
+
+| Mode | Default |
+|------|---------|
+| `sidecar` | `0` |
+| `approx` / `approx-fcfs` / `approx-edf` | `1` |
+
+An explicit `over_commitment` on a node applies to **both** sidecar and approx* ConfigMaps. Ingress config snippets typically do not include the field.
+
+**Deploy override:** For latency-vs-throughput sweeps, set **`SIDECAR_OVER_COMMIT`** when deploying **sidecar** or **approx\*** (e.g. `0`, `0.2`, `1`). `deploy.sh` stages `sidecar-configs.yaml` or `${MODE}-configs.yaml`, replaces each embedded `over_commitment:` value with `SIDECAR_OVER_COMMIT`, then applies the patched manifest (**requires `perl` on PATH**). After patching, the script checks every `over_commitment:` line matches **`SIDECAR_OVER_COMMIT`** and exits non‑zero otherwise. Only snippets that already contain `over_commitment` are affected. The experiment executor forwards **`deploy_env`** into the deploy environment.
+
+### Extra limit
+
+`extra_limit` is an optional sidecar admission parameter (integer ≥ 0) written into per-service snippets in `sidecar-configs.yaml` and `approx*-configs.yaml`. It adds a fixed bump to per-endpoint / dynamic admission limits in the sidecar. Default when omitted: `0`. Applies to **sidecar**, **approx**, **approx-fcfs**, and **approx-edf** (same ConfigMap path as `over_commitment`). Ingress snippets typically do not include the field.
 
 ### approx modes
 
@@ -210,7 +227,7 @@ Like **plain**, but supports multiple replicas per microservice via the `replica
 
 - `load_balancing_policy` (optional, default `least_request`, **dagor-lb and rajomon-lb**): gRPC client load balancer — `least_request` (P2C over active RPC counts), `round_robin`, or `weighted_round_robin` (enables ORCA server metrics). Modes **p2c** and **wrr** pin policy in their env files and ignore this field.
 - `dagor` (optional, **dagor and dagor-lb**): per-benchmark DAGOR defaults written to `dagor_init/dagor-config.go` — `queuing_thresh_ms` (default `2`), `alpha` (default `0.45`), `beta` (default `0.01`). All fields optional; omitted fields use framework defaults. Runtime env `Alpha` / `Beta` still override at deploy time.
-- `nodes`: one per microservice; `id`, `interfaces` (see **service time** below), `cpu` (optional, default 1, used for cpu_count in sidecar config and app resources), `replicas` (optional, default 1, **p2c, wrr, dagor-lb, rajomon-lb, and approx\***), `sidecar_cpu` (optional, default 1, used for num_threads in sidecar config; k8s sidecar gets 2× this in **sidecar**, 1× in **approx\***), `over_commitment` (optional, default 0, must be in [0,1]; written to sidecar config), `connection_pool_size` (optional, default 200; **entry service only**) — sets both `frontend_pool_connections` and `ingress_pool_connections` in **sidecar** / **approx\*** ConfigMaps
+- `nodes`: one per microservice; `id`, `interfaces` (see **service time** below), `cpu` (optional, default 1, used for cpu_count in sidecar config and app resources), `replicas` (optional, default 1, **p2c, wrr, dagor-lb, rajomon-lb, and approx\***), `sidecar_cpu` (optional, default 1, used for num_threads in sidecar config; k8s sidecar gets 2× this in **sidecar**, 1× in **approx\***), `over_commitment` (optional, must be in [0,1]; written to **sidecar** / **approx\*** configs — see **Over-commitment** for per-mode defaults when omitted), `extra_limit` (optional integer ≥ 0, default 0; written to **sidecar** / **approx\*** configs — see **Extra limit**), `connection_pool_size` (optional, default 200; **entry service only**) — sets both `frontend_pool_connections` and `ingress_pool_connections` in **sidecar** / **approx\*** ConfigMaps
 
 ### Service time per interface
 

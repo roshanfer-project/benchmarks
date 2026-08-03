@@ -64,7 +64,7 @@ func sidecarWorkloadSpec(pg *ParsedGraph, mode, svc string, lb bool) ServiceDepl
 	cpu := pg.CPUForService(svc)
 	replicas := pg.ReplicasForService(svc)
 	sidecarCPU := pg.SidecarCPUForService(svc)
-	oc := pg.OverCommitmentForService(svc)
+	oc := pg.OverCommitmentForService(svc, lb)
 	threads := sidecarCPU
 
 	var appCPU, sidecarLimit float64

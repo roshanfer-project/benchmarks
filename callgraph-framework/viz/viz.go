@@ -98,7 +98,11 @@ func Visualize(callgraphPath string, outPath string) error {
 		nodes := pg.Services[svc]
 		cpu := pg.CPUForService(svc)
 		replicas := pg.ReplicasForService(svc)
-		clusterLabel := fmt.Sprintf("%s\ncpu:%g\nreplicas:%d", svc, cpu, replicas)
+		oc := pg.OverCommitmentForService(svc, false)
+		clusterLabel := fmt.Sprintf("%s\ncpu:%g\nreplicas:%d\noc:%g", svc, cpu, replicas, oc)
+		if el := pg.ExtraLimitForService(svc); el != 0 {
+			clusterLabel += fmt.Sprintf("\nel:%d", el)
+		}
 		b.WriteString("  subgraph cluster_" + dotID(svc) + " {\n")
 		b.WriteString("    label=" + dotLabel(clusterLabel) + ";\n")
 		b.WriteString("    style=rounded;\n")

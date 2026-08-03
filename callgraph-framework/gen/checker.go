@@ -232,8 +232,11 @@ func Check(pg *ParsedGraph) error {
 		}
 		if !ocChecked[n.Microservice] {
 			ocChecked[n.Microservice] = true
-			if n.OverCommitment < 0 || n.OverCommitment > 1 {
+			if n.OverCommitment != nil && (*n.OverCommitment < 0 || *n.OverCommitment > 1) {
 				errs = append(errs, fmt.Sprintf("service %s: over_commitment must be between 0 and 1", n.Microservice))
+			}
+			if n.ExtraLimit != nil && *n.ExtraLimit < 0 {
+				errs = append(errs, fmt.Sprintf("service %s: extra_limit must be >= 0", n.Microservice))
 			}
 		}
 	}

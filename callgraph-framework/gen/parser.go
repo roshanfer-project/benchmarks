@@ -35,7 +35,8 @@ type ServiceNode struct {
 	CPU                float64     `json:"cpu"`
 	Replicas           int         `json:"replicas"`
 	SidecarCPU         int         `json:"sidecar_cpu"`
-	OverCommitment     float64     `json:"over_commitment"`
+	OverCommitment     *float64    `json:"over_commitment,omitempty"`
+	ExtraLimit         *int        `json:"extra_limit,omitempty"`
 	ConnectionPoolSize int         `json:"connection_pool_size,omitempty"`
 }
 
@@ -77,7 +78,8 @@ type Node struct {
 	CPU             float64
 	Replicas        int
 	SidecarCPU      int
-	OverCommitment  float64
+	OverCommitment  *float64
+	ExtraLimit      *int
 	SLO             *int
 	Priority        *int
 }
@@ -188,6 +190,7 @@ func buildParsedGraph(cg *CallGraph) (*ParsedGraph, error) {
 				Replicas:       replicas,
 				SidecarCPU:     sidecarCPU,
 				OverCommitment: svc.OverCommitment,
+				ExtraLimit:     svc.ExtraLimit,
 				SLO:            iface.SLO,
 				Priority:       iface.Priority,
 			}
@@ -539,9 +542,23 @@ func (pg *ParsedGraph) SidecarCPUForService(svcName string) int {
 	return 1
 }
 
-func (pg *ParsedGraph) OverCommitmentForService(svcName string) float64 {
-	if nodes, ok := pg.Services[svcName]; ok && len(nodes) > 0 {
-		return nodes[0].OverCommitment
+// OverCommitmentForService returns the effective over_commitment for a service.
+// Explicit callgraph values apply to both modes; when omitted, sidecar (lb=false)
+// defaults to 0 and approx* (lb=true) defaults to 1.
+func (pg *ParsedGraph) OverCommitmentForService(svcName string, lb bool) float64 {
+	if nodes, ok := pg.Services[svcName]; ok && len(nodes) > 0 && nodes[0].OverCommitment != nil {
+		return *nodes[0].OverCommitment
+	}
+	if lb {
+		return 1
+	}
+	return 0
+}
+
+// ExtraLimitForService returns the sidecar admission extra_limit for a service (default 0).
+func (pg *ParsedGraph) ExtraLimitForService(svcName string) int {
+	if nodes, ok := pg.Services[svcName]; ok && len(nodes) > 0 && nodes[0].ExtraLimit != nil {
+		return *nodes[0].ExtraLimit
 	}
 	return 0
 }

@@ -923,11 +923,12 @@ func buildSidecarServiceConfig(pg *ParsedGraph, prefix, svcName, kn, entrySvc st
 		replicas := pg.ReplicasForService(svcName)
 		cpuCount = float64(GOMAXPROCSForPerReplicaCPU(PerReplicaCPU(cpuCount, replicas)))
 	}
-	overCommitment := pg.OverCommitmentForService(svcName)
+	overCommitment := pg.OverCommitmentForService(svcName, lb)
+	extraLimit := pg.ExtraLimitForService(svcName)
 	if isEntry {
 		b.WriteString(fmt.Sprintf("is_frontend: True\nfrontend_pool_connections: %d\n", pg.EffectiveConnectionPoolSize()))
 	}
-	b.WriteString(fmt.Sprintf("cpu_count: %d\nover_commitment: %.1f\n", int(cpuCount), overCommitment))
+	b.WriteString(fmt.Sprintf("cpu_count: %d\nover_commitment: %.1f\nextra_limit: %d\n", int(cpuCount), overCommitment, extraLimit))
 	switch approxMode {
 	case "approx":
 		b.WriteString("mesh_late_binding: False\n")
@@ -1730,7 +1731,19 @@ mkdir -p "$TMP_DIR"
 kubectl_wait_ready_or_fail() {
   local app=$1
   local to=$2
-  if kubectl wait --for=condition=Ready pod -l "app=${app}" --timeout="${to}s"; then
+  local deadline=$((SECONDS + to))
+  # kubectl wait fails immediately if no pods match yet; wait for existence first.
+  while ! kubectl get pods -l "app=${app}" --no-headers 2>/dev/null | grep -q .; do
+    if (( SECONDS >= deadline )); then
+      echo "=== deploy.sh: no pods for app=${app} within ${to}s ===" >&2
+      kubectl get pods -l "app=${app}" -o wide >&2 || true
+      exit 1
+    fi
+    sleep 1
+  done
+  local remain=$((deadline - SECONDS))
+  (( remain < 1 )) && remain=1
+  if kubectl wait --for=condition=Ready pod -l "app=${app}" --timeout="${remain}s"; then
     return 0
   fi
   echo "=== deploy.sh: kubectl wait failed for app=${app} (timeout=${to}s) ===" >&2
