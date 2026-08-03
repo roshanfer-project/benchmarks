@@ -329,7 +329,7 @@ metadata:
   labels:
     app: ms-64512-grpc
 spec:
-  replicas: 5
+  replicas: 3
   selector:
     matchLabels:
       app: ms-64512-grpc
@@ -343,12 +343,12 @@ spec:
         image: alibaba-lb-ms-64512-grpc:latest
         resources:
           requests:
-            cpu: "1"
+            cpu: "2.6666666666666665"
           limits:
-            cpu: "1"
+            cpu: "2.6666666666666665"
         env:
         - name: GOMAXPROCS
-          value: "1"
+          value: "3"
         - name: POD_NAME
           valueFrom:
             fieldRef:
@@ -437,7 +437,7 @@ metadata:
   labels:
     app: rajomon-client
 spec:
-  replicas: 5
+  replicas: 3
   selector:
     matchLabels:
       app: rajomon-client
@@ -451,12 +451,12 @@ spec:
         image: alibaba-lb-rajomon-client:latest
         resources:
           requests:
-            cpu: "1"
+            cpu: "2.6666666666666665"
           limits:
-            cpu: "1"
+            cpu: "2.6666666666666665"
         env:
         - name: GOMAXPROCS
-          value: "1"
+          value: "3"
         - name: POD_NAME
           valueFrom:
             fieldRef:

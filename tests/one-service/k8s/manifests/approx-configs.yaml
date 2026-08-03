@@ -21,7 +21,8 @@ data:
     is_frontend: True
     frontend_pool_connections: 200
     cpu_count: 3
-    over_commitment: 0.0
+    over_commitment: 1.0
+    extra_limit: 0
     mesh_late_binding: False
     
   ingress.yaml: |

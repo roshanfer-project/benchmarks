@@ -13,11 +13,11 @@ Deploy resource comparison across generated modes (from callgraph.json).
 | wrr | ingress | — | 2 | 1 | — | — | — | — |
 | sidecar | frontend | 3 | 2 | 1 | 3 | 3 | 0.0 | 1 |
 | sidecar | ingress | — | 2 | 1 | — | — | — | — |
-| approx | frontend | 3 | 1 | 1 | 3 | 3 | 0.0 | 1 |
+| approx | frontend | 3 | 1 | 1 | 3 | 3 | 1.0 | 1 |
 | approx | ingress | — | 2 | 1 | — | — | — | — |
-| approx-fcfs | frontend | 3 | 1 | 1 | 3 | 3 | 0.0 | 1 |
+| approx-fcfs | frontend | 3 | 1 | 1 | 3 | 3 | 1.0 | 1 |
 | approx-fcfs | ingress | — | 2 | 1 | — | — | — | — |
-| approx-edf | frontend | 3 | 1 | 1 | 3 | 3 | 0.0 | 1 |
+| approx-edf | frontend | 3 | 1 | 1 | 3 | 3 | 1.0 | 1 |
 | approx-edf | ingress | — | 2 | 1 | — | — | — | — |
 | envoy | frontend | 3 | 1 | 1 | 3 | — | — | — |
 | envoy | ingress | — | 1 | 1 | — | — | — | — |

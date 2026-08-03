@@ -17,7 +17,8 @@ data:
     report_latency: True
     name: backend
     cpu_count: 3
-    over_commitment: 0.0
+    over_commitment: 1.0
+    extra_limit: 0
     mesh_late_binding: True
     late_binding_type: fcfs
     
@@ -45,6 +46,7 @@ data:
     frontend_pool_connections: 200
     cpu_count: 2
     over_commitment: 1.0
+    extra_limit: 0
     mesh_late_binding: True
     late_binding_type: fcfs
     

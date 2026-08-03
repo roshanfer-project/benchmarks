@@ -167,7 +167,7 @@ func (s *Server) Run() error {
 
 
 func (s *Server) RypaFB4PfJ(ctx context.Context, req *pb.Request) (*pb.Response, error) {
-	benchExpBusyLoop(0.8)
+	benchExpBusyLoop(1.3)
 
 	md, _ := metadata.FromIncomingContext(ctx)
 	api := ""

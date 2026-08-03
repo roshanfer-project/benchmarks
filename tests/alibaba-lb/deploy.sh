@@ -41,7 +41,19 @@ mkdir -p "$TMP_DIR"
 kubectl_wait_ready_or_fail() {
   local app=$1
   local to=$2
-  if kubectl wait --for=condition=Ready pod -l "app=${app}" --timeout="${to}s"; then
+  local deadline=$((SECONDS + to))
+  # kubectl wait fails immediately if no pods match yet; wait for existence first.
+  while ! kubectl get pods -l "app=${app}" --no-headers 2>/dev/null | grep -q .; do
+    if (( SECONDS >= deadline )); then
+      echo "=== deploy.sh: no pods for app=${app} within ${to}s ===" >&2
+      kubectl get pods -l "app=${app}" -o wide >&2 || true
+      exit 1
+    fi
+    sleep 1
+  done
+  local remain=$((deadline - SECONDS))
+  (( remain < 1 )) && remain=1
+  if kubectl wait --for=condition=Ready pod -l "app=${app}" --timeout="${remain}s"; then
     return 0
   fi
   echo "=== deploy.sh: kubectl wait failed for app=${app} (timeout=${to}s) ===" >&2

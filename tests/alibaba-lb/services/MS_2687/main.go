@@ -126,7 +126,7 @@ func (s *Server) Run() error {
 
 
 func (s *Server) VdboDuPbKj(ctx context.Context, req *pb.Request) (*pb.Response, error) {
-	benchExpBusyLoop(0.8)
+	benchExpBusyLoop(1.5)
 
 	md, _ := metadata.FromIncomingContext(ctx)
 	api := ""

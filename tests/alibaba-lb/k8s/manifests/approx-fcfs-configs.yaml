@@ -17,7 +17,8 @@ data:
     report_latency: True
     name: ms-25806
     cpu_count: 1
-    over_commitment: 0.0
+    over_commitment: 1.0
+    extra_limit: 0
     mesh_late_binding: True
     late_binding_type: fcfs
     
@@ -35,7 +36,8 @@ data:
     report_latency: True
     name: ms-2687
     cpu_count: 1
-    over_commitment: 0.0
+    over_commitment: 1.0
+    extra_limit: 0
     mesh_late_binding: True
     late_binding_type: fcfs
     
@@ -54,7 +56,8 @@ data:
     report_latency: True
     name: ms-40087
     cpu_count: 1
-    over_commitment: 0.0
+    over_commitment: 1.0
+    extra_limit: 0
     mesh_late_binding: True
     late_binding_type: fcfs
     
@@ -72,7 +75,8 @@ data:
     report_latency: True
     name: ms-44246
     cpu_count: 1
-    over_commitment: 0.0
+    over_commitment: 1.0
+    extra_limit: 0
     mesh_late_binding: True
     late_binding_type: fcfs
     
@@ -108,6 +112,7 @@ data:
     name: ms-51787
     cpu_count: 1
     over_commitment: 1.0
+    extra_limit: 0
     mesh_late_binding: True
     late_binding_type: fcfs
     
@@ -126,7 +131,8 @@ data:
     report_latency: True
     name: ms-56113
     cpu_count: 1
-    over_commitment: 0.0
+    over_commitment: 1.0
+    extra_limit: 0
     mesh_late_binding: True
     late_binding_type: fcfs
     
@@ -172,8 +178,9 @@ data:
     name: ms-64512
     is_frontend: True
     frontend_pool_connections: 200
-    cpu_count: 1
+    cpu_count: 3
     over_commitment: 1.0
+    extra_limit: 0
     mesh_late_binding: True
     late_binding_type: fcfs
     
@@ -199,6 +206,7 @@ data:
     name: ms-70124
     cpu_count: 1
     over_commitment: 1.0
+    extra_limit: 0
     mesh_late_binding: True
     late_binding_type: fcfs
     

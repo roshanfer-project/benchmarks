@@ -26,6 +26,7 @@ data:
     name: backend1
     cpu_count: 1
     over_commitment: 1.0
+    extra_limit: 0
     mesh_late_binding: False
     
   backend2.yaml: |
@@ -50,6 +51,7 @@ data:
     name: backend2
     cpu_count: 1
     over_commitment: 1.0
+    extra_limit: 0
     mesh_late_binding: False
     
   frontend.yaml: |
@@ -88,6 +90,7 @@ data:
     frontend_pool_connections: 200
     cpu_count: 3
     over_commitment: 1.0
+    extra_limit: 0
     mesh_late_binding: False
     
   shared.yaml: |
@@ -104,7 +107,8 @@ data:
     report_latency: True
     name: shared
     cpu_count: 1
-    over_commitment: 0.0
+    over_commitment: 1.0
+    extra_limit: 0
     mesh_late_binding: False
     
   ingress.yaml: |

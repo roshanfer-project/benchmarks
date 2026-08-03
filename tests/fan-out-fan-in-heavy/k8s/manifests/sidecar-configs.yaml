@@ -25,6 +25,7 @@ data:
     name: backend1
     cpu_count: 3
     over_commitment: 1.0
+    extra_limit: 0
     
   backend2.yaml: |
     routing:
@@ -48,6 +49,7 @@ data:
     name: backend2
     cpu_count: 3
     over_commitment: 1.0
+    extra_limit: 0
     
   frontend.yaml: |
     routing:
@@ -78,6 +80,7 @@ data:
     frontend_pool_connections: 200
     cpu_count: 2
     over_commitment: 1.0
+    extra_limit: 0
     
   shared.yaml: |
     mapping:
@@ -94,6 +97,7 @@ data:
     name: shared
     cpu_count: 5
     over_commitment: 0.0
+    extra_limit: 0
     
   ingress.yaml: |
     routing:

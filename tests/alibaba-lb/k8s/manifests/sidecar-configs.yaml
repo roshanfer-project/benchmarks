@@ -17,7 +17,8 @@ data:
     report_latency: True
     name: ms-25806
     cpu_count: 8
-    over_commitment: 0.0
+    over_commitment: 1.0
+    extra_limit: 0
     
   ms-2687.yaml: |
     mapping:
@@ -33,7 +34,8 @@ data:
     report_latency: True
     name: ms-2687
     cpu_count: 4
-    over_commitment: 0.0
+    over_commitment: 1.0
+    extra_limit: 0
     
   ms-40087.yaml: |
     mapping:
@@ -50,7 +52,8 @@ data:
     report_latency: True
     name: ms-40087
     cpu_count: 6
-    over_commitment: 0.0
+    over_commitment: 1.0
+    extra_limit: 0
     
   ms-44246.yaml: |
     mapping:
@@ -66,7 +69,8 @@ data:
     report_latency: True
     name: ms-44246
     cpu_count: 4
-    over_commitment: 0.0
+    over_commitment: 1.0
+    extra_limit: 0
     
   ms-51787.yaml: |
     routing:
@@ -100,6 +104,7 @@ data:
     name: ms-51787
     cpu_count: 4
     over_commitment: 1.0
+    extra_limit: 0
     
   ms-56113.yaml: |
     mapping:
@@ -116,7 +121,8 @@ data:
     report_latency: True
     name: ms-56113
     cpu_count: 8
-    over_commitment: 0.0
+    over_commitment: 1.0
+    extra_limit: 0
     
   ms-64512.yaml: |
     routing:
@@ -160,8 +166,9 @@ data:
     name: ms-64512
     is_frontend: True
     frontend_pool_connections: 200
-    cpu_count: 5
+    cpu_count: 8
     over_commitment: 1.0
+    extra_limit: 0
     
   ms-70124.yaml: |
     routing:
@@ -185,6 +192,7 @@ data:
     name: ms-70124
     cpu_count: 3
     over_commitment: 1.0
+    extra_limit: 0
     
   ingress.yaml: |
     routing:

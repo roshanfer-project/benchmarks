@@ -30,7 +30,8 @@ data:
     report_latency: True
     name: backend1
     cpu_count: 5
-    over_commitment: 0.0
+    over_commitment: 1.0
+    extra_limit: 0
     mesh_late_binding: True
     late_binding_type: fcfs
     
@@ -55,7 +56,8 @@ data:
     report_latency: True
     name: backend2
     cpu_count: 2
-    over_commitment: 0.0
+    over_commitment: 1.0
+    extra_limit: 0
     mesh_late_binding: True
     late_binding_type: fcfs
     
@@ -85,7 +87,8 @@ data:
     report_latency: True
     name: backend3
     cpu_count: 3
-    over_commitment: 0.0
+    over_commitment: 1.0
+    extra_limit: 0
     mesh_late_binding: True
     late_binding_type: fcfs
     
@@ -116,7 +119,8 @@ data:
     report_latency: True
     name: backend4
     cpu_count: 3
-    over_commitment: 0.0
+    over_commitment: 1.0
+    extra_limit: 0
     mesh_late_binding: True
     late_binding_type: fcfs
     
@@ -134,7 +138,8 @@ data:
     report_latency: True
     name: backend5
     cpu_count: 1
-    over_commitment: 0.0
+    over_commitment: 1.0
+    extra_limit: 0
     mesh_late_binding: True
     late_binding_type: fcfs
     
@@ -152,7 +157,8 @@ data:
     report_latency: True
     name: backend6
     cpu_count: 1
-    over_commitment: 0.0
+    over_commitment: 1.0
+    extra_limit: 0
     mesh_late_binding: True
     late_binding_type: fcfs
     
@@ -170,7 +176,8 @@ data:
     report_latency: True
     name: backend7
     cpu_count: 1
-    over_commitment: 0.0
+    over_commitment: 1.0
+    extra_limit: 0
     mesh_late_binding: True
     late_binding_type: fcfs
     
@@ -188,7 +195,8 @@ data:
     report_latency: True
     name: backend8
     cpu_count: 2
-    over_commitment: 0.0
+    over_commitment: 1.0
+    extra_limit: 0
     mesh_late_binding: True
     late_binding_type: fcfs
     
@@ -215,7 +223,8 @@ data:
     is_frontend: True
     frontend_pool_connections: 200
     cpu_count: 3
-    over_commitment: 0.0
+    over_commitment: 1.0
+    extra_limit: 0
     mesh_late_binding: True
     late_binding_type: fcfs
     

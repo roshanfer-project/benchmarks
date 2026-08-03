@@ -257,12 +257,12 @@ spec:
     image: alibaba-lb-ms-64512-grpc:latest
     resources:
       requests:
-        cpu: "5"
+        cpu: "8"
       limits:
-        cpu: "5"
+        cpu: "8"
     env:
     - name: GOMAXPROCS
-      value: "5"
+      value: "8"
     envFrom:
     - configMapRef:
         name: alibaba-lb-config
@@ -339,12 +339,12 @@ spec:
     image: alibaba-lb-rajomon-client:latest
     resources:
       requests:
-        cpu: "6"
+        cpu: "9"
       limits:
-        cpu: "6"
+        cpu: "9"
     env:
     - name: GOMAXPROCS
-      value: "6"
+      value: "9"
     envFrom:
     - configMapRef:
         name: alibaba-lb-config

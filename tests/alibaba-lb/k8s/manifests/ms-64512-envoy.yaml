@@ -10,12 +10,12 @@ spec:
     image: alibaba-lb-ms-64512:latest
     resources:
       requests:
-        cpu: "5"
+        cpu: "8"
       limits:
-        cpu: "5"
+        cpu: "8"
     env:
     - name: GOMAXPROCS
-      value: "5"
+      value: "8"
     envFrom:
     - configMapRef:
         name: alibaba-lb-config
