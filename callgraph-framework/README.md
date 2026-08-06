@@ -99,6 +99,8 @@ Optional `k8s/sidecar-debug-glog.env` under **this** benchmark’s `k8s/` (next 
 
 An explicit `over_commitment` on a node applies to **both** sidecar and approx* ConfigMaps. Ingress config snippets typically do not include the field.
 
+**Recommendation:** Prefer `over_commitment: 1` for microservices with service-time variability — exponential service times and/or multiple endpoints on the same service.
+
 **Deploy override:** For latency-vs-throughput sweeps, set **`SIDECAR_OVER_COMMIT`** when deploying **sidecar** or **approx\*** (e.g. `0`, `0.2`, `1`). `deploy.sh` stages `sidecar-configs.yaml` or `${MODE}-configs.yaml`, replaces each embedded `over_commitment:` value with `SIDECAR_OVER_COMMIT`, then applies the patched manifest (**requires `perl` on PATH**). After patching, the script checks every `over_commitment:` line matches **`SIDECAR_OVER_COMMIT`** and exits non‑zero otherwise. Only snippets that already contain `over_commitment` are affected. The experiment executor forwards **`deploy_env`** into the deploy environment.
 
 ### Extra limit
