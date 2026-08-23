@@ -102,8 +102,8 @@ provision_single_host() {
 
     log_loc "[3/4] Clone / pull repo..."
     ssh_exec "$node_user" "$node_host" "ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null"
-    REPO_URL="git@github.com:farzad1132/roshanfer-experments.git"
-    DIR_NAME="roshanfer-experments"
+    REPO_URL="git@github.com:farzad1132/roshanfer-experiments.git"
+    DIR_NAME="roshanfer-experiments"
 
     CLONE_CMD="if [ ! -d '$DIR_NAME' ]; then
                    git clone $REPO_URL $DIR_NAME;

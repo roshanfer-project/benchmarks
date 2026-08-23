@@ -17,7 +17,7 @@ while IFS= read -r host || [ -n "$host" ]; do
     [[ -z $host ]] && continue
 
     echo "=== Updating $host ==="
-    ssh -n -o StrictHostKeyChecking=no -o ConnectTimeout=5 "$host" "cd ~/roshanfer-experments && echo 'Pulling latest changes...' && git pull"
+    ssh -n -o StrictHostKeyChecking=no -o ConnectTimeout=5 "$host" "cd ~/roshanfer-experiments && echo 'Pulling latest changes...' && git pull"
     
     if [ $? -eq 0 ]; then
         echo "Successfully updated $host"
