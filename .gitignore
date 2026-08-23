@@ -7,3 +7,4 @@ tmp_apply
 hosts.txt
 *.pdf
 *.csv
+__pycache__
