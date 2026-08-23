@@ -1,0 +1,40 @@
+{
+  "nodes": [
+    {
+      "id": "USER",
+      "interfaces": [
+        {
+          "name": "USER"
+        }
+      ]
+    },
+    {
+      "id": "frontend",
+      "interfaces": [
+        {
+          "name": "f1",
+          "avg_rt": 10,
+          "slo": 500,
+          "priority": 0
+        },
+        {
+          "name": "f2",
+          "avg_rt": 20,
+          "slo": 500,
+          "priority": 0
+        }
+      ],
+      "cpu": 5
+    }
+  ],
+  "edges": [
+    {
+      "source": "USER",
+      "target": "frontend:f1"
+    },
+    {
+      "source": "USER",
+      "target": "frontend:f2"
+    }
+  ]
+}
