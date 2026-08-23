@@ -108,7 +108,7 @@ func runPaperViz(callgraphPath, outPath string) error {
 }
 
 func main() {
-	paper := flag.Bool("paper", false, "service-level ACM quarter-column PDF (requires repo .venv/bin/python3)")
+	paper := flag.Bool("paper", false, "endpoint-level ACM quarter-column PDF with service clusters (requires repo .venv/bin/python3)")
 	out := flag.String("o", "", "output PDF path")
 	flag.Parse()
 	if flag.NArg() < 1 {

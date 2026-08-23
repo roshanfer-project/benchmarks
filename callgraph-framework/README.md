@@ -29,7 +29,7 @@ go run ./cmd/viz <callgraph.json> [-o callgraph.pdf]
 
 Requires [graphviz](https://graphviz.org/) (`dot` on PATH): `apt install graphviz` / `brew install graphviz`
 
-**Service-level paper figure** (unlabeled circles, directed edges, ACM quarter-column PDF; microservices with weighted (dynamic) fan-out get distinct fill colors):
+**Endpoint-level paper figure** (unlabeled endpoint circles inside per-service cluster boxes, arrows between endpoints, ACM quarter-column PDF with a top legend for microservice vs endpoint; endpoints with weighted (dynamic) fan-out get distinct fill colors):
 
 ```bash
 # From repo root (e.g. roshanfer-experiments): use .venv for matplotlib
