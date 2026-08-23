@@ -2,7 +2,8 @@
 
 # Directory of this script
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-HOSTS_FILE="$DIR/hosts.txt"
+REPO_ROOT="$( cd "$DIR/../.." && pwd )"
+HOSTS_FILE="${HOSTS_FILE:-"$REPO_ROOT/hosts.txt"}"
 
 if [ ! -f "$HOSTS_FILE" ]; then
     echo "Error: hosts.txt not found at $HOSTS_FILE"

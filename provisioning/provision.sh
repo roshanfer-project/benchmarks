@@ -3,7 +3,8 @@ set -e
 
 # Get script directory
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
-HOSTS_FILE="${HOSTS_FILE:-"$SCRIPT_DIR/hosts.txt"}"
+REPO_ROOT="$( cd "$SCRIPT_DIR/../.." && pwd )"
+HOSTS_FILE="${HOSTS_FILE:-"$REPO_ROOT/hosts.txt"}"
 CONFIG_FILE="$SCRIPT_DIR/../k8s/config.env" # Re-use k8s config if available, or just for SSH_OPTS
 
 # Colors
@@ -20,9 +21,8 @@ if [ -f "$CONFIG_FILE" ]; then
     source "$CONFIG_FILE"
 fi
 
-# Ensure SSH_OPTS is defined if not sourced
 SSH_OPTS=${SSH_OPTS:-"-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"}
-SSH_USER=${SSH_USER:-"ubuntu"} # Default user if not specified
+REPO_URL="${REPO_URL:-git@github.com:farzad1132/roshanfer-experiments.git}"
 
 if [ ! -f "$HOSTS_FILE" ]; then
     log_error "Hosts file not found: $HOSTS_FILE"
@@ -40,15 +40,19 @@ done
 
 mapfile -t HOSTS < <(grep -vE '^\s*#|^\s*$' "$HOSTS_FILE")
 
+if [ ${#HOSTS[@]} -eq 0 ]; then
+    log_error "No hosts found in $HOSTS_FILE"
+    exit 1
+fi
+
 parse_host_entry() {
     local entry=$1
-    if [[ "$entry" == *"@"* ]]; then
-        CURRENT_USER=$(echo "$entry" | cut -d'@' -f1)
-        CURRENT_HOST=$(echo "$entry" | cut -d'@' -f2)
-    else
-        CURRENT_USER="$SSH_USER"
-        CURRENT_HOST="$entry"
+    if [[ "$entry" != *"@"* ]]; then
+        log_error "Host line must be user@host: $entry"
+        exit 1
     fi
+    CURRENT_USER="${entry%%@*}"
+    CURRENT_HOST="${entry#*@}"
 }
 
 ssh_exec() {
@@ -102,7 +106,6 @@ provision_single_host() {
 
     log_loc "[3/4] Clone / pull repo..."
     ssh_exec "$node_user" "$node_host" "ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null"
-    REPO_URL="git@github.com:farzad1132/roshanfer-experiments.git"
     DIR_NAME="roshanfer-experiments"
 
     CLONE_CMD="if [ ! -d '$DIR_NAME' ]; then
