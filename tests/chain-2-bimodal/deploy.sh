@@ -8,10 +8,10 @@ BENCH=chain-2-bimodal
 WAIT_TIMEOUT=${WAIT_TIMEOUT:-120}
 
 if [ "$MODE" = "plain" ] && [ "$ARG2" = "debug" ]; then
-  echo "deploy.sh: debug only with sidecar; use ./deploy.sh sidecar debug" >&2
+  echo "deploy.sh: debug only with roshanfer; use ./deploy.sh roshanfer debug" >&2
   exit 1
 fi
-if [ "$MODE" = "sidecar" ] && [ -n "$ARG2" ] && [ "$ARG2" != "debug" ]; then
+if [ "$MODE" = "roshanfer" ] && [ -n "$ARG2" ] && [ "$ARG2" != "debug" ]; then
   echo "deploy.sh: unknown second argument: $ARG2 (expected: debug)" >&2
   exit 1
 fi
@@ -20,7 +20,7 @@ if { [ "$MODE" = "rajomon" ] || [ "$MODE" = "dagor" ]; } && [ -n "$ARG2" ]; then
   exit 1
 fi
 SIDECAR_DEBUG=0
-if [ "$MODE" = "sidecar" ] && [ "$ARG2" = "debug" ]; then
+if [ "$MODE" = "roshanfer" ] && [ "$ARG2" = "debug" ]; then
   SIDECAR_DEBUG=1
 fi
 
@@ -52,7 +52,7 @@ kubectl_wait_ready_or_fail() {
 
 sidecar_debug_require_yq() {
   command -v yq >/dev/null 2>&1 || {
-    echo "deploy.sh sidecar debug needs mikefarah yq v4: https://github.com/mikefarah/yq" >&2
+    echo "deploy.sh roshanfer debug needs mikefarah yq v4: https://github.com/mikefarah/yq" >&2
     exit 1
   }
 }
@@ -89,7 +89,7 @@ select(.kind == "Pod") |= (.spec.containers |= map(
   fi
 }
 
-if [ "$MODE" = "sidecar" ]; then
+if [ "$MODE" = "roshanfer" ]; then
   if [ "$SIDECAR_DEBUG" = "1" ]; then
     sidecar_debug_require_yq
     sidecar_debug_merge_glog_file

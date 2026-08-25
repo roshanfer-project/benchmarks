@@ -1,9 +1,9 @@
 #!/bin/bash
 set -e
 
-# Usage: ./deploy.sh [sidecar|plain] [--skip-build]
+# Usage: ./deploy.sh [roshanfer|plain] [--skip-build]
 # Default settings
-MODE="${SYSTEM:-sidecar}"
+MODE="${SYSTEM:-roshanfer}"
 SKIP_BUILD=true
 REGISTRY=${REGISTRY:-farzad1132}
 TAG=${TAG:-$(date +%Y-%m-%d)}
@@ -11,7 +11,7 @@ TAG=${TAG:-$(date +%Y-%m-%d)}
 # Parse arguments
 for arg in "$@"; do
     case $arg in
-        sidecar) MODE="sidecar";;
+        roshanfer) MODE="roshanfer";;
         plain) MODE="plain";;
         rajomon) MODE="rajomon";;
         dagor) MODE="dagor";;
@@ -63,7 +63,7 @@ if [ "$MODE" == "plain" ]; then
         sed -i "s|${SERVICE}:latest|${REGISTRY}/social-${SERVICE}:${TAG}|g" "${TMP_DIR}/app.yaml"
     done
 
-elif [ "$MODE" == "sidecar" ]; then
+elif [ "$MODE" == "roshanfer" ]; then
     # ConfigMap Generation
     # Merge env file and dynamic vars into a temp file
     cat social/k8s/sidecar.env > "$TMP_DIR/sidecar_merged.env"
@@ -153,7 +153,7 @@ echo "Applying manifests..."
 
 # Apply ConfigMaps
 kubectl apply -f "$TMP_DIR/configmap.yaml"
-if [ "$MODE" == "sidecar" ]; then
+if [ "$MODE" == "roshanfer" ]; then
     kubectl apply -f "$TMP_DIR/sidecar-configs.yaml"
 fi
 
@@ -185,7 +185,7 @@ apply_service() {
 WAIT_TIMEOUT=${WAIT_TIMEOUT:-60}
 
 if [ -f "$TMP_DIR/app.yaml" ]; then
-    if [ "$MODE" == "sidecar" ]; then
+    if [ "$MODE" == "roshanfer" ]; then
         for SVC in "graph" "posts" "user"; do
             apply_service $SVC "$TMP_DIR/app.yaml"
         done
@@ -229,7 +229,7 @@ if [ -f "$TMP_DIR/app.yaml" ]; then
 fi
 
 # Ingress
-if [ "$MODE" == "sidecar" ]; then
+if [ "$MODE" == "roshanfer" ]; then
     echo "Deploying Ingress..."
     kubectl apply -f "$TMP_DIR/ingress.yaml"
     echo "Waiting for Ingress to be ready..."
