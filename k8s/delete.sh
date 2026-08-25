@@ -4,6 +4,8 @@ set -e
 # Get script directory
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 REPO_ROOT="$( cd "$SCRIPT_DIR/../.." && pwd )"
+# shellcheck source=/dev/null
+source "$REPO_ROOT/scripts/elapsed.sh"
 CONFIG_FILE="$SCRIPT_DIR/config.env"
 HOSTS_FILE="${HOSTS_FILE:-"$REPO_ROOT/hosts.txt"}"
 

@@ -4,6 +4,8 @@ set -e
 # Get script directory
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 REPO_ROOT="$( cd "$SCRIPT_DIR/../.." && pwd )"
+# shellcheck source=/dev/null
+source "$REPO_ROOT/scripts/elapsed.sh"
 HOSTS_FILE="${HOSTS_FILE:-"$REPO_ROOT/hosts.txt"}"
 CONFIG_FILE="$SCRIPT_DIR/../k8s/config.env" # Re-use k8s config if available, or just for SSH_OPTS
 
