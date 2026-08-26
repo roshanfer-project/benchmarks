@@ -17,3 +17,7 @@ benchmarks/
 ├── k8s/                       K3s + Cilium create / reset / delete
 └── provisioning/              SSH host bootstrap
 ```
+
+# Baseline Tuning
+- `Rajomon`: we use the Bayesian optimization suggested by the authors.
+- `Dagor`: authors do not recommend any workflow for tuning. Parameters have been tuned manually for each benchmark.
