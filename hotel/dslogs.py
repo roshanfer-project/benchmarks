@@ -21,8 +21,8 @@ DEFAULT_COLOR = "white"
 # Hardcoded color mappings for logical units
 # Edit these to customize colors for your logical units
 COLOR_MAP = {
-    "QM": "yellow",
-    "PPMClient": "cyan",
+    "ProtocolServer": "yellow",
+    "ProtocolClient": "cyan",
     "RPCForward": "green",
     "INGRESS": "magenta",
     "config": DEFAULT_COLOR,
@@ -161,7 +161,7 @@ def main(
     
     Example:
         dslogs app.log backend.log frontend.log
-        dslogs *.log --filter QM PPMClient
+        dslogs *.log --filter ProtocolServer ProtocolClient
         dslogs app.log --filter-id 1 2 3  # Filter by request IDs
         dslogs app.log --color > output.log  # Preserve colors in file
     """

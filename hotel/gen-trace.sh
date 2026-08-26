@@ -18,8 +18,8 @@ docker container logs reservation-sidecar &> reservation.log
 DSLOGS_ARGS=(
     "./dslogs.py"
     "./ingress.log" "./frontend.log" "./search.log" "./rate.log" "./geo.log" "./reservation.log" "./profile.log" 
-    "--filter" "QM"
-    "--filter" "PPMClient"
+    "--filter" "ProtocolServer"
+    "--filter" "ProtocolClient"
     "--filter" "RPCForward"
     "--filter" "INGRESS"
     "--color"
