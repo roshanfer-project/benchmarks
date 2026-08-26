@@ -185,7 +185,7 @@ Example bimodal backend: [`../tests/chain-2-bimodal/callgraph.json`](../tests/ch
 }
 ```
 - Entry service sets gRPC metadata **`api`** on outbound calls (same string as on edges). Non-entry handlers `switch` on `api` for downstream calls.
-- With **`sidecar=true`**, the entry HTTP server requires inbound headers **`rpc-id`** and **`rpc-local-id`** (injected by the sidecar on the forwarded HTTP/1 request) and forwards both as gRPC metadata so downstream sidecars can correlate with the parent INGRESS RPC (PPM).
+- With **`sidecar=true`**, the entry HTTP server requires inbound headers **`rpc-id`** and **`rpc-local-id`** (injected by the sidecar on the forwarded HTTP/1 request) and forwards both as gRPC metadata so downstream sidecars can correlate with the parent INGRESS RPC (Request Limit Protocol).
 - Entry: HTTP/1 server; others: gRPC services
 - Entry path: `/{interface}` (e.g. `/Z8trRkp4mp`). See `entry_path.txt` in output dir.
 - Busy loop: 320 repeats = 1ms
