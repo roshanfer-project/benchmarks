@@ -1,10 +1,7 @@
 package dagorinit
 
 import (
-	"bufio"
-	"os"
 	"social/utils"
-	"strconv"
 	"strings"
 	"time"
 
@@ -33,69 +30,6 @@ var dagorParams = dagor.DagorParam{
 	NumUsers:                     200,
 	UseSyncMap:                   true,
 	AddmissionUpdateN:            80,
-}
-
-func loadEnvFile(params dagor.DagorParam) dagor.DagorParam {
-	file, err := os.Open("../env-setter.env")
-	if err != nil {
-		log.Info("env-setter file not found")
-		return params
-	}
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		line := scanner.Text()
-		parts := strings.SplitN(line, "=", 2)
-		if len(parts) == 2 {
-			key := strings.TrimSpace(parts[0])
-			value := strings.TrimSpace(parts[1])
-			if key == "Alpha" {
-				if floatValue, err := strconv.ParseFloat(value, 64); err == nil {
-					params.Alpha = floatValue
-					log.Info("[loadEnvFile]", "key", key, "value", params.Alpha)
-				} else {
-					panic(err)
-				}
-			} else if key == "Beta" {
-				if floatValue, err := strconv.ParseFloat(value, 64); err == nil {
-					params.Beta = floatValue
-					log.Info("[loadEnvFile]", "key", key, "value", params.Beta)
-				} else {
-					panic(err)
-				}
-			} else if key == "QueuingThresh" {
-				if floatValue, err := strconv.ParseFloat(value, 64); err == nil {
-					intValue := int64(floatValue)
-					params.QueuingThresh = time.Duration(intValue) * time.Microsecond
-					log.Info("[loadEnvFile]", "key", key, "value", params.QueuingThresh)
-				} else {
-					panic(err)
-				}
-			} else if key == "AdmissionLevelUpdateInterval" {
-				if floatValue, err := strconv.ParseFloat(value, 64); err == nil {
-					intValue := int64(floatValue)
-					params.AdmissionLevelUpdateInterval = time.Duration(intValue) * time.Microsecond
-					log.Info("[loadEnvFile]", "key", key, "value", params.AdmissionLevelUpdateInterval)
-				} else {
-					panic(err)
-				}
-			} else if key == "AddmissionUpdateN" {
-				if floatValue, err := strconv.ParseFloat(value, 64); err == nil {
-					intValue := int(floatValue)
-					params.AddmissionUpdateN = intValue
-					log.Info("[loadEnvFile]", "key", key, "value", params.AddmissionUpdateN)
-				} else {
-					panic(err)
-				}
-			} else {
-				panic("Unsupported environment variable type")
-			}
-		}
-
-	}
-
-	return params
 }
 
 func GetDagorNode(name string, entry, enduser bool) *dagor.Dagor {
