@@ -5,8 +5,8 @@ metadata:
 data:
   frontend.yaml: |
     mapping:
-      f1:
-      f2:
+      api1:
+      api2:
     ring_size: 1000
     buffer_count: 4096
     buffer_size: 80000
@@ -24,26 +24,26 @@ data:
     
   ingress.yaml: |
     routing:
-      f1:
+      api1:
         upstream:
           host: leaf-1-2-p-2-1-frontend
           port: 3000
         slo: 475
         priority: 0
-      f2:
+      api2:
         upstream:
           host: leaf-1-2-p-2-1-frontend
           port: 3000
         slo: 475
         priority: 1
     mapping:
-      f1:
+      api1:
         downstreams:
-          - f1
+          - api1
         listen_port: 3000
-      f2:
+      api2:
         downstreams:
-          - f2
+          - api2
         listen_port: 3001
     ring_size: 4000
     buffer_count: 16384

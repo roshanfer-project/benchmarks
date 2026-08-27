@@ -8,7 +8,7 @@ message Request { string payload = 1; }
 message Response { string payload = 1; }
 
 service frontend {
-  rpc f1(Request) returns (Response);
-  rpc f2(Request) returns (Response);
+  rpc api1(Request) returns (Response);
+  rpc api2(Request) returns (Response);
 }
 

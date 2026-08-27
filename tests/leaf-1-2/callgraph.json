@@ -12,13 +12,13 @@
       "id": "frontend",
       "interfaces": [
         {
-          "name": "f1",
+          "name": "api1",
           "avg_rt": 10,
           "slo": 500,
           "priority": 0
         },
         {
-          "name": "f2",
+          "name": "api2",
           "avg_rt": 20,
           "slo": 500,
           "priority": 0
@@ -30,11 +30,11 @@
   "edges": [
     {
       "source": "USER",
-      "target": "frontend:f1"
+      "target": "frontend:api1"
     },
     {
       "source": "USER",
-      "target": "frontend:f2"
+      "target": "frontend:api2"
     }
   ]
 }

@@ -32,8 +32,8 @@ func (s *Server) Run() error {
 		counter := utils.NewCounterState(serviceName)
 		baseHandler = counter.GetHTTP1Middleware()(baseHandler)
 	}
-	mux.Handle("/f1", baseHandler)
-	mux.Handle("/f2", baseHandler)
+	mux.Handle("/api1", baseHandler)
+	mux.Handle("/api2", baseHandler)
 
 	srv := &http.Server{
 		Addr:    fmt.Sprintf(":%d", port),
@@ -61,13 +61,13 @@ func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
 	}
 	path := strings.TrimPrefix(r.URL.Path, "/")
 	switch path {
-	case "f1":
-		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "f1", "rpc-id", rpcID, "rpc-local-id", rpcLocalID))
+	case "api1":
+		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "api1", "rpc-id", rpcID, "rpc-local-id", rpcLocalID))
 		utils.BusyLoop(3200)
 
 
-	case "f2":
-		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "f2", "rpc-id", rpcID, "rpc-local-id", rpcLocalID))
+	case "api2":
+		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "api2", "rpc-id", rpcID, "rpc-local-id", rpcLocalID))
 		utils.BusyLoop(6400)
 
 

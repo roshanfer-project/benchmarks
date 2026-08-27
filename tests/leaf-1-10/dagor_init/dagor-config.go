@@ -13,8 +13,8 @@ var log = utils.GetLogger("dagor-init")
 var dagorParams = dagor.DagorParam{
 	NodeName:                     "",
 	BusinessMap:                  map[string]int{
-		"f1": 1,
-		"f2": 2,
+		"api1": 1,
+		"api2": 2,
 	},
 	EntryService:                 false,
 	IsEnduser:                    false,

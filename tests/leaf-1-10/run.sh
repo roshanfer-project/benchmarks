@@ -18,10 +18,10 @@ if [ "$protocol" == "grpc" ]; then
     echo "GRPC is not supported"
     exit 1
 else
-    if [ "$API" = "f1" ]; then
-        url="http://$address:3000/f1"
-    elif [ "$API" = "f2" ]; then
-        url="http://$address:3001/f2"
+    if [ "$API" = "api1" ]; then
+        url="http://$address:3000/api1"
+    elif [ "$API" = "api2" ]; then
+        url="http://$address:3001/api2"
     else
         echo "Unknown API: $API"
         exit 1

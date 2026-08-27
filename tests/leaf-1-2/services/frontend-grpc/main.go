@@ -61,7 +61,7 @@ func (s *Server) Run() error {
 }
 
 
-func (s *Server) F1(ctx context.Context, req *pb.Request) (*pb.Response, error) {
+func (s *Server) Api1(ctx context.Context, req *pb.Request) (*pb.Response, error) {
 	utils.BusyLoop(3200)
 
 	md, _ := metadata.FromIncomingContext(ctx)
@@ -70,14 +70,14 @@ func (s *Server) F1(ctx context.Context, req *pb.Request) (*pb.Response, error) 
 		api = v[0]
 	}
 	switch api {
-	case "f1":
+	case "api1":
 
 	default:
 	}
 	return &pb.Response{}, nil
 }
 
-func (s *Server) F2(ctx context.Context, req *pb.Request) (*pb.Response, error) {
+func (s *Server) Api2(ctx context.Context, req *pb.Request) (*pb.Response, error) {
 	utils.BusyLoop(6400)
 
 	md, _ := metadata.FromIncomingContext(ctx)
@@ -86,7 +86,7 @@ func (s *Server) F2(ctx context.Context, req *pb.Request) (*pb.Response, error) 
 		api = v[0]
 	}
 	switch api {
-	case "f2":
+	case "api2":
 
 	default:
 	}
