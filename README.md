@@ -14,7 +14,7 @@ benchmarks/
 ├── tests/                     synthetic graphs (incl. tutorial one-service)
 ├── sidecar/                   nested submodule: Roshanfer C++ sidecar
 ├── callgraph-framework/       callgraph.json → Go services + K8s manifests
-├── k8s/                       K3s + Cilium create / reset / delete
+├── k8s/                       K3s + Flannel host-gw create / reset / delete
 └── provisioning/              SSH host bootstrap
 ```
 

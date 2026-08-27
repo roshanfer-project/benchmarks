@@ -2,6 +2,17 @@
 
 Generates runnable Go microservice benchmarks from call graph JSON.
 
+## Repository layout
+
+```text
+callgraph-framework/
+├── cmd/gen/                   callgraph.json → Go services + K8s manifests
+├── cmd/viz/                   callgraph PDF (graphviz / paper figure)
+├── gen/                       codegen (services, k8s, rajomon, dagor, envoy)
+├── viz/                       graphviz + matplotlib paper figure
+└── envoy-stats-exporter/      Envoy stats sidecar image
+```
+
 ## Usage
 
 ```bash

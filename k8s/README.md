@@ -1,34 +1,45 @@
-# K3s Cluster Scripts
+# K3s cluster scripts
 
-This folder contains scripts to manage a lightweight, high-performance Kubernetes cluster using **K3s** and **Cilium**.
+Create / reset / delete a K3s cluster (Flannel host-gw).
+
+## Repository layout
+
+```text
+k8s/
+├── create.sh                  install server + agents, write kubeconfig
+├── reset.sh                   delete then create
+├── delete.sh                  uninstall K3s, remove local kubeconfig
+├── config.env                 K3s version, CIDRs, kubelet reservations
+├── update_repo.sh             git pull on every hosts.txt line
+├── install_cpu_stats.sh       apply cpu-stats-exporter DaemonSet
+├── cpu-stats-daemonset.yaml   DaemonSet manifest
+└── cpu-stats-exporter/        per-node CPU stats image
+```
 
 ## Requirements
-*   **SSH Access**: These scripts run from your local machine (or a management node) and require SSH access to all target nodes using the user defined in `config.env` (default is your current user).
-*   **Sudo**: The SSH user must have passwordless sudo access on the target nodes.
-*   **Cilium CLI**: The scripts will attempt to install the Cilium CLI if not present on the machine running the script.
+
+* **SSH Access**: scripts run from the control node and SSH to every target as the user in `hosts.txt`.
+* **Sudo**: that user must have passwordless sudo on the target nodes.
 
 ## Setup
 
-1.  **Configure Environment**: Edit `config.env` to set versions and resource reservations.
+1. **Configure Environment**: edit `config.env` for versions and resource reservations.
     ```bash
     # config.env
     K3S_VERSION="v1.31.4+k3s1"
-    CILIUM_VERSION="1.16.5"
     CPU_MANAGER_POLICY="static"
     ```
 
-2.  **Define Hosts**: Edit `hosts.txt` to list your nodes.
-    *   **Line 1**: Control Plane (Server)
-    *   **Lines 2+**: Workers (Agents)
+2. **Hosts**: repo-root `hosts.txt` (`user@host` per line). Skip the first `NUM_GENERATORS` lines; the first remaining host is the control plane, the rest are agents.
     ```text
-    node1.example.com
-    node2.example.com
+    user@node1.example.com
+    user@node2.example.com
     ```
 
 ## Usage
 
 ### Create Cluster
-Creates the cluster, joins agents, and installs Cilium.
+Installs K3s (server then agents) and deploys `cpu-stats-exporter`.
 ```bash
 ./create.sh
 ```
@@ -47,6 +58,7 @@ Uninstalls K3s from all nodes and removes the local kubeconfig.
 ./delete.sh
 ```
 
-## Features enabled
-*   **Cilium Networking**: Flannel is disabled in favor of Cilium.
-*   **Static CPU Manager**: Kubelet is configured with `--cpu-manager-policy=static` for high-performance workloads demanding exclusive core pinning.
+## Features
+* **Flannel host-gw**: K3s CNI with `--flannel-backend=host-gw` (needs L2). Traefik is disabled. NodePort range is `3000-32767`.
+* **Static CPU Manager**: kubelet `--cpu-manager-policy=static` for exclusive core pinning.
+* **cpu-stats-exporter**: DaemonSet applied at the end of `create.sh`.
