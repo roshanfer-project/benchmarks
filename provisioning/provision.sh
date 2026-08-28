@@ -27,7 +27,7 @@ fi
 source "$REPO_ROOT/scripts/pick_github_ssh_key.sh"
 
 SSH_OPTS=${SSH_OPTS:-"-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"}
-REPO_URL="${REPO_URL:-git@github.com:farzad1132/roshanfer-experiments.git}"
+REPO_URL="${REPO_URL:-git@github.com:roshanfer-project/roshanfer-experiments.git}"
 
 if [ ! -f "$HOSTS_FILE" ]; then
     log_error "Hosts file not found: $HOSTS_FILE"
