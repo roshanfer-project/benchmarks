@@ -10,7 +10,7 @@ k8s/
 ├── reset.sh                   delete then create
 ├── delete.sh                  uninstall K3s, remove local kubeconfig
 ├── config.env                 K3s version, CIDRs, kubelet reservations
-├── update_repo.sh             git pull on every hosts.txt line
+├── update_repo.sh             git pull on every host listed in hosts.txt
 ├── install_cpu_stats.sh       apply cpu-stats-exporter DaemonSet
 ├── cpu-stats-daemonset.yaml   DaemonSet manifest
 └── cpu-stats-exporter/        per-node CPU stats image
