@@ -70,6 +70,20 @@ sidecar_debug_merge_glog_file() {
   done < k8s/sidecar-debug-glog.env
 }
 
+patch_ingress_aimd_key() {
+  local key=$1
+  local val=$2
+  local f=$3
+  [ -z "$val" ] && return 0
+  echo "deploy.sh: ${key}=${val} (patch ingress.yaml in sidecar-configs)"
+  export AIMD_KEY="$key" AIMD_VAL="$val"
+  if grep -qE "^[[:space:]]*${key}:" "$f"; then
+    perl -i -pe 's/^(\s*)\Q$ENV{AIMD_KEY}\E:\s*\S+/${1}$ENV{AIMD_KEY}: $ENV{AIMD_VAL}/' "$f"
+  else
+    perl -i -pe 's/^(\s*)name:\s*ingress\s*$/${1}name: ingress\n${1}$ENV{AIMD_KEY}: $ENV{AIMD_VAL}/' "$f"
+  fi
+}
+
 sidecar_debug_patch_workload_yaml() {
   local f=$1
   yq eval-all 'select(.kind == "Pod") |= (.spec.restartPolicy = "Never")' -i "$f"
@@ -113,6 +127,11 @@ if [ "$MODE" = "roshanfer" ]; then
       }
     ' "$TMP_DIR/sidecar-configs.yaml"
   fi
+  patch_ingress_aimd_key aimd_err_d "${SIDECAR_AIMD_ERR_D:-}" "$TMP_DIR/sidecar-configs.yaml"
+  patch_ingress_aimd_key aimd_err_i "${SIDECAR_AIMD_ERR_I:-}" "$TMP_DIR/sidecar-configs.yaml"
+  patch_ingress_aimd_key aimd_adj_d "${SIDECAR_AIMD_ADJ_D:-}" "$TMP_DIR/sidecar-configs.yaml"
+  patch_ingress_aimd_key aimd_adj_i "${SIDECAR_AIMD_ADJ_I:-}" "$TMP_DIR/sidecar-configs.yaml"
+  patch_ingress_aimd_key safe_multiply "${SIDECAR_SAFE_MULTIPLY:-}" "$TMP_DIR/sidecar-configs.yaml"
   kubectl apply -f "$TMP_DIR/sidecar-configs.yaml"
 
   kubectl apply -f k8s/manifests/prometheus.yaml
