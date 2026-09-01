@@ -50,6 +50,20 @@ kubectl_wait_ready_or_fail() {
   exit 1
 }
 
+patch_ingress_aimd_key() {
+  local key=$1
+  local val=$2
+  local f=$3
+  [ -z "$val" ] && return 0
+  echo "deploy.sh: ${key}=${val} (patch ingress.yaml in sidecar-configs)"
+  export AIMD_KEY="$key" AIMD_VAL="$val"
+  if grep -qE "^[[:space:]]*${key}:" "$f"; then
+    perl -i -pe 's/^(\s*)\Q$ENV{AIMD_KEY}\E:\s*\S+/${1}$ENV{AIMD_KEY}: $ENV{AIMD_VAL}/' "$f"
+  else
+    perl -i -pe 's/^(\s*)name:\s*ingress\s*$/${1}name: ingress\n${1}$ENV{AIMD_KEY}: $ENV{AIMD_VAL}/' "$f"
+  fi
+}
+
 if [ "$MODE" == "plain" ]; then
     # ConfigMap Generation
     kubectl create configmap social-config --from-env-file=social/k8s/plain.env --dry-run=client -o yaml > "$TMP_DIR/configmap.yaml"
@@ -154,6 +168,11 @@ echo "Applying manifests..."
 # Apply ConfigMaps
 kubectl apply -f "$TMP_DIR/configmap.yaml"
 if [ "$MODE" == "roshanfer" ]; then
+    patch_ingress_aimd_key aimd_err_d "${SIDECAR_AIMD_ERR_D:-}" "$TMP_DIR/sidecar-configs.yaml"
+    patch_ingress_aimd_key aimd_err_i "${SIDECAR_AIMD_ERR_I:-}" "$TMP_DIR/sidecar-configs.yaml"
+    patch_ingress_aimd_key aimd_adj_d "${SIDECAR_AIMD_ADJ_D:-}" "$TMP_DIR/sidecar-configs.yaml"
+    patch_ingress_aimd_key aimd_adj_i "${SIDECAR_AIMD_ADJ_I:-}" "$TMP_DIR/sidecar-configs.yaml"
+    patch_ingress_aimd_key safe_multiply "${SIDECAR_SAFE_MULTIPLY:-}" "$TMP_DIR/sidecar-configs.yaml"
     kubectl apply -f "$TMP_DIR/sidecar-configs.yaml"
 fi
 
