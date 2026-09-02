@@ -3,8 +3,10 @@ set -e
 
 # Get script directory
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
-REPO_ROOT="$( cd "$SCRIPT_DIR/../.." &> /dev/null && pwd )"
-HOSTS_FILE="${HOSTS_FILE:-"$SCRIPT_DIR/hosts.txt"}"
+REPO_ROOT="$( cd "$SCRIPT_DIR/../.." && pwd )"
+# shellcheck source=/dev/null
+source "$REPO_ROOT/scripts/elapsed.sh"
+HOSTS_FILE="${HOSTS_FILE:-"$REPO_ROOT/hosts.txt"}"
 CONFIG_FILE="$SCRIPT_DIR/../k8s/config.env" # Re-use k8s config if available, or just for SSH_OPTS
 
 # Colors
@@ -25,7 +27,13 @@ fi
 source "$REPO_ROOT/scripts/pick_github_ssh_key.sh"
 
 SSH_OPTS=${SSH_OPTS:-"-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"}
-REPO_URL="${REPO_URL:-git@github.com:roshanfer-project/roshanfer-experiments.git}"
+DIR_NAME="roshanfer-experiments"
+if [ -z "${REPO_URL:-}" ]; then
+    REPO_URL="$(git -C "$REPO_ROOT" remote get-url origin 2>/dev/null || true)"
+fi
+if [ -z "$REPO_URL" ]; then
+    REPO_URL="git@github.com:roshanfer-project/roshanfer-experiments.git"
+fi
 
 if [ ! -f "$HOSTS_FILE" ]; then
     log_error "Hosts file not found: $HOSTS_FILE"
@@ -47,7 +55,7 @@ while [[ "$#" -gt 0 ]]; do
     shift
 done
 
-# BRANCH env wins over CLI only if CLI unset; prefer explicit CLI then env then local HEAD.
+# CLI > BRANCH env > local HEAD.
 if [ -n "$CLI_BRANCH" ]; then
     BRANCH="$CLI_BRANCH"
 elif [ -z "${BRANCH:-}" ]; then
@@ -104,9 +112,6 @@ provision_single_host() {
 
     log_loc "Provisioning ($node_user) branch=$BRANCH..."
 
-    REPO_URL="git@github.com:farzad1132/roshanfer-experments.git"
-    DIR_NAME="roshanfer-experiments"
-
     # Wrong branch on remote -> wipe and force re-provision.
     if ssh_exec "$node_user" "$node_host" "[ -d '$DIR_NAME' ]"; then
         remote_parent="$(ssh_exec "$node_user" "$node_host" "git -C '$DIR_NAME' branch --show-current 2>/dev/null" || true)"
@@ -122,7 +127,6 @@ provision_single_host() {
     fi
 
     if [ "$force_host" != "true" ] && ssh_exec "$node_user" "$node_host" "[ -f .roshanfer_provisioned ]"; then
-        # Fetch and pull if parent or benchmarks is behind origin/$BRANCH.
         ssh_exec "$node_user" "$node_host" "git -C '$DIR_NAME' fetch origin && git -C '$DIR_NAME/benchmarks' fetch origin"
         parent_behind="$(ssh_exec "$node_user" "$node_host" "git -C '$DIR_NAME' rev-list --count HEAD..origin/$BRANCH" || echo 0)"
         bench_behind="$(ssh_exec "$node_user" "$node_host" "git -C '$DIR_NAME/benchmarks' rev-list --count HEAD..origin/$BRANCH" || echo 0)"
@@ -133,7 +137,7 @@ provision_single_host() {
             ssh_exec "$node_user" "$node_host" "cd '$DIR_NAME' && git pull --ff-only origin '$BRANCH' && git submodule update --init rwg"
             ssh_exec "$node_user" "$node_host" "cd '$DIR_NAME/benchmarks' && git pull --ff-only origin '$BRANCH' && git submodule update --init --recursive"
             log_loc "Rebuilding rwg after pull..."
-            ssh_exec "$node_user" "$node_host" "cd '$DIR_NAME/rwg' && /usr/local/go/bin/go build ."
+            ssh_exec "$node_user" "$node_host" "cd '$DIR_NAME/rwg && /usr/local/go/bin/go build ."
             ok_loc "Pulled up to date on $BRANCH"
             return 0
         fi
