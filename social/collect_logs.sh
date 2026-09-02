@@ -12,7 +12,10 @@ for svc in $SERVICES; do
   for pod in $(kubectl get pods -l app=$svc -o jsonpath='{.items[*].metadata.name}'); do
     (
       kubectl logs "$pod" > "$OUTPUT_DIR/${pod}.log" 2>&1
-      kubectl logs "$pod" -c sidecar > "$OUTPUT_DIR/${pod}-sidecar.log" 2>&1 || rm -f "$OUTPUT_DIR/${pod}-sidecar.log"
+      {
+        kubectl logs "$pod" -c sidecar --previous 2>/dev/null || true
+        kubectl logs "$pod" -c sidecar
+      } > "$OUTPUT_DIR/${pod}-sidecar.log" 2>&1 || rm -f "$OUTPUT_DIR/${pod}-sidecar.log"
       kubectl logs "$pod" -c app > "$OUTPUT_DIR/${pod}-app.log" 2>&1 || rm -f "$OUTPUT_DIR/${pod}-app.log"
     ) &
     log_pids+=($!)
@@ -22,7 +25,10 @@ done
 for pod in $(kubectl get pods -l app=ingress -o jsonpath='{.items[*].metadata.name}'); do
   (
     kubectl logs "$pod" > "$OUTPUT_DIR/${pod}.log" 2>&1
-    kubectl logs "$pod" -c sidecar > "$OUTPUT_DIR/${pod}-sidecar.log" 2>&1 || rm -f "$OUTPUT_DIR/${pod}-sidecar.log"
+    {
+      kubectl logs "$pod" -c sidecar --previous 2>/dev/null || true
+      kubectl logs "$pod" -c sidecar
+    } > "$OUTPUT_DIR/${pod}-sidecar.log" 2>&1 || rm -f "$OUTPUT_DIR/${pod}-sidecar.log"
   ) &
   log_pids+=($!)
 done

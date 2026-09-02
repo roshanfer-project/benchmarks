@@ -8,7 +8,10 @@ for svc in backend1 backend2 backend3 backend4 backend5 backend6 backend7 backen
     (
       kubectl logs "$pod" > "$OUTPUT_DIR/${pod}.log" 2>&1
       if [ "$MODE" = "roshanfer" ] || [ "$MODE" = "amphiqueue" ] || [ "$MODE" = "amphiqueue-fcfs" ] || [ "$MODE" = "amphiqueue-edf" ]; then
-        kubectl logs "$pod" -c sidecar > "$OUTPUT_DIR/${pod}-sidecar.log" 2>&1
+        {
+          kubectl logs "$pod" -c sidecar --previous 2>/dev/null || true
+          kubectl logs "$pod" -c sidecar
+        } > "$OUTPUT_DIR/${pod}-sidecar.log" 2>&1
       fi
       if [ "$MODE" = "envoy" ]; then
         kubectl logs "$pod" -c envoy > "$OUTPUT_DIR/${pod}-envoy.log" 2>&1
@@ -23,7 +26,10 @@ if [ "$MODE" = "roshanfer" ] || [ "$MODE" = "amphiqueue" ] || [ "$MODE" = "amphi
   declare -a ing_pids=()
   for pod in $(kubectl get pods -l app=ingress -o jsonpath='{.items[*].metadata.name}'); do
     (
-      kubectl logs "$pod" -c sidecar > "$OUTPUT_DIR/${pod}-sidecar.log" 2>&1
+      {
+        kubectl logs "$pod" -c sidecar --previous 2>/dev/null || true
+        kubectl logs "$pod" -c sidecar
+      } > "$OUTPUT_DIR/${pod}-sidecar.log" 2>&1
     ) &
     ing_pids+=($!)
   done
