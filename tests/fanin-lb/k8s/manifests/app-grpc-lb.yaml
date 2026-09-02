@@ -17,6 +17,7 @@ spec:
       containers:
       - name: app
         image: fanin-lb-backend1:latest
+        imagePullPolicy: Always
         resources:
           requests:
             cpu: "1"
@@ -71,6 +72,7 @@ spec:
       containers:
       - name: app
         image: fanin-lb-backend2:latest
+        imagePullPolicy: Always
         resources:
           requests:
             cpu: "1"
@@ -125,6 +127,7 @@ spec:
       containers:
       - name: app
         image: fanin-lb-frontend-grpc:latest
+        imagePullPolicy: Always
         resources:
           requests:
             cpu: "1"
@@ -179,6 +182,7 @@ spec:
       containers:
       - name: app
         image: fanin-lb-shared:latest
+        imagePullPolicy: Always
         resources:
           requests:
             cpu: "1"
@@ -233,6 +237,7 @@ spec:
       containers:
       - name: app
         image: fanin-lb-rajomon-client:latest
+        imagePullPolicy: Always
         resources:
           requests:
             cpu: "1"

@@ -234,6 +234,7 @@ spec:
   containers:
   - name: app
     image: %s:latest
+    imagePullPolicy: Always
     resources:
       requests:
         cpu: "%s"
@@ -327,6 +328,7 @@ spec:
       containers:
       - name: app
         image: %s:latest
+        imagePullPolicy: Always
         resources:
           requests:
             cpu: "%s"
@@ -553,6 +555,7 @@ spec:
   containers:
   - name: app
     image: %s:latest
+    imagePullPolicy: Always
     resources:
       requests:
         cpu: "%s"
@@ -599,6 +602,7 @@ spec:
   containers:
   - name: app
     image: %s:latest
+    imagePullPolicy: Always
     resources:
       requests:
         cpu: "%s"
@@ -676,6 +680,7 @@ spec:
       containers:
       - name: app
         image: %s:latest
+        imagePullPolicy: Always
         resources:
           requests:
             cpu: "%s"
@@ -738,6 +743,7 @@ spec:
       containers:
       - name: app
         image: %s:latest
+        imagePullPolicy: Always
         resources:
           requests:
             cpu: "%s"
@@ -1078,6 +1084,7 @@ spec:
   containers:
   - name: app
     image: %s:latest
+    imagePullPolicy: Always
     resources:
       requests:
         cpu: "%s"
@@ -1093,6 +1100,7 @@ spec:
     - containerPort: %d
   - name: sidecar
     image: sidecar-sidecar:latest
+    imagePullPolicy: Always
     env:
     - name: PROC_NAME
       value: "%s-sidecar"
@@ -1205,6 +1213,7 @@ spec:
   containers:
   - name: sidecar
     image: sidecar-sidecar:latest
+    imagePullPolicy: Always
     env:
     - name: PROC_NAME
       value: "ingress-sidecar"
@@ -1277,6 +1286,7 @@ spec:
       containers:
       - name: app
         image: %s:latest
+        imagePullPolicy: Always
         resources:
           requests:
             cpu: "%s"
@@ -1296,6 +1306,7 @@ spec:
         - containerPort: %d
       - name: sidecar
         image: sidecar-sidecar:latest
+        imagePullPolicy: Always
         env:
         - name: PROC_NAME
           value: "%s-sidecar"
@@ -1408,6 +1419,7 @@ spec:
   containers:
   - name: sidecar
     image: sidecar-sidecar:latest
+    imagePullPolicy: Always
     env:
     - name: PROC_NAME
       value: "ingress-sidecar"

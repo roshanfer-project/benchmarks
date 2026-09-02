@@ -20,6 +20,7 @@ const (
 
 const envoyStatsContainerYAML = `  - name: envoy-stats
     image: envoy-stats-exporter:latest
+    imagePullPolicy: Always
     env:
     - name: APP_NAME
       valueFrom:
@@ -414,6 +415,7 @@ spec:
   containers:
   - name: app
     image: %s:latest
+    imagePullPolicy: Always
     resources:
       requests:
         cpu: "%s"

@@ -15,6 +15,17 @@ import (
 
 var logg = GetLogger("counter")
 
+func replicaInstanceSuffix(serviceName string) string {
+	pod := GetEnvVar("POD_NAME", false)
+	if pod == "" {
+		return ""
+	}
+	if strings.HasPrefix(pod, serviceName+"-") {
+		return strings.TrimPrefix(pod, serviceName+"-")
+	}
+	return pod
+}
+
 type CounterState struct {
 	failedRPCCounter        map[string]int64
 	acceptedRPCCounter      map[string]int64
@@ -204,7 +215,11 @@ func (s *CounterState) PushAll() {
 		s.PushAcceptedRPCCounter()
 		s.PushFailedRPCCounter()
 
-		if err := push.New(s.promAddr, s.serviceName).Gatherer(s.registry).Push(); err != nil {
+		pusher := push.New(s.promAddr, s.serviceName).Gatherer(s.registry)
+		if instance := replicaInstanceSuffix(s.serviceName); instance != "" {
+			pusher = pusher.Grouping("instance", instance)
+		}
+		if err := pusher.Push(); err != nil {
 			logg.Error("Could not push to Pushgateway", "error", err)
 		} else {
 			logg.Debug("pushed all counters")

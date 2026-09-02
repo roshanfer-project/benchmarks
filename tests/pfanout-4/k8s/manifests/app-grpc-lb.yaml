@@ -17,6 +17,7 @@ spec:
       containers:
       - name: app
         image: pfanout-4-backend1:latest
+        imagePullPolicy: Always
         resources:
           requests:
             cpu: "3"
@@ -71,6 +72,7 @@ spec:
       containers:
       - name: app
         image: pfanout-4-backend2:latest
+        imagePullPolicy: Always
         resources:
           requests:
             cpu: "3"
@@ -125,6 +127,7 @@ spec:
       containers:
       - name: app
         image: pfanout-4-backend3:latest
+        imagePullPolicy: Always
         resources:
           requests:
             cpu: "4"
@@ -179,6 +182,7 @@ spec:
       containers:
       - name: app
         image: pfanout-4-backend4:latest
+        imagePullPolicy: Always
         resources:
           requests:
             cpu: "4"
@@ -233,6 +237,7 @@ spec:
       containers:
       - name: app
         image: pfanout-4-frontend-grpc:latest
+        imagePullPolicy: Always
         resources:
           requests:
             cpu: "2"
@@ -287,6 +292,7 @@ spec:
       containers:
       - name: app
         image: pfanout-4-rajomon-client:latest
+        imagePullPolicy: Always
         resources:
           requests:
             cpu: "2"

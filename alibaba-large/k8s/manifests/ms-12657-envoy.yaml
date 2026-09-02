@@ -8,6 +8,7 @@ spec:
   containers:
   - name: app
     image: alibaba-large-ms-12657:latest
+    imagePullPolicy: Always
     resources:
       requests:
         cpu: "3"
@@ -46,6 +47,7 @@ spec:
     - containerPort: 9901
   - name: envoy-stats
     image: envoy-stats-exporter:latest
+    imagePullPolicy: Always
     env:
     - name: APP_NAME
       valueFrom:

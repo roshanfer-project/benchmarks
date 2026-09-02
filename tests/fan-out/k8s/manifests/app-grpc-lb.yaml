@@ -17,6 +17,7 @@ spec:
       containers:
       - name: app
         image: fan-out-backend1:latest
+        imagePullPolicy: Always
         resources:
           requests:
             cpu: "3"
@@ -71,6 +72,7 @@ spec:
       containers:
       - name: app
         image: fan-out-backend2:latest
+        imagePullPolicy: Always
         resources:
           requests:
             cpu: "3"
@@ -125,6 +127,7 @@ spec:
       containers:
       - name: app
         image: fan-out-frontend-grpc:latest
+        imagePullPolicy: Always
         resources:
           requests:
             cpu: "2"
@@ -179,6 +182,7 @@ spec:
       containers:
       - name: app
         image: fan-out-rajomon-client:latest
+        imagePullPolicy: Always
         resources:
           requests:
             cpu: "2"

@@ -8,6 +8,7 @@ spec:
   containers:
   - name: app
     image: chain-2-backend:latest
+    imagePullPolicy: Always
     resources:
       requests:
         cpu: "2"

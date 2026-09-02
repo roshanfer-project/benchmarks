@@ -8,6 +8,7 @@ spec:
   containers:
   - name: app
     image: fan-out-fan-in-backend2:latest
+    imagePullPolicy: Always
     resources:
       requests:
         cpu: "3"

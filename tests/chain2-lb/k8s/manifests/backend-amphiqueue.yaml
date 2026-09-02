@@ -17,6 +17,7 @@ spec:
       containers:
       - name: app
         image: chain2-lb-backend:latest
+        imagePullPolicy: Always
         resources:
           requests:
             cpu: "1"
@@ -36,6 +37,7 @@ spec:
         - containerPort: 2000
       - name: sidecar
         image: sidecar-sidecar:latest
+        imagePullPolicy: Always
         env:
         - name: PROC_NAME
           value: "backend-sidecar"

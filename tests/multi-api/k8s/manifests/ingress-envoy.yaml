@@ -33,6 +33,7 @@ spec:
     - containerPort: 9901
   - name: envoy-stats
     image: envoy-stats-exporter:latest
+    imagePullPolicy: Always
     env:
     - name: APP_NAME
       valueFrom:

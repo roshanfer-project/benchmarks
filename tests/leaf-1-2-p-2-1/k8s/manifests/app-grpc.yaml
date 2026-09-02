@@ -9,6 +9,7 @@ spec:
   containers:
   - name: app
     image: leaf-1-2-p-2-1-frontend-grpc:latest
+    imagePullPolicy: Always
     resources:
       requests:
         cpu: "5"
@@ -50,6 +51,7 @@ spec:
   containers:
   - name: app
     image: leaf-1-2-p-2-1-rajomon-client:latest
+    imagePullPolicy: Always
     resources:
       requests:
         cpu: "6"

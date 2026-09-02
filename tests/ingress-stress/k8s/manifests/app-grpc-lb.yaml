@@ -17,6 +17,7 @@ spec:
       containers:
       - name: app
         image: ingress-stress-frontend-grpc:latest
+        imagePullPolicy: Always
         resources:
           requests:
             cpu: "3"
@@ -71,6 +72,7 @@ spec:
       containers:
       - name: app
         image: ingress-stress-rajomon-client:latest
+        imagePullPolicy: Always
         resources:
           requests:
             cpu: "3"

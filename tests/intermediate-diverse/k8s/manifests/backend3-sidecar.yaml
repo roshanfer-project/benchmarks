@@ -8,6 +8,7 @@ spec:
   containers:
   - name: app
     image: intermediate-diverse-backend3:latest
+    imagePullPolicy: Always
     resources:
       requests:
         cpu: "3"
@@ -23,6 +24,7 @@ spec:
     - containerPort: 2000
   - name: sidecar
     image: sidecar-sidecar:latest
+    imagePullPolicy: Always
     env:
     - name: PROC_NAME
       value: "backend3-sidecar"

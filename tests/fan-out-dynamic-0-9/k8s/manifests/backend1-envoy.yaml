@@ -8,6 +8,7 @@ spec:
   containers:
   - name: app
     image: fan-out-dynamic-0-9-backend1:latest
+    imagePullPolicy: Always
     resources:
       requests:
         cpu: "2"
@@ -46,6 +47,7 @@ spec:
     - containerPort: 9901
   - name: envoy-stats
     image: envoy-stats-exporter:latest
+    imagePullPolicy: Always
     env:
     - name: APP_NAME
       valueFrom:

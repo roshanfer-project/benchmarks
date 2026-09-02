@@ -17,6 +17,7 @@ spec:
       containers:
       - name: app
         image: intermediate-diverse-backend1:latest
+        imagePullPolicy: Always
         resources:
           requests:
             cpu: "1"

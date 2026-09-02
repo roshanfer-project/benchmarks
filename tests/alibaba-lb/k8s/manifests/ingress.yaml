@@ -9,6 +9,7 @@ spec:
   containers:
   - name: sidecar
     image: sidecar-sidecar:latest
+    imagePullPolicy: Always
     env:
     - name: PROC_NAME
       value: "ingress-sidecar"

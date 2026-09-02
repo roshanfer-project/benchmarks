@@ -8,6 +8,7 @@ spec:
   containers:
   - name: app
     image: intermediate-diverse-backend2:latest
+    imagePullPolicy: Always
     resources:
       requests:
         cpu: "2"

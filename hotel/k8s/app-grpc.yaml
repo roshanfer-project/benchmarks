@@ -10,6 +10,7 @@ spec:
   containers:
   - name: app
     image: rajomon-client:latest
+    imagePullPolicy: Always
     resources:
       requests:
         cpu: "4"
@@ -36,6 +37,7 @@ spec:
   containers:
   - name: app
     image: frontend-grpc:latest
+    imagePullPolicy: Always
     resources:
       requests:
         cpu: "4"
@@ -96,6 +98,7 @@ spec:
   containers:
   - name: app
     image: profile:latest
+    imagePullPolicy: Always
     resources:
       requests:
         cpu: "1"
@@ -141,6 +144,7 @@ spec:
   containers:
   - name: app
     image: search:latest
+    imagePullPolicy: Always
     resources:
       requests:
         cpu: "1"
@@ -186,6 +190,7 @@ spec:
   containers:
   - name: app
     image: geo:latest
+    imagePullPolicy: Always
     resources:
       requests:
         cpu: "1"
@@ -231,6 +236,7 @@ spec:
   containers:
   - name: app
     image: rate:latest
+    imagePullPolicy: Always
     resources:
       requests:
         cpu: "3"
@@ -276,6 +282,7 @@ spec:
   containers:
   - name: app
     image: reservation:latest
+    imagePullPolicy: Always
     resources:
       requests:
         cpu: "1"
@@ -321,6 +328,7 @@ spec:
   containers:
   - name: app
     image: user:latest
+    imagePullPolicy: Always
     resources:
       requests:
         cpu: "1"

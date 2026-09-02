@@ -266,9 +266,6 @@ func TapHandler(serviceName string) tap.ServerInHandle {
 }
 
 {{end}}func replicaInstanceSuffix(serviceName string) string {
-	if GetEnvVar("plain_lb", false) != "true" {
-		return ""
-	}
 	pod := GetEnvVar("POD_NAME", false)
 	if pod == "" {
 		return ""

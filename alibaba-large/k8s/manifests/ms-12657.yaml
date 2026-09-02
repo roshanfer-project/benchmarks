@@ -8,6 +8,7 @@ spec:
   containers:
   - name: app
     image: alibaba-large-ms-12657:latest
+    imagePullPolicy: Always
     resources:
       requests:
         cpu: "3"

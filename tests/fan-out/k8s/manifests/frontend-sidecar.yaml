@@ -8,6 +8,7 @@ spec:
   containers:
   - name: app
     image: fan-out-frontend:latest
+    imagePullPolicy: Always
     resources:
       requests:
         cpu: "2"
@@ -23,6 +24,7 @@ spec:
     - containerPort: 2000
   - name: sidecar
     image: sidecar-sidecar:latest
+    imagePullPolicy: Always
     env:
     - name: PROC_NAME
       value: "frontend-sidecar"

@@ -17,6 +17,7 @@ spec:
       containers:
       - name: app
         image: fan-out-fan-in-shared:latest
+        imagePullPolicy: Always
         resources:
           requests:
             cpu: "1"

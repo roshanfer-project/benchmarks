@@ -9,6 +9,7 @@ spec:
   containers:
   - name: app
     image: intermediate-diverse-backend1:latest
+    imagePullPolicy: Always
     resources:
       requests:
         cpu: "1"
@@ -50,6 +51,7 @@ spec:
   containers:
   - name: app
     image: intermediate-diverse-backend2:latest
+    imagePullPolicy: Always
     resources:
       requests:
         cpu: "2"
@@ -91,6 +93,7 @@ spec:
   containers:
   - name: app
     image: intermediate-diverse-backend3:latest
+    imagePullPolicy: Always
     resources:
       requests:
         cpu: "3"
@@ -132,6 +135,7 @@ spec:
   containers:
   - name: app
     image: intermediate-diverse-frontend-grpc:latest
+    imagePullPolicy: Always
     resources:
       requests:
         cpu: "2"
@@ -173,6 +177,7 @@ spec:
   containers:
   - name: app
     image: intermediate-diverse-rajomon-client:latest
+    imagePullPolicy: Always
     resources:
       requests:
         cpu: "3"

@@ -8,6 +8,7 @@ spec:
   containers:
   - name: app
     image: dynamic-large-backend1:latest
+    imagePullPolicy: Always
     resources:
       requests:
         cpu: "5"

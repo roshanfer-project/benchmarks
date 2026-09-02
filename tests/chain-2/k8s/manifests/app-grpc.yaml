@@ -9,6 +9,7 @@ spec:
   containers:
   - name: app
     image: chain-2-backend:latest
+    imagePullPolicy: Always
     resources:
       requests:
         cpu: "2"
@@ -50,6 +51,7 @@ spec:
   containers:
   - name: app
     image: chain-2-frontend-grpc:latest
+    imagePullPolicy: Always
     resources:
       requests:
         cpu: "2"
@@ -91,6 +93,7 @@ spec:
   containers:
   - name: app
     image: chain-2-rajomon-client:latest
+    imagePullPolicy: Always
     resources:
       requests:
         cpu: "3"

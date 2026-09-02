@@ -11,6 +11,7 @@ spec:
   containers:
   - name: app
     image: graph:latest
+    imagePullPolicy: Always
     resources:
       requests:
         cpu: "2"
@@ -51,6 +52,7 @@ spec:
   containers:
   - name: app
     image: posts:latest
+    imagePullPolicy: Always
     resources:
       requests:
         cpu: "2"
@@ -91,6 +93,7 @@ spec:
   containers:
   - name: app
     image: home:latest
+    imagePullPolicy: Always
     resources:
       requests:
         cpu: "4"
@@ -131,6 +134,7 @@ spec:
   containers:
   - name: app
     image: user:latest
+    imagePullPolicy: Always
     resources:
       requests:
         cpu: "1"
@@ -171,6 +175,7 @@ spec:
   containers:
   - name: app
     image: compose:latest
+    imagePullPolicy: Always
     resources:
       requests:
         cpu: "3"
@@ -211,6 +216,7 @@ spec:
   containers:
   - name: app
     image: nginx:latest
+    imagePullPolicy: Always
     resources:
       # Nginx is a "frontend" type service, giving it 2 cores
       requests:

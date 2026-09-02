@@ -17,6 +17,7 @@ spec:
       containers:
       - name: app
         image: alibaba-large-ms-38190:latest
+        imagePullPolicy: Always
         resources:
           requests:
             cpu: "4"
@@ -36,6 +37,7 @@ spec:
         - containerPort: 2000
       - name: sidecar
         image: sidecar-sidecar:latest
+        imagePullPolicy: Always
         env:
         - name: PROC_NAME
           value: "ms-38190-sidecar"

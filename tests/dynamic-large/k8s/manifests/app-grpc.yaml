@@ -9,6 +9,7 @@ spec:
   containers:
   - name: app
     image: dynamic-large-backend1:latest
+    imagePullPolicy: Always
     resources:
       requests:
         cpu: "5"
@@ -50,6 +51,7 @@ spec:
   containers:
   - name: app
     image: dynamic-large-backend2:latest
+    imagePullPolicy: Always
     resources:
       requests:
         cpu: "2"
@@ -91,6 +93,7 @@ spec:
   containers:
   - name: app
     image: dynamic-large-backend3:latest
+    imagePullPolicy: Always
     resources:
       requests:
         cpu: "3"
@@ -132,6 +135,7 @@ spec:
   containers:
   - name: app
     image: dynamic-large-backend4:latest
+    imagePullPolicy: Always
     resources:
       requests:
         cpu: "3"
@@ -173,6 +177,7 @@ spec:
   containers:
   - name: app
     image: dynamic-large-backend5:latest
+    imagePullPolicy: Always
     resources:
       requests:
         cpu: "1"
@@ -214,6 +219,7 @@ spec:
   containers:
   - name: app
     image: dynamic-large-backend6:latest
+    imagePullPolicy: Always
     resources:
       requests:
         cpu: "1"
@@ -255,6 +261,7 @@ spec:
   containers:
   - name: app
     image: dynamic-large-backend7:latest
+    imagePullPolicy: Always
     resources:
       requests:
         cpu: "1"
@@ -296,6 +303,7 @@ spec:
   containers:
   - name: app
     image: dynamic-large-backend8:latest
+    imagePullPolicy: Always
     resources:
       requests:
         cpu: "2"
@@ -337,6 +345,7 @@ spec:
   containers:
   - name: app
     image: dynamic-large-frontend-grpc:latest
+    imagePullPolicy: Always
     resources:
       requests:
         cpu: "3"
@@ -378,6 +387,7 @@ spec:
   containers:
   - name: app
     image: dynamic-large-rajomon-client:latest
+    imagePullPolicy: Always
     resources:
       requests:
         cpu: "4"

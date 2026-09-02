@@ -9,6 +9,7 @@ spec:
   containers:
   - name: app
     image: alibaba-lb-ms-25806:latest
+    imagePullPolicy: Always
     resources:
       requests:
         cpu: "8"
@@ -50,6 +51,7 @@ spec:
   containers:
   - name: app
     image: alibaba-lb-ms-2687:latest
+    imagePullPolicy: Always
     resources:
       requests:
         cpu: "4"
@@ -91,6 +93,7 @@ spec:
   containers:
   - name: app
     image: alibaba-lb-ms-40087:latest
+    imagePullPolicy: Always
     resources:
       requests:
         cpu: "6"
@@ -132,6 +135,7 @@ spec:
   containers:
   - name: app
     image: alibaba-lb-ms-44246:latest
+    imagePullPolicy: Always
     resources:
       requests:
         cpu: "4"
@@ -173,6 +177,7 @@ spec:
   containers:
   - name: app
     image: alibaba-lb-ms-51787:latest
+    imagePullPolicy: Always
     resources:
       requests:
         cpu: "4"
@@ -214,6 +219,7 @@ spec:
   containers:
   - name: app
     image: alibaba-lb-ms-56113:latest
+    imagePullPolicy: Always
     resources:
       requests:
         cpu: "8"
@@ -255,6 +261,7 @@ spec:
   containers:
   - name: app
     image: alibaba-lb-ms-64512-grpc:latest
+    imagePullPolicy: Always
     resources:
       requests:
         cpu: "8"
@@ -296,6 +303,7 @@ spec:
   containers:
   - name: app
     image: alibaba-lb-ms-70124:latest
+    imagePullPolicy: Always
     resources:
       requests:
         cpu: "3"
@@ -337,6 +345,7 @@ spec:
   containers:
   - name: app
     image: alibaba-lb-rajomon-client:latest
+    imagePullPolicy: Always
     resources:
       requests:
         cpu: "9"
