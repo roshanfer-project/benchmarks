@@ -3,8 +3,11 @@ set -e
 
 # Get script directory
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+REPO_ROOT="$( cd "$SCRIPT_DIR/../.." && pwd )"
+# shellcheck source=/dev/null
+source "$REPO_ROOT/scripts/elapsed.sh"
 CONFIG_FILE="$SCRIPT_DIR/config.env"
-export HOSTS_FILE="${HOSTS_FILE:-"$SCRIPT_DIR/hosts.txt"}"
+export HOSTS_FILE="${HOSTS_FILE:-"$REPO_ROOT/hosts.txt"}"
 
 # Colors for output
 GREEN='\033[0;32m'
@@ -39,22 +42,25 @@ fi
 # Filter out comments and empty lines
 mapfile -t HOSTS < <(grep -vE '^\s*#|^\s*$' "$HOSTS_FILE")
 
+ng="${NUM_GENERATORS:-0}"
+if [[ "$ng" =~ ^[0-9]+$ ]] && [ "$ng" -gt 0 ]; then
+    HOSTS=("${HOSTS[@]:ng}")
+fi
+
 if [ ${#HOSTS[@]} -eq 0 ]; then
-    log_error "No hosts found in $HOSTS_FILE"
+    log_error "No hosts found in $HOSTS_FILE (after skipping NUM_GENERATORS=$ng)"
     exit 1
 fi
 
-# Helper to parse "user@host" or just "host"
-# Sets global variables CURRENT_USER and CURRENT_HOST
+# Sets CURRENT_USER and CURRENT_HOST. Lines must be user@host.
 parse_host_entry() {
     local entry=$1
-    if [[ "$entry" == *"@"* ]]; then
-        CURRENT_USER=$(echo "$entry" | cut -d'@' -f1)
-        CURRENT_HOST=$(echo "$entry" | cut -d'@' -f2)
-    else
-        CURRENT_USER="$SSH_USER"
-        CURRENT_HOST="$entry"
+    if [[ "$entry" != *"@"* ]]; then
+        log_error "Host line must be user@host: $entry"
+        exit 1
     fi
+    CURRENT_USER="${entry%%@*}"
+    CURRENT_HOST="${entry#*@}"
 }
 
 SERVER_ENTRY="${HOSTS[0]}"
@@ -68,7 +74,6 @@ log_info "Cluster Configuration:"
 log_info "  K3s Version: $K3S_VERSION"
 log_info "  Server Node: $SERVER_HOST (User: $SERVER_User)"
 log_info "  Agent Nodes: ${AGENT_ENTRIES[*]}"
-log_info "  Default SSH User: $SSH_USER"
 
 # Function to run command via SSH
 ssh_exec() {

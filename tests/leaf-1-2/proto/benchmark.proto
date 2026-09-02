@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package benchmark;
+
+option go_package = "leaf12/protobuf";
+
+message Request { string payload = 1; }
+message Response { string payload = 1; }
+
+service frontend {
+  rpc api1(Request) returns (Response);
+  rpc api2(Request) returns (Response);
+}
+

@@ -3,8 +3,11 @@ set -e
 
 # Get script directory
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+REPO_ROOT="$( cd "$SCRIPT_DIR/../.." && pwd )"
+# shellcheck source=/dev/null
+source "$REPO_ROOT/scripts/elapsed.sh"
 CONFIG_FILE="$SCRIPT_DIR/config.env"
-HOSTS_FILE="${HOSTS_FILE:-"$SCRIPT_DIR/hosts.txt"}"
+HOSTS_FILE="${HOSTS_FILE:-"$REPO_ROOT/hosts.txt"}"
 
 # Requirements
 if [ ! -f "$CONFIG_FILE" ]; then
@@ -21,21 +24,24 @@ fi
 # Filter out comments and empty lines
 mapfile -t HOSTS < <(grep -vE '^\s*#|^\s*$' "$HOSTS_FILE")
 
+ng="${NUM_GENERATORS:-0}"
+if [[ "$ng" =~ ^[0-9]+$ ]] && [ "$ng" -gt 0 ]; then
+    HOSTS=("${HOSTS[@]:ng}")
+fi
+
 if [ ${#HOSTS[@]} -eq 0 ]; then
-    echo "No hosts found in $HOSTS_FILE"
+    echo "No hosts found in $HOSTS_FILE (after skipping NUM_GENERATORS=$ng)"
     exit 1
 fi
 
-# Helper to parse "user@host" or just "host"
 parse_host_entry() {
     local entry=$1
-    if [[ "$entry" == *"@"* ]]; then
-        CURRENT_USER=$(echo "$entry" | cut -d'@' -f1)
-        CURRENT_HOST=$(echo "$entry" | cut -d'@' -f2)
-    else
-        CURRENT_USER="$SSH_USER"
-        CURRENT_HOST="$entry"
+    if [[ "$entry" != *"@"* ]]; then
+        echo "Host line must be user@host: $entry"
+        exit 1
     fi
+    CURRENT_USER="${entry%%@*}"
+    CURRENT_HOST="${entry#*@}"
 }
 
 SERVER_ENTRY="${HOSTS[0]}"

@@ -20,11 +20,11 @@ Deploy resource comparison across generated modes (from callgraph.json).
 | wrr | frontend | 3 | — | 4 | 3 | — | — | — |
 | wrr | shared | 1 | — | 10 | 1 | — | — | — |
 | wrr | ingress | — | 4 | 1 | — | — | — | — |
-| sidecar | backend1 | 8 | 2 | 1 | 8 | 8 | 1.0 | 1 |
-| sidecar | backend2 | 8 | 2 | 1 | 8 | 8 | 1.0 | 1 |
-| sidecar | frontend | 12 | 2 | 1 | 12 | 12 | 1.0 | 1 |
-| sidecar | shared | 10 | 2 | 1 | 10 | 10 | 0.0 | 1 |
-| sidecar | ingress | — | 4 | 1 | — | — | — | — |
+| roshanfer | backend1 | 8 | 2 | 1 | 8 | 8 | 1.0 | 1 |
+| roshanfer | backend2 | 8 | 2 | 1 | 8 | 8 | 1.0 | 1 |
+| roshanfer | frontend | 12 | 2 | 1 | 12 | 12 | 1.0 | 1 |
+| roshanfer | shared | 10 | 2 | 1 | 10 | 10 | 0.0 | 1 |
+| roshanfer | ingress | — | 4 | 1 | — | — | — | — |
 | approx | backend1 | 1 | 1 | 8 | 1 | 1 | 1.0 | 1 |
 | approx | backend2 | 1 | 1 | 8 | 1 | 1 | 1.0 | 1 |
 | approx | frontend | 3 | 1 | 4 | 3 | 3 | 1.0 | 1 |
@@ -73,7 +73,7 @@ Deploy resource comparison across generated modes (from callgraph.json).
 | plain | 38 | 0 | — |
 | p2c | 38 | 4 | 9.5 |
 | wrr | 38 | 4 | 9.5 |
-| sidecar | 38 | 12 | 3.17 |
+| roshanfer | 38 | 12 | 3.17 |
 | approx | 38 | 34 | 1.12 |
 | approx-fcfs | 38 | 34 | 1.12 |
 | approx-edf | 38 | 34 | 1.12 |

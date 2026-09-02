@@ -20,11 +20,11 @@ Deploy resource comparison across generated modes (from callgraph.json).
 | wrr | backend3 | 3 | — | 1 | 3 | — | — | — |
 | wrr | frontend | 2 | — | 1 | 2 | — | — | — |
 | wrr | ingress | — | 6 | 1 | — | — | — | — |
-| sidecar | backend1 | 1 | 2 | 1 | 1 | 1 | 0.0 | 1 |
-| sidecar | backend2 | 2 | 2 | 1 | 2 | 2 | 0.0 | 1 |
-| sidecar | backend3 | 3 | 2 | 1 | 3 | 3 | 0.0 | 1 |
-| sidecar | frontend | 2 | 2 | 1 | 2 | 2 | 1.0 | 1 |
-| sidecar | ingress | — | 6 | 1 | — | — | — | — |
+| roshanfer | backend1 | 1 | 2 | 1 | 1 | 1 | 0.0 | 1 |
+| roshanfer | backend2 | 2 | 2 | 1 | 2 | 2 | 0.0 | 1 |
+| roshanfer | backend3 | 3 | 2 | 1 | 3 | 3 | 0.0 | 1 |
+| roshanfer | frontend | 2 | 2 | 1 | 2 | 2 | 1.0 | 1 |
+| roshanfer | ingress | — | 6 | 1 | — | — | — | — |
 | approx | backend1 | 1 | 1 | 1 | 1 | 1 | 1.0 | 1 |
 | approx | backend2 | 2 | 1 | 1 | 2 | 2 | 1.0 | 1 |
 | approx | backend3 | 3 | 1 | 1 | 3 | 3 | 1.0 | 1 |
@@ -73,7 +73,7 @@ Deploy resource comparison across generated modes (from callgraph.json).
 | plain | 8 | 0 | — |
 | p2c | 8 | 6 | 1.33 |
 | wrr | 8 | 6 | 1.33 |
-| sidecar | 8 | 14 | 0.571 |
+| roshanfer | 8 | 14 | 0.571 |
 | approx | 8 | 10 | 0.8 |
 | approx-fcfs | 8 | 10 | 0.8 |
 | approx-edf | 8 | 10 | 0.8 |

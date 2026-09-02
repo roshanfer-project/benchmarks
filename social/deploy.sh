@@ -1,9 +1,9 @@
 #!/bin/bash
 set -e
 
-# Usage: ./deploy.sh [sidecar|plain] [--skip-build]
+# Usage: ./deploy.sh [roshanfer|plain] [--skip-build]
 # Default settings
-MODE="${SYSTEM:-sidecar}"
+MODE="${SYSTEM:-roshanfer}"
 SKIP_BUILD=true
 REGISTRY=${REGISTRY:-farzad1132}
 TAG=${TAG:-$(date +%Y-%m-%d)}
@@ -11,7 +11,7 @@ TAG=${TAG:-$(date +%Y-%m-%d)}
 # Parse arguments
 for arg in "$@"; do
     case $arg in
-        sidecar) MODE="sidecar";;
+        roshanfer) MODE="roshanfer";;
         plain) MODE="plain";;
         rajomon) MODE="rajomon";;
         dagor) MODE="dagor";;
@@ -30,6 +30,26 @@ DEPLOY_DIR="social/k8s"
 TMP_DIR="${DEPLOY_DIR}/tmp_apply"
 mkdir -p "$TMP_DIR"
 
+kubectl_wait_ready_or_fail() {
+  local app=$1
+  local to=$2
+  if kubectl wait --for=condition=Ready pod -l "app=${app}" --timeout="${to}s"; then
+    return 0
+  fi
+  echo "=== deploy.sh: kubectl wait failed for app=${app} (timeout=${to}s) ===" >&2
+  kubectl get pods -l "app=${app}" -o wide >&2 || true
+  kubectl describe pod -l "app=${app}" >&2 || true
+  local p
+  while IFS= read -r p; do
+    [ -z "$p" ] && continue
+    echo "=== logs ${p} (current) ===" >&2
+    kubectl logs "$p" --all-containers=true --tail=200 >&2 || true
+    echo "=== logs ${p} (previous) ===" >&2
+    kubectl logs "$p" --all-containers=true --previous --tail=200 >&2 || true
+  done < <(kubectl get pods -l "app=${app}" -o name 2>/dev/null)
+  exit 1
+}
+
 if [ "$MODE" == "plain" ]; then
     # ConfigMap Generation
     kubectl create configmap social-config --from-env-file=social/k8s/plain.env --dry-run=client -o yaml > "$TMP_DIR/configmap.yaml"
@@ -43,7 +63,7 @@ if [ "$MODE" == "plain" ]; then
         sed -i "s|${SERVICE}:latest|${REGISTRY}/social-${SERVICE}:${TAG}|g" "${TMP_DIR}/app.yaml"
     done
 
-elif [ "$MODE" == "sidecar" ]; then
+elif [ "$MODE" == "roshanfer" ]; then
     # ConfigMap Generation
     # Merge env file and dynamic vars into a temp file
     cat social/k8s/sidecar.env > "$TMP_DIR/sidecar_merged.env"
@@ -133,7 +153,7 @@ echo "Applying manifests..."
 
 # Apply ConfigMaps
 kubectl apply -f "$TMP_DIR/configmap.yaml"
-if [ "$MODE" == "sidecar" ]; then
+if [ "$MODE" == "roshanfer" ]; then
     kubectl apply -f "$TMP_DIR/sidecar-configs.yaml"
 fi
 
@@ -141,15 +161,15 @@ fi
 echo "Deploying Redis..."
 kubectl apply -f "$TMP_DIR/redis.yaml"
 echo "Waiting for Redis to be ready..."
-kubectl wait --for=condition=available deployment/redis --timeout=60s || true
+kubectl_wait_ready_or_fail redis 60
 
 # Apply Prometheus
 echo "Deploying Prometheus and Pushgateway..."
 kubectl apply -f "${DEPLOY_DIR}/prometheus.yaml"
-kubectl wait --for=condition=ready pod -l app=prometheus-pushgateway --timeout=60s || true
+kubectl_wait_ready_or_fail prometheus-pushgateway 60
 # We don't necessarily need to wait for Prometheus server to be ready for the app to start, 
 # but it's good practice.
-kubectl wait --for=condition=ready pod -l app=prometheus --timeout=60s || true
+kubectl_wait_ready_or_fail prometheus 60
 
 # Apply Services (Loop for dependency wait logic, though robust dependency handling is better via init containers or retry loops in apps)
 # Assuming apps have retry logic or we wait.
@@ -165,24 +185,24 @@ apply_service() {
 WAIT_TIMEOUT=${WAIT_TIMEOUT:-60}
 
 if [ -f "$TMP_DIR/app.yaml" ]; then
-    if [ "$MODE" == "sidecar" ]; then
+    if [ "$MODE" == "roshanfer" ]; then
         for SVC in "graph" "posts" "user"; do
             apply_service $SVC "$TMP_DIR/app.yaml"
         done
         echo "Waiting for Leaf services to be ready..."
-        kubectl wait --for=condition=ready pod/graph --timeout=60s || true
-        kubectl wait --for=condition=ready pod/posts --timeout=60s || true
-        kubectl wait --for=condition=ready pod/user --timeout=60s || true
+        kubectl_wait_ready_or_fail graph 60
+        kubectl_wait_ready_or_fail posts 60
+        kubectl_wait_ready_or_fail user 60
 
         apply_service "home" "$TMP_DIR/app.yaml"
         apply_service "compose" "$TMP_DIR/app.yaml"
         echo "Waiting for Intermediate services to be ready..."
-        kubectl wait --for=condition=ready pod/home --timeout=60s || true
-        kubectl wait --for=condition=ready pod/compose --timeout=60s || true
+        kubectl_wait_ready_or_fail home 60
+        kubectl_wait_ready_or_fail compose 60
 
         apply_service "nginx" "$TMP_DIR/app.yaml"
         echo "Waiting for Nginx service to be ready..."
-        kubectl wait --for=condition=ready pod/nginx --timeout=60s || true
+        kubectl_wait_ready_or_fail nginx 60
     else
         deploy_fail=0
         declare -a deploy_pids=()
@@ -194,7 +214,7 @@ if [ -f "$TMP_DIR/app.yaml" ]; then
         for SVC in "${PARALLEL_SVCS[@]}"; do
             (
                 kubectl apply -f "$TMP_DIR/app.yaml" -l app="$SVC"
-                kubectl wait --for=condition=Ready pod -l "app=${SVC}" --timeout="${WAIT_TIMEOUT}s"
+                kubectl_wait_ready_or_fail "${SVC}" "${WAIT_TIMEOUT}"
             ) &
             deploy_pids+=($!)
         done
@@ -209,11 +229,11 @@ if [ -f "$TMP_DIR/app.yaml" ]; then
 fi
 
 # Ingress
-if [ "$MODE" == "sidecar" ]; then
+if [ "$MODE" == "roshanfer" ]; then
     echo "Deploying Ingress..."
     kubectl apply -f "$TMP_DIR/ingress.yaml"
     echo "Waiting for Ingress to be ready..."
-    kubectl wait --for=condition=ready pod/ingress --timeout=30s || true
+    kubectl_wait_ready_or_fail ingress 30
 fi
 
 # Apply Services (Idempotent re-apply for Services)

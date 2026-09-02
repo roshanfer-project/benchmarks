@@ -2,6 +2,17 @@
 
 Generates runnable Go microservice benchmarks from call graph JSON.
 
+## Repository layout
+
+```text
+callgraph-framework/
+├── cmd/gen/                   callgraph.json → Go services + K8s manifests
+├── cmd/viz/                   callgraph PDF (graphviz / paper figure)
+├── gen/                       codegen (services, k8s, rajomon, dagor, envoy)
+├── viz/                       graphviz + matplotlib paper figure
+└── envoy-stats-exporter/      Envoy stats sidecar image
+```
+
 ## Usage
 
 ```bash
@@ -17,7 +28,7 @@ Generates the benchmark, `callgraph.pdf`, and mode comparison tables (`mode-comp
 
 ### Mode comparison tables
 
-At codegen time, `cmd/gen` emits deploy-resource tables comparing all supported modes (`plain`, `p2c`, `wrr`, `sidecar`, `approx`, `approx-fcfs`, `approx-edf`, `envoy`, `rajomon`, `dagor`, and LB variants). Values use the same formulas as K8s manifest generation: per-service `app_cpu_limit`, `sidecar_cpu_limit`, `replicas`, `GOMAXPROCS`, and sidecar `cpu_count` / `over_commitment` / `num_threads`. A cluster-totals section sums app and sidecar cores per mode.
+At codegen time, `cmd/gen` emits deploy-resource tables comparing all supported modes (`plain`, `p2c`, `wrr`, `roshanfer`, `approx`, `approx-fcfs`, `approx-edf`, `envoy`, `rajomon`, `dagor`, and LB variants). Values use the same formulas as K8s manifest generation: per-service `app_cpu_limit`, `sidecar_cpu_limit`, `replicas`, `GOMAXPROCS`, and sidecar `cpu_count` / `over_commitment` / `num_threads`. A cluster-totals section sums app and sidecar cores per mode.
 
 ### Visualizer
 
@@ -49,15 +60,15 @@ With `-paper`, `viz` runs `render_service_pdf.py` using **the repository root `.
 ## Scripts
 
 - `build.sh [tag]` — build the sidecar (if present), build all workload images with `docker buildx bake` (shared compile + parallel final stages), then push every image in parallel (`REGISTRY`, `TAG`, `BENCH` env vars behave as before).
-- `deploy.sh [plain|p2c|wrr|sidecar|approx|approx-fcfs|approx-edf|rajomon|rajomon-lb|dagor|dagor-lb|envoy]` — deploy to K8s (uses `TAG`, `REGISTRY`). `./deploy.sh sidecar debug` or `./deploy.sh approx debug` (also `approx-fcfs` / `approx-edf`) enables workload debug (see below). `debug` is only valid with `sidecar` or approx modes, not with plain, p2c, wrr, rajomon, rajomon-lb, dagor, dagor-lb, or envoy. **envoy** uses `envoyproxy/envoy:v1.32-latest` sidecars (no SLO queuing, no `SIDECAR_OVER_COMMIT`). For **sidecar** and **approx\***: if **`SIDECAR_OVER_COMMIT`** is set (non-empty), every `over_commitment:` field in `sidecar-configs.yaml` / `${MODE}-configs.yaml` is rewritten to that value before apply (needs `perl` on PATH); omit it to keep values from `callgraph.json` codegen.
+- `deploy.sh [plain|p2c|wrr|roshanfer|approx|approx-fcfs|approx-edf|rajomon|rajomon-lb|dagor|dagor-lb|envoy]` — deploy to K8s (uses `TAG`, `REGISTRY`). `./deploy.sh roshanfer debug` or `./deploy.sh approx debug` (also `approx-fcfs` / `approx-edf`) enables workload debug (see below). `debug` is only valid with `roshanfer` or approx modes, not with plain, p2c, wrr, rajomon, rajomon-lb, dagor, dagor-lb, or envoy. **envoy** uses `envoyproxy/envoy:v1.32-latest` sidecars (no SLO queuing, no `SIDECAR_OVER_COMMIT`). For **roshanfer** and **approx\***: if **`SIDECAR_OVER_COMMIT`** is set (non-empty), every `over_commitment:` field in `sidecar-configs.yaml` / `${MODE}-configs.yaml` is rewritten to that value before apply (needs `perl` on PATH); omit it to keep values from `callgraph.json` codegen.
 - `destroy.sh` — tear down
-- `collect_logs.sh` — collect pod logs. If the environment variable `COLLECT_SIDECAR_NANOLOG=1` is set (done by `exec` when `--nanolog-debug` is enabled) and mode is `sidecar` or an approx mode, the script also `kubectl cp`s `/compressedLog` from each sidecar container into `$OUTPUT_DIR` as `*-sidecar.clog` (plus ingress as `*-ingress-sidecar.clog`). Decompression uses `benchmarks/sidecar/external/NanoLog/runtime/decompressor` from the repo checkout that runs the executor.
+- `collect_logs.sh` — collect pod logs. If the environment variable `COLLECT_SIDECAR_NANOLOG=1` is set (done by `exec` when `--nanolog-debug` is enabled) and mode is `roshanfer` or an approx mode, the script also `kubectl cp`s `/compressedLog` from each sidecar container into `$OUTPUT_DIR` as `*-sidecar.clog` (plus ingress as `*-ingress-sidecar.clog`). Decompression uses `benchmarks/sidecar/external/NanoLog/runtime/decompressor` from the repo checkout that runs the executor.
 
 ### Sidecar deploy debug
 
-Use `./deploy.sh sidecar debug` or `./deploy.sh approx debug` after `./build.sh` as usual. Requires [mikefarah yq](https://github.com/mikefarah/yq) v4 on `PATH` (the script exits with an install hint if it is missing).
+Use `./deploy.sh roshanfer debug` or `./deploy.sh approx debug` after `./build.sh` as usual. Requires [mikefarah yq](https://github.com/mikefarah/yq) v4 on `PATH` (the script exits with an install hint if it is missing).
 
-Debug mode only changes **workload** manifests under a temp copy before `kubectl apply`. For **sidecar**: `*-sidecar.yaml` and `ingress.yaml` (Pods) get `spec.restartPolicy: Never`. For **approx\***: `*-approx.yaml` Deployments get GLOG env on the sidecar container only (Deployment pod templates cannot use `restartPolicy: Never`); `ingress-lb.yaml` (Pod) gets the same restart + GLOG behavior as sidecar ingress. If you set `SIDECAR_GLOG_V` and/or `SIDECAR_GLOG_VMODULE` (or define them in `k8s/sidecar-debug-glog.env`), the `sidecar` container also gets `GLOG_v` / `GLOG_vmodule` (existing entries with those names are replaced). You can use debug mode for **restart behavior only** (sidecar / approx ingress) without setting any verbosity. **Prometheus** is still applied from `k8s/manifests/prometheus.yaml` exactly like non-debug deploy.
+Debug mode only changes **workload** manifests under a temp copy before `kubectl apply`. For **roshanfer**: `*-sidecar.yaml` and `ingress.yaml` (Pods) get `spec.restartPolicy: Never`. For **approx\***: `*-approx.yaml` Deployments get GLOG env on the sidecar container only (Deployment pod templates cannot use `restartPolicy: Never`); `ingress-lb.yaml` (Pod) gets the same restart + GLOG behavior as roshanfer ingress. If you set `SIDECAR_GLOG_V` and/or `SIDECAR_GLOG_VMODULE` (or define them in `k8s/sidecar-debug-glog.env`), the `sidecar` container also gets `GLOG_v` / `GLOG_vmodule` (existing entries with those names are replaced). You can use debug mode for **restart behavior only** (roshanfer / approx ingress) without setting any verbosity. **Prometheus** is still applied from `k8s/manifests/prometheus.yaml` exactly like non-debug deploy.
 
 Set verbosity via environment (or optional file — see precedence below):
 
@@ -68,44 +79,44 @@ Examples:
 
 ```bash
 export SIDECAR_GLOG_V=2
-./deploy.sh sidecar debug
+./deploy.sh roshanfer debug
 ```
 
 ```bash
 export SIDECAR_GLOG_VMODULE=state=2,connection=1
-./deploy.sh sidecar debug
+./deploy.sh roshanfer debug
 ```
 
 ```bash
 export SIDECAR_GLOG_V=1
 export SIDECAR_GLOG_VMODULE=event_loop=3
-./deploy.sh sidecar debug
+./deploy.sh roshanfer debug
 ```
 
-Optional `k8s/sidecar-debug-glog.env` under **this** benchmark’s `k8s/` (next to that benchmark’s `deploy.sh`). A file in another directory (e.g. `tests/one-service/k8s/...`) is not read when you deploy from `tests/fan-out-dynamic-0-9` — copy, symlink, or recreate it there. Same variable names as above, `#` comments allowed; script reads it only in the debug branch (both `sidecar debug` and `approx* debug`). **Precedence:** values already set in the environment win; the file fills `SIDECAR_GLOG_V` / `SIDECAR_GLOG_VMODULE` only when those variables are unset, so `SIDECAR_GLOG_V=3 ./deploy.sh sidecar debug` overrides a value from the file.
+Optional `k8s/sidecar-debug-glog.env` under **this** benchmark’s `k8s/` (next to that benchmark’s `deploy.sh`). A file in another directory (e.g. `tests/one-service/k8s/...`) is not read when you deploy from `tests/fan-out-dynamic-0-9` — copy, symlink, or recreate it there. Same variable names as above, `#` comments allowed; script reads it only in the debug branch (both `roshanfer debug` and `approx* debug`). **Precedence:** values already set in the environment win; the file fills `SIDECAR_GLOG_V` / `SIDECAR_GLOG_VMODULE` only when those variables are unset, so `SIDECAR_GLOG_V=3 ./deploy.sh roshanfer debug` overrides a value from the file.
 
 ### Over-commitment
 
 `over_commitment` is a sidecar admission parameter written into per-service snippets in `sidecar-configs.yaml` and `approx*-configs.yaml`. It must be in `[0, 1]` when set.
 
-**Modes that use it:** **sidecar**, **approx**, **approx-fcfs**, **approx-edf**. Other modes (plain, p2c, wrr, envoy, rajomon, dagor, and LB variants) do not emit or apply `over_commitment`.
+**Modes that use it:** **roshanfer**, **approx**, **approx-fcfs**, **approx-edf**. Other modes (plain, p2c, wrr, envoy, rajomon, dagor, and LB variants) do not emit or apply `over_commitment`.
 
 **Defaults when omitted from `callgraph.json`:**
 
 | Mode | Default |
 |------|---------|
-| `sidecar` | `0` |
+| `roshanfer` | `0` |
 | `approx` / `approx-fcfs` / `approx-edf` | `1` |
 
 An explicit `over_commitment` on a node applies to **both** sidecar and approx* ConfigMaps. Ingress config snippets typically do not include the field.
 
 **Recommendation:** Prefer `over_commitment: 1` for microservices with service-time variability — exponential service times and/or multiple endpoints on the same service.
 
-**Deploy override:** For latency-vs-throughput sweeps, set **`SIDECAR_OVER_COMMIT`** when deploying **sidecar** or **approx\*** (e.g. `0`, `0.2`, `1`). `deploy.sh` stages `sidecar-configs.yaml` or `${MODE}-configs.yaml`, replaces each embedded `over_commitment:` value with `SIDECAR_OVER_COMMIT`, then applies the patched manifest (**requires `perl` on PATH**). After patching, the script checks every `over_commitment:` line matches **`SIDECAR_OVER_COMMIT`** and exits non‑zero otherwise. Only snippets that already contain `over_commitment` are affected. The experiment executor forwards **`deploy_env`** into the deploy environment.
+**Deploy override:** For latency-vs-throughput sweeps, set **`SIDECAR_OVER_COMMIT`** when deploying **roshanfer** or **approx\*** (e.g. `0`, `0.2`, `1`). `deploy.sh` stages `sidecar-configs.yaml` or `${MODE}-configs.yaml`, replaces each embedded `over_commitment:` value with `SIDECAR_OVER_COMMIT`, then applies the patched manifest (**requires `perl` on PATH**). After patching, the script checks every `over_commitment:` line matches **`SIDECAR_OVER_COMMIT`** and exits non‑zero otherwise. Only snippets that already contain `over_commitment` are affected. The experiment executor forwards **`deploy_env`** into the deploy environment.
 
 ### Extra limit
 
-`extra_limit` is an optional sidecar admission parameter (integer ≥ 0) written into per-service snippets in `sidecar-configs.yaml` and `approx*-configs.yaml`. It adds a fixed bump to per-endpoint / dynamic admission limits in the sidecar. Default when omitted: `0`. Applies to **sidecar**, **approx**, **approx-fcfs**, and **approx-edf** (same ConfigMap path as `over_commitment`). Ingress snippets typically do not include the field.
+`extra_limit` is an optional sidecar admission parameter (integer ≥ 0) written into per-service snippets in `sidecar-configs.yaml` and `approx*-configs.yaml`. It adds a fixed bump to per-endpoint / dynamic admission limits in the sidecar. Default when omitted: `0`. Applies to **roshanfer**, **approx**, **approx-fcfs**, and **approx-edf** (same ConfigMap path as `over_commitment`). Ingress snippets typically do not include the field.
 
 ### approx modes
 
@@ -117,11 +128,11 @@ Sidecar admission control with **replication and sidecar-internal load balancing
 | `approx-fcfs` | `mesh_late_binding: True`, `late_binding_type: fcfs` |
 | `approx-edf` | `mesh_late_binding: True`, `late_binding_type: edf` |
 
-ConfigMaps: `approx-configs.yaml`, `approx-fcfs-configs.yaml`, `approx-edf-configs.yaml`. The `replicas` field in `callgraph.json` applies (Deployments, per-replica app CPU, headless internal Services). Workloads deploy **sequentially** in callgraph dependency order (leaves first, entry last), then ingress — same as **sidecar** — so downstream headless Services have ready endpoints before upstream sidecars resolve them at startup.
+ConfigMaps: `approx-configs.yaml`, `approx-fcfs-configs.yaml`, `approx-edf-configs.yaml`. The `replicas` field in `callgraph.json` applies (Deployments, per-replica app CPU, headless internal Services). Workloads deploy **sequentially** in callgraph dependency order (leaves first, entry last), then ingress — same as **roshanfer** — so downstream headless Services have ready endpoints before upstream sidecars resolve them at startup.
 
-Load balancing across replicas uses the sidecar proxy’s PPM-queue waiting-count selection (DNS discovery via headless Services). **`load_balancing_policy`** in `callgraph.json` does not apply.
+Load balancing across replicas uses the sidecar proxy’s Request Limit Protocol queue waiting-count selection (DNS discovery via headless Services). **`load_balancing_policy`** in `callgraph.json` does not apply.
 
-CPU vs **sidecar**: K8s sidecar CPU uses a **1×** multiplier (`1 × sidecar_cpu` per pod) instead of **2×**; ingress is the exception and still uses `UserEntryCount() × 2` (same as **sidecar**). `num_threads` stays `sidecar_cpu` per replica; `cpu_count` (admission) is `cpu / replicas`.
+CPU vs **roshanfer**: K8s sidecar CPU uses a **1×** multiplier (`1 × sidecar_cpu` per pod) instead of **2×**; ingress is the exception and still uses `UserEntryCount() × 2` (same as **roshanfer**). `num_threads` stays `sidecar_cpu` per replica; `cpu_count` (admission) is `cpu / replicas`.
 
 ```bash
 ./build.sh
@@ -131,7 +142,7 @@ CPU vs **sidecar**: K8s sidecar CPU uses a **1×** multiplier (`1 × sidecar_cpu
 ./deploy.sh approx debug   # optional: GLOG verbosity via env or k8s/sidecar-debug-glog.env
 ```
 
-Use **`destroy.sh approx`** (or `approx-fcfs` / `approx-edf`) to tear down. Load tests use the same URLs as sidecar (`run.sh`).
+Use **`destroy.sh approx`** (or `approx-fcfs` / `approx-edf`) to tear down. Load tests use the same URLs as roshanfer (`run.sh`).
 
 ### Rajomon mode
 
@@ -197,7 +208,7 @@ Use **`destroy.sh rajomon-lb`** to tear down. Load tests use the same URLs as pl
 
 ### p2c and wrr modes
 
-Like **plain**, but supports multiple replicas per microservice via the `replicas` field in `callgraph.json`. Both modes share LB Deployments, headless Services, and the Envoy ingress; they differ only in the client gRPC load-balancing policy pinned by the env file. Deploy with `./deploy.sh p2c` or `./deploy.sh wrr`; tear down with `./destroy.sh p2c` / `./destroy.sh wrr`. Plot/display labels are **P2C** and **WRR**. Load tests use per-API NodePorts like sidecar (`run.sh`): `http://<node>:3000/<interface>`, `http://<node>:3001/<interface>`, …
+Like **plain**, but supports multiple replicas per microservice via the `replicas` field in `callgraph.json`. Both modes share LB Deployments, headless Services, and the Envoy ingress; they differ only in the client gRPC load-balancing policy pinned by the env file. Deploy with `./deploy.sh p2c` or `./deploy.sh wrr`; tear down with `./destroy.sh p2c` / `./destroy.sh wrr`. Plot/display labels are **P2C** and **WRR**. Load tests use per-API NodePorts like roshanfer (`run.sh`): `http://<node>:3000/<interface>`, `http://<node>:3001/<interface>`, …
 
 - Workloads are **Deployments** (not Pods). Per-replica CPU = `cpu / replicas` (fractional allowed) for requests and limits. `GOMAXPROCS = ceil(cpu / replicas)`. Requires `cpu / replicas > 0`.
 - Internal gRPC services use **headless** Services (`clusterIP: None`) so clients can discover all pod IPs.
@@ -216,7 +227,7 @@ Like **plain**, but supports multiple replicas per microservice via the `replica
   |---|---|---|
   | `queueing_delay_export` | off | Enables gRPC tap + `queuing_delay_microseconds` Prometheus histogram (tap-to-interceptor delay). Adds per-request overhead. |
 
-  Queue-size metrics (`max_queue`, `avg_queue`, RPC counters) still work without this feature; only the delay histogram is omitted. This is unrelated to runtime deploy env **`queuing_export`**, which gates whether **sidecar** mode installs the counter interceptor at all.
+  Queue-size metrics (`max_queue`, `avg_queue`, RPC counters) still work without this feature; only the delay histogram is omitted. This is unrelated to runtime deploy env **`queuing_export`**, which gates whether **roshanfer** mode installs the counter interceptor at all.
 
   Example:
 
@@ -229,7 +240,7 @@ Like **plain**, but supports multiple replicas per microservice via the `replica
 
 - `load_balancing_policy` (optional, default `least_request`, **dagor-lb and rajomon-lb**): gRPC client load balancer — `least_request` (P2C over active RPC counts), `round_robin`, or `weighted_round_robin` (enables ORCA server metrics). Modes **p2c** and **wrr** pin policy in their env files and ignore this field.
 - `dagor` (optional, **dagor and dagor-lb**): per-benchmark DAGOR defaults written to `dagor_init/dagor-config.go` — `queuing_thresh_ms` (default `2`), `alpha` (default `0.45`), `beta` (default `0.01`). All fields optional; omitted fields use framework defaults. Runtime env `Alpha` / `Beta` still override at deploy time.
-- `nodes`: one per microservice; `id`, `interfaces` (see **service time** below), `cpu` (optional, default 1, used for cpu_count in sidecar config and app resources), `replicas` (optional, default 1, **p2c, wrr, dagor-lb, rajomon-lb, and approx\***), `sidecar_cpu` (optional, default 1, used for num_threads in sidecar config; k8s sidecar gets 2× this in **sidecar**, 1× in **approx\***), `over_commitment` (optional, must be in [0,1]; written to **sidecar** / **approx\*** configs — see **Over-commitment** for per-mode defaults when omitted), `extra_limit` (optional integer ≥ 0, default 0; written to **sidecar** / **approx\*** configs — see **Extra limit**), `connection_pool_size` (optional, default 200; **entry service only**) — sets both `frontend_pool_connections` and `ingress_pool_connections` in **sidecar** / **approx\*** ConfigMaps
+- `nodes`: one per microservice; `id`, `interfaces` (see **service time** below), `cpu` (optional, default 1, used for cpu_count in sidecar config and app resources), `replicas` (optional, default 1, **p2c, wrr, dagor-lb, rajomon-lb, and approx\***), `sidecar_cpu` (optional, default 1, used for num_threads in sidecar config; k8s sidecar gets 2× this in **roshanfer**, 1× in **approx\***), `over_commitment` (optional, must be in [0,1]; written to **sidecar** / **approx\*** configs — see **Over-commitment** for per-mode defaults when omitted), `extra_limit` (optional integer ≥ 0, default 0; written to **sidecar** / **approx\*** configs — see **Extra limit**), `connection_pool_size` (optional, default 200; **entry service only**) — sets both `frontend_pool_connections` and `ingress_pool_connections` in **sidecar** / **approx\*** ConfigMaps
 
 ### Service time per interface
 
@@ -249,7 +260,7 @@ Example bimodal backend: [`../tests/chain-2-bimodal/callgraph.json`](../tests/ch
   **Fan-out groups** (two or more outgoing edges from the same `(source, entry-api)`): exactly **one** of:
   1. **Parallel** — every edge has `"parallel": true`, none have `weight`. Generated code busy-loops once then issues all downstream gRPC calls concurrently (`sync.WaitGroup`). Sidecar mapping sets `pfanout: true` for that row.
   2. **Weighted** — every edge has `weight` (positive, sum 1), none use `parallel: true`. Exactly one downstream per request (cumulative draw). `weight` is not allowed on `USER` edges. Reproducible draws: env **`ROUTING_SEED`** (decimal integer for `strconv.ParseInt`); if unset, wall clock.
-  3. **Sequential** — neither of the above: no `weight` on any edge in the group, and not every edge has `parallel: true` (omit `parallel` or `false` on all for legacy sequential order).
+  3. **Sequential** — neither of the above: no `weight` on any edge in the group, and not every edge has `parallel: true` (omit `parallel` or set `parallel` to `false` on all edges for legacy sequential order).
 
   Invalid: mixing weighted and unweighted in one group; `parallel: true` on only some edges in an unweighted multi-edge group; `parallel` with `weight` on the same edge or in the same group.
 
@@ -297,7 +308,7 @@ Example bimodal backend: [`../tests/chain-2-bimodal/callgraph.json`](../tests/ch
 }
 ```
 - Entry service sets gRPC metadata **`api`** on outbound calls (same string as on edges). Non-entry handlers `switch` on `api` for downstream calls.
-- With **`sidecar=true`**, the entry HTTP server requires inbound headers **`rpc-id`**, **`rpc-local-id`**, and **`deadline`** (injected by the sidecar on the forwarded HTTP/1 request) and forwards them as gRPC metadata so downstream sidecars can correlate with the parent INGRESS RPC (PPM) and use the absolute deadline for egress validation / EDF scheduling. Mid-tier services copy all incoming metadata via `ContextPropagationInterceptor`.
+- With **`sidecar=true`**, the entry HTTP server requires inbound headers **`rpc-id`**, **`rpc-local-id`**, and **`deadline`** (injected by the sidecar on the forwarded HTTP/1 request) and forwards them as gRPC metadata so downstream sidecars can correlate with the parent INGRESS RPC (Request Limit Protocol) and use the absolute deadline for egress validation / EDF scheduling. Mid-tier services copy all incoming metadata via `ContextPropagationInterceptor`.
 - Entry: HTTP/1 server; others: gRPC services
 - Entry path: `/{interface}` (e.g. `/Z8trRkp4mp`). See `entry_path.txt` in output dir.
 - Busy loop: 320 repeats = 1ms

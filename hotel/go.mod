@@ -3,7 +3,6 @@ module hotel
 go 1.25
 
 require (
-	github.com/alexflint/go-arg v1.6.0
 	github.com/bradfitz/gomemcache v0.0.0-20250403215159-8d39553ac7cf
 	github.com/google/uuid v1.6.0
 	github.com/hailocab/go-geoindex v0.0.0-20160127134810-64631bfe9711
@@ -44,7 +43,6 @@ require (
 )
 
 require (
-	github.com/alexflint/go-scalar v1.2.0 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.1 // indirect

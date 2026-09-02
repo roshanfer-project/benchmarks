@@ -8,14 +8,14 @@ BENCH=dynamic-large
 WAIT_TIMEOUT=${WAIT_TIMEOUT:-120}
 
 if [ "$MODE" = "plain" ] && [ "$ARG2" = "debug" ]; then
-  echo "deploy.sh: debug only with sidecar or approx*; use ./deploy.sh sidecar debug or ./deploy.sh approx debug" >&2
+  echo "deploy.sh: debug only with roshanfer or approx*; use ./deploy.sh roshanfer debug or ./deploy.sh approx debug" >&2
   exit 1
 fi
 if { [ "$MODE" = "p2c" ] || [ "$MODE" = "wrr" ]; } && [ -n "$ARG2" ]; then
   echo "deploy.sh: p2c and wrr modes do not take a second argument" >&2
   exit 1
 fi
-if [ "$MODE" = "sidecar" ] && [ -n "$ARG2" ] && [ "$ARG2" != "debug" ]; then
+if [ "$MODE" = "roshanfer" ] && [ -n "$ARG2" ] && [ "$ARG2" != "debug" ]; then
   echo "deploy.sh: unknown second argument: $ARG2 (expected: debug)" >&2
   exit 1
 fi
@@ -28,7 +28,7 @@ if { [ "$MODE" = "rajomon" ] || [ "$MODE" = "dagor" ] || [ "$MODE" = "dagor-lb" 
   exit 1
 fi
 SIDECAR_DEBUG=0
-if { [ "$MODE" = "sidecar" ] || [ "$MODE" = "approx" ] || [ "$MODE" = "approx-fcfs" ] || [ "$MODE" = "approx-edf" ]; } && [ "$ARG2" = "debug" ]; then
+if { [ "$MODE" = "roshanfer" ] || [ "$MODE" = "approx" ] || [ "$MODE" = "approx-fcfs" ] || [ "$MODE" = "approx-edf" ]; } && [ "$ARG2" = "debug" ]; then
   SIDECAR_DEBUG=1
 fi
 
@@ -72,7 +72,7 @@ kubectl_wait_ready_or_fail() {
 
 sidecar_debug_require_yq() {
   command -v yq >/dev/null 2>&1 || {
-    echo "deploy.sh sidecar/approx* debug needs mikefarah yq v4: https://github.com/mikefarah/yq" >&2
+    echo "deploy.sh roshanfer/approx* debug needs mikefarah yq v4: https://github.com/mikefarah/yq" >&2
     exit 1
   }
 }
@@ -118,7 +118,7 @@ select(.kind == "Deployment") |= (.spec.template.spec.containers |= map(
   fi
 }
 
-if [ "$MODE" = "sidecar" ]; then
+if [ "$MODE" = "roshanfer" ]; then
   if [ "$SIDECAR_DEBUG" = "1" ]; then
     sidecar_debug_require_yq
     sidecar_debug_merge_glog_file

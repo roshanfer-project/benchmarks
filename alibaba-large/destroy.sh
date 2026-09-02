@@ -21,7 +21,7 @@ kubectl delete configmap alibaba-large-config --ignore-not-found
 kubectl delete deployment prometheus prometheus-pushgateway --ignore-not-found --wait=true
 kubectl delete service prometheus prometheus-pushgateway prometheus-external --ignore-not-found
 kubectl delete configmap prometheus-config --ignore-not-found
-if [ "$MODE" = "sidecar" ]; then
+if [ "$MODE" = "roshanfer" ]; then
   kubectl delete pod -l app=ingress --ignore-not-found --wait=true
   kubectl delete service -l app=ingress --ignore-not-found
   kubectl delete configmap sidecar-configs --ignore-not-found

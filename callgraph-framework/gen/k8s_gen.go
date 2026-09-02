@@ -1698,14 +1698,14 @@ BENCH={{.BenchmarkName}}
 WAIT_TIMEOUT=${WAIT_TIMEOUT:-120}
 
 if [ "$MODE" = "plain" ] && [ "$ARG2" = "debug" ]; then
-  echo "deploy.sh: debug only with sidecar or approx*; use ./deploy.sh sidecar debug or ./deploy.sh approx debug" >&2
+  echo "deploy.sh: debug only with roshanfer or approx*; use ./deploy.sh roshanfer debug or ./deploy.sh approx debug" >&2
   exit 1
 fi
 if { [ "$MODE" = "p2c" ] || [ "$MODE" = "wrr" ]; } && [ -n "$ARG2" ]; then
   echo "deploy.sh: p2c and wrr modes do not take a second argument" >&2
   exit 1
 fi
-if [ "$MODE" = "sidecar" ] && [ -n "$ARG2" ] && [ "$ARG2" != "debug" ]; then
+if [ "$MODE" = "roshanfer" ] && [ -n "$ARG2" ] && [ "$ARG2" != "debug" ]; then
   echo "deploy.sh: unknown second argument: $ARG2 (expected: debug)" >&2
   exit 1
 fi
@@ -1718,7 +1718,7 @@ if { [ "$MODE" = "rajomon" ] || [ "$MODE" = "dagor" ] || [ "$MODE" = "dagor-lb" 
   exit 1
 fi
 SIDECAR_DEBUG=0
-if { [ "$MODE" = "sidecar" ] || [ "$MODE" = "approx" ] || [ "$MODE" = "approx-fcfs" ] || [ "$MODE" = "approx-edf" ]; } && [ "$ARG2" = "debug" ]; then
+if { [ "$MODE" = "roshanfer" ] || [ "$MODE" = "approx" ] || [ "$MODE" = "approx-fcfs" ] || [ "$MODE" = "approx-edf" ]; } && [ "$ARG2" = "debug" ]; then
   SIDECAR_DEBUG=1
 fi
 
@@ -1762,7 +1762,7 @@ kubectl_wait_ready_or_fail() {
 
 sidecar_debug_require_yq() {
   command -v yq >/dev/null 2>&1 || {
-    echo "deploy.sh sidecar/approx* debug needs mikefarah yq v4: https://github.com/mikefarah/yq" >&2
+    echo "deploy.sh roshanfer/approx* debug needs mikefarah yq v4: https://github.com/mikefarah/yq" >&2
     exit 1
   }
 }
@@ -1808,7 +1808,7 @@ select(.kind == "Deployment") |= (.spec.template.spec.containers |= map(
   fi
 }
 
-if [ "$MODE" = "sidecar" ]; then
+if [ "$MODE" = "roshanfer" ]; then
   if [ "$SIDECAR_DEBUG" = "1" ]; then
     sidecar_debug_require_yq
     sidecar_debug_merge_glog_file
@@ -2216,7 +2216,7 @@ done
 kubectl delete deployment prometheus prometheus-pushgateway --ignore-not-found --wait=true
 kubectl delete service prometheus prometheus-pushgateway prometheus-external --ignore-not-found
 kubectl delete configmap prometheus-config --ignore-not-found
-if [ "$MODE" = "sidecar" ]; then
+if [ "$MODE" = "roshanfer" ]; then
   kubectl delete pod -l app=ingress --ignore-not-found --wait=true
   kubectl delete service -l app=ingress --ignore-not-found
   kubectl delete configmap sidecar-configs --ignore-not-found
@@ -2267,7 +2267,7 @@ for svc in ` + trimmed + `; do
   for pod in $(kubectl get pods -l app=$svc -o jsonpath='{.items[*].metadata.name}'); do
     (
       kubectl logs "$pod" > "$OUTPUT_DIR/${pod}.log" 2>&1
-      if [ "$MODE" = "sidecar" ] || [ "$MODE" = "approx" ] || [ "$MODE" = "approx-fcfs" ] || [ "$MODE" = "approx-edf" ]; then
+      if [ "$MODE" = "roshanfer" ] || [ "$MODE" = "approx" ] || [ "$MODE" = "approx-fcfs" ] || [ "$MODE" = "approx-edf" ]; then
         kubectl logs "$pod" -c sidecar > "$OUTPUT_DIR/${pod}-sidecar.log" 2>&1
       fi
       if [ "$MODE" = "envoy" ]; then
@@ -2279,7 +2279,7 @@ for svc in ` + trimmed + `; do
 done
 for pid in "${log_pids[@]}"; do wait "$pid" || true; done
 
-if [ "$MODE" = "sidecar" ] || [ "$MODE" = "approx" ] || [ "$MODE" = "approx-fcfs" ] || [ "$MODE" = "approx-edf" ]; then
+if [ "$MODE" = "roshanfer" ] || [ "$MODE" = "approx" ] || [ "$MODE" = "approx-fcfs" ] || [ "$MODE" = "approx-edf" ]; then
   declare -a ing_pids=()
   for pod in $(kubectl get pods -l app=ingress -o jsonpath='{.items[*].metadata.name}'); do
     (
@@ -2317,7 +2317,7 @@ if [ "$MODE" = "envoy" ]; then
   for pid in "${stats_pids[@]}"; do wait "$pid" || true; done
 fi
 
-if { [ "$MODE" = "sidecar" ] || [ "$MODE" = "approx" ] || [ "$MODE" = "approx-fcfs" ] || [ "$MODE" = "approx-edf" ]; } && [ "${COLLECT_SIDECAR_NANOLOG:-}" = "1" ]; then
+if { [ "$MODE" = "roshanfer" ] || [ "$MODE" = "approx" ] || [ "$MODE" = "approx-fcfs" ] || [ "$MODE" = "approx-edf" ]; } && [ "${COLLECT_SIDECAR_NANOLOG:-}" = "1" ]; then
   declare -a cp_pids=()
   for svc in ` + trimmed + `; do
     for pod in $(kubectl get pods -l app=$svc -o jsonpath='{.items[*].metadata.name}' 2>/dev/null); do
@@ -2348,7 +2348,7 @@ func generateWrapperScripts(pg *ParsedGraph, outDir string) error {
 	}
 	sort.Strings(apis)
 
-	// run.sh (sidecar): each API on its own port
+	// run.sh (roshanfer): each API on its own port
 	apiCasesSidecar := ""
 	for i, api := range apis {
 		port := sidecarIngressBasePort + i

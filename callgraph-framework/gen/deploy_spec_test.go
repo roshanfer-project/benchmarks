@@ -21,11 +21,11 @@ func TestDeploySpecChain2SidecarModes(t *testing.T) {
 		return ServiceDeploySpec{}
 	}
 
-	backendSidecar := byService("sidecar", "backend")
+	backendSidecar := byService("roshanfer", "backend")
 	if backendSidecar.AppCPULimit != 2 || backendSidecar.SidecarCPULimit != 2 ||
 		backendSidecar.Replicas != 1 || backendSidecar.GOMAXPROCS != 2 ||
 		backendSidecar.CPUCount != 2 {
-		t.Fatalf("sidecar backend: %+v", backendSidecar)
+		t.Fatalf("roshanfer backend: %+v", backendSidecar)
 	}
 
 	backendLb := byService("approx", "backend")
@@ -49,9 +49,9 @@ func TestDeploySpecChain2SidecarModes(t *testing.T) {
 		}
 	}
 
-	ingressSidecar := byService("sidecar", "ingress")
+	ingressSidecar := byService("roshanfer", "ingress")
 	if ingressSidecar.SidecarCPULimit != 2 {
-		t.Fatalf("sidecar ingress: %+v", ingressSidecar)
+		t.Fatalf("roshanfer ingress: %+v", ingressSidecar)
 	}
 	ingressLb := byService("approx", "ingress")
 	if ingressLb.SidecarCPULimit != 2 {

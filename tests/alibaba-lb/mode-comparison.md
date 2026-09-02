@@ -32,15 +32,15 @@ Deploy resource comparison across generated modes (from callgraph.json).
 | wrr | MS_64512 | 2.6666666666666665 | — | 3 | 3 | — | — | — |
 | wrr | MS_70124 | 1 | — | 3 | 1 | — | — | — |
 | wrr | ingress | — | 2 | 1 | — | — | — | — |
-| sidecar | MS_25806 | 8 | 2 | 1 | 8 | 8 | 1.0 | 1 |
-| sidecar | MS_2687 | 4 | 2 | 1 | 4 | 4 | 1.0 | 1 |
-| sidecar | MS_40087 | 6 | 2 | 1 | 6 | 6 | 1.0 | 1 |
-| sidecar | MS_44246 | 4 | 2 | 1 | 4 | 4 | 1.0 | 1 |
-| sidecar | MS_51787 | 4 | 2 | 1 | 4 | 4 | 1.0 | 1 |
-| sidecar | MS_56113 | 8 | 2 | 1 | 8 | 8 | 1.0 | 1 |
-| sidecar | MS_64512 | 8 | 2 | 1 | 8 | 8 | 1.0 | 1 |
-| sidecar | MS_70124 | 3 | 2 | 1 | 3 | 3 | 1.0 | 1 |
-| sidecar | ingress | — | 2 | 1 | — | — | — | — |
+| roshanfer | MS_25806 | 8 | 2 | 1 | 8 | 8 | 1.0 | 1 |
+| roshanfer | MS_2687 | 4 | 2 | 1 | 4 | 4 | 1.0 | 1 |
+| roshanfer | MS_40087 | 6 | 2 | 1 | 6 | 6 | 1.0 | 1 |
+| roshanfer | MS_44246 | 4 | 2 | 1 | 4 | 4 | 1.0 | 1 |
+| roshanfer | MS_51787 | 4 | 2 | 1 | 4 | 4 | 1.0 | 1 |
+| roshanfer | MS_56113 | 8 | 2 | 1 | 8 | 8 | 1.0 | 1 |
+| roshanfer | MS_64512 | 8 | 2 | 1 | 8 | 8 | 1.0 | 1 |
+| roshanfer | MS_70124 | 3 | 2 | 1 | 3 | 3 | 1.0 | 1 |
+| roshanfer | ingress | — | 2 | 1 | — | — | — | — |
 | approx | MS_25806 | 1 | 1 | 8 | 1 | 1 | 1.0 | 1 |
 | approx | MS_2687 | 1 | 1 | 4 | 1 | 1 | 1.0 | 1 |
 | approx | MS_40087 | 1 | 1 | 6 | 1 | 1 | 1.0 | 1 |
@@ -121,7 +121,7 @@ Deploy resource comparison across generated modes (from callgraph.json).
 | plain | 45 | 0 | — |
 | p2c | 45 | 2 | 22.5 |
 | wrr | 45 | 2 | 22.5 |
-| sidecar | 45 | 18 | 2.5 |
+| roshanfer | 45 | 18 | 2.5 |
 | approx | 45 | 42 | 1.07 |
 | approx-fcfs | 45 | 42 | 1.07 |
 | approx-edf | 45 | 42 | 1.07 |

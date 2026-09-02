@@ -21,9 +21,11 @@ if [ -f "$CONFIG_FILE" ]; then
     source "$CONFIG_FILE"
 fi
 
-# Ensure SSH_OPTS is defined if not sourced
+# shellcheck source=/dev/null
+source "$REPO_ROOT/scripts/pick_github_ssh_key.sh"
+
 SSH_OPTS=${SSH_OPTS:-"-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"}
-SSH_USER=${SSH_USER:-"ubuntu"} # Default user if not specified
+REPO_URL="${REPO_URL:-git@github.com:roshanfer-project/roshanfer-experiments.git}"
 
 if [ ! -f "$HOSTS_FILE" ]; then
     log_error "Hosts file not found: $HOSTS_FILE"
@@ -59,15 +61,19 @@ log_info "Provisioning branch: $BRANCH (same name required on roshanfer-expermen
 
 mapfile -t HOSTS < <(grep -vE '^\s*#|^\s*$' "$HOSTS_FILE")
 
+if [ ${#HOSTS[@]} -eq 0 ]; then
+    log_error "No hosts found in $HOSTS_FILE"
+    exit 1
+fi
+
 parse_host_entry() {
     local entry=$1
-    if [[ "$entry" == *"@"* ]]; then
-        CURRENT_USER=$(echo "$entry" | cut -d'@' -f1)
-        CURRENT_HOST=$(echo "$entry" | cut -d'@' -f2)
-    else
-        CURRENT_USER="$SSH_USER"
-        CURRENT_HOST="$entry"
+    if [[ "$entry" != *"@"* ]]; then
+        log_error "Host line must be user@host: $entry"
+        exit 1
     fi
+    CURRENT_USER="${entry%%@*}"
+    CURRENT_HOST="${entry#*@}"
 }
 
 ssh_exec() {
@@ -99,7 +105,7 @@ provision_single_host() {
     log_loc "Provisioning ($node_user) branch=$BRANCH..."
 
     REPO_URL="git@github.com:farzad1132/roshanfer-experments.git"
-    DIR_NAME="roshanfer-experments"
+    DIR_NAME="roshanfer-experiments"
 
     # Wrong branch on remote -> wipe and force re-provision.
     if ssh_exec "$node_user" "$node_host" "[ -d '$DIR_NAME' ]"; then
@@ -137,16 +143,21 @@ provision_single_host() {
 
     log_loc "[1/4] Setting up SSH keys..."
     ssh_exec "$node_user" "$node_host" "mkdir -p ~/.ssh && chmod 700 ~/.ssh"
-    if [ -f ~/.ssh/id_ed25519 ]; then
-        scp $SSH_OPTS ~/.ssh/id_ed25519 "$node_user@$node_host:~/.ssh/"
-        scp $SSH_OPTS ~/.ssh/id_ed25519.pub "$node_user@$node_host:~/.ssh/"
+    _gh_key="$(pick_github_ssh_key || true)"
+    if [ -n "$_gh_key" ]; then
+        scp $SSH_OPTS "$_gh_key" "$node_user@$node_host:~/.ssh/id_ed25519"
+        scp $SSH_OPTS "${_gh_key}.pub" "$node_user@$node_host:~/.ssh/id_ed25519.pub"
         ssh_exec "$node_user" "$node_host" "chmod 600 ~/.ssh/id_ed25519 && chmod 644 ~/.ssh/id_ed25519.pub"
-    elif [ -f ~/.ssh/id_rsa ]; then
-        scp $SSH_OPTS ~/.ssh/id_rsa "$node_user@$node_host:~/.ssh/"
-        scp $SSH_OPTS ~/.ssh/id_rsa.pub "$node_user@$node_host:~/.ssh/"
-        ssh_exec "$node_user" "$node_host" "chmod 600 ~/.ssh/id_rsa && chmod 644 ~/.ssh/id_rsa.pub"
+        unset _gh_key
     else
-        log_loc "No default SSH keys to copy (id_ed25519 or id_rsa). Skipping key copy."
+        _proto="${GIT_PROTOCOL:-ssh}"
+        _proto="${_proto,,}"
+        if [ "$_proto" = "ssh" ]; then
+            echo -e "[${node_host}] ${RED}[ERROR]${NC} No OpenSSH GitHub key on this control node. Re-run ./scripts/cloudlab_enter.sh from your laptop (or copy a key + .pub here)."
+            exit 1
+        fi
+        log_loc "No OpenSSH GitHub key to copy. Skipping key copy."
+        unset _gh_key
     fi
 
     log_loc "[2/4] Installing Go..."
@@ -185,6 +196,14 @@ if [ "${#HOSTS[@]}" -eq 0 ]; then
     log_error "No hosts in $HOSTS_FILE"
     exit 1
 fi
+
+_proto="${GIT_PROTOCOL:-ssh}"
+_proto="${_proto,,}"
+if [ "$_proto" = "ssh" ] && ! pick_github_ssh_key >/dev/null; then
+    log_error "No OpenSSH GitHub key on this control node. Re-run ./scripts/cloudlab_enter.sh from your laptop (or copy a key + .pub here)."
+    exit 1
+fi
+unset _proto
 
 RUN_STAMP="$(date -u +%Y%m%d_%H%M%S)"
 PROVISION_LOG_DIR="${PROVISION_LOG_DIR:-${SCRIPT_DIR}/provision_logs/run_${RUN_STAMP}_$$}"

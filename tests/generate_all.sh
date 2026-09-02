@@ -15,6 +15,7 @@ for dir in */; do
       go run ./cmd/gen "$TESTS_DIR/$dir/callgraph.json" -o "$TESTS_DIR/$dir"
       go run ./cmd/viz -paper "$TESTS_DIR/$dir/callgraph.json" -o "$TESTS_DIR/$dir/callgraph-service.pdf"
     )
+    (cd "$TESTS_DIR/$dir" && go mod tidy)
     echo "Done: $dir"
   fi
 done

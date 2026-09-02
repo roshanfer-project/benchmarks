@@ -14,9 +14,9 @@ Deploy resource comparison across generated modes (from callgraph.json).
 | wrr | backend | 1 | — | 2 | 1 | — | — | — |
 | wrr | frontend | 2 | — | 1 | 2 | — | — | — |
 | wrr | ingress | — | 2 | 1 | — | — | — | — |
-| sidecar | backend | 2 | 2 | 1 | 2 | 2 | 0.0 | 1 |
-| sidecar | frontend | 2 | 2 | 1 | 2 | 2 | 1.0 | 1 |
-| sidecar | ingress | — | 2 | 1 | — | — | — | — |
+| roshanfer | backend | 2 | 2 | 1 | 2 | 2 | 0.0 | 1 |
+| roshanfer | frontend | 2 | 2 | 1 | 2 | 2 | 1.0 | 1 |
+| roshanfer | ingress | — | 2 | 1 | — | — | — | — |
 | approx | backend | 1 | 1 | 2 | 1 | 1 | 1.0 | 1 |
 | approx | frontend | 2 | 1 | 1 | 2 | 2 | 1.0 | 1 |
 | approx | ingress | — | 2 | 1 | — | — | — | — |
@@ -49,7 +49,7 @@ Deploy resource comparison across generated modes (from callgraph.json).
 | plain | 4 | 0 | — |
 | p2c | 4 | 2 | 2 |
 | wrr | 4 | 2 | 2 |
-| sidecar | 4 | 6 | 0.667 |
+| roshanfer | 4 | 6 | 0.667 |
 | approx | 4 | 5 | 0.8 |
 | approx-fcfs | 4 | 5 | 0.8 |
 | approx-edf | 4 | 5 | 0.8 |

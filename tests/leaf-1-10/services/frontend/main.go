@@ -1,0 +1,111 @@
+package main
+
+import (
+	"fmt"
+	"net/http"
+	"strings"
+	"leaf110/utils"
+
+	"google.golang.org/grpc/metadata"
+	"sync/atomic"
+)
+
+var envoyRPCSeq uint64
+
+
+type Server struct {
+}
+
+const serviceName = "frontend"
+var log = utils.GetLogger(serviceName)
+
+func (s *Server) Run() error {
+	log.Info("Initializing HTTP server...")
+	sidecar := utils.GetEnvVar("sidecar", false) == "true"
+	envoy := utils.GetEnvVar("envoy", false) == "true"
+	if sidecar && envoy {
+		panic("sidecar and envoy cannot both be enabled")
+	}
+	meshProxy := sidecar || envoy
+
+	port := 2000
+	if meshProxy {
+		port = utils.StrToInt(utils.GetEnvVar("frontend_PORT", true))
+	}
+	mux := http.NewServeMux()
+	var baseHandler http.Handler = http.HandlerFunc(s.handler)
+	plain := utils.GetEnvVar("plain", false) == "true"
+	plainLb := utils.GetEnvVar("plain_lb", false) == "true"
+	queuingExport := utils.GetEnvVar("queuing_export", false) == "true"
+	if plain || plainLb || (sidecar && queuingExport) {
+		counter := utils.NewCounterState(serviceName)
+		baseHandler = counter.GetHTTP1Middleware()(baseHandler)
+	}
+	mux.Handle("/api1", baseHandler)
+	mux.Handle("/api2", baseHandler)
+
+	srv := &http.Server{
+		Addr:    fmt.Sprintf(":%d", port),
+		Handler: mux,
+	}
+	log.Info("Serving HTTP")
+	return srv.ListenAndServe()
+}
+
+func (s *Server) handler(w http.ResponseWriter, r *http.Request) {
+	sidecar := utils.GetEnvVar("sidecar", false) == "true"
+	envoy := utils.GetEnvVar("envoy", false) == "true"
+	var rpcID, rpcLocalID, deadline string
+	if sidecar {
+		rpcID = r.Header.Get("rpc-id")
+		if rpcID == "" {
+			http.Error(w, "rpc-id header required", http.StatusBadRequest)
+			return
+		}
+		rpcLocalID = r.Header.Get("rpc-local-id")
+		if rpcLocalID == "" {
+			http.Error(w, "rpc-local-id header required", http.StatusBadRequest)
+			return
+		}
+		deadline = r.Header.Get("deadline")
+		if deadline == "" {
+			http.Error(w, "deadline header required", http.StatusBadRequest)
+			return
+		}
+	} else if envoy {
+		rpcID = r.Header.Get("rpc-id")
+		rpcLocalID = r.Header.Get("rpc-local-id")
+		if rpcID == "" {
+			rpcID = fmt.Sprintf("%d", atomic.AddUint64(&envoyRPCSeq, 1))
+		}
+		if rpcLocalID == "" {
+			rpcLocalID = rpcID
+		}
+	}
+	path := strings.TrimPrefix(r.URL.Path, "/")
+	ctx := r.Context()
+	switch path {
+	case "api1":
+		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "api1", "rpc-id", rpcID, "rpc-local-id", rpcLocalID, "deadline", deadline))
+		utils.BusyLoop(3200)
+
+
+	case "api2":
+		ctx = metadata.NewOutgoingContext(ctx, metadata.Pairs("api", "api2", "rpc-id", rpcID, "rpc-local-id", rpcLocalID, "deadline", deadline))
+		utils.BusyLoop(32000)
+
+
+	default:
+		http.Error(w, "not found", 404)
+		return
+	}
+	w.WriteHeader(200)
+	w.Write([]byte("ok"))
+}
+
+func main() {
+	s := &Server{}
+	if err := s.Run(); err != nil {
+		log.Error("Failed to start server", "error", err)
+	}
+}
