@@ -13,12 +13,12 @@ Deploy resource comparison across generated modes (from callgraph.json).
 | wrr | ingress | — | 2 | 1 | — | — | — | — |
 | roshanfer | frontend | 3 | 2 | 1 | 3 | 3 | 0.0 | 1 |
 | roshanfer | ingress | — | 2 | 1 | — | — | — | — |
-| approx | frontend | 3 | 1 | 1 | 3 | 3 | 1.0 | 1 |
-| approx | ingress | — | 2 | 1 | — | — | — | — |
-| approx-fcfs | frontend | 3 | 1 | 1 | 3 | 3 | 1.0 | 1 |
-| approx-fcfs | ingress | — | 2 | 1 | — | — | — | — |
-| approx-edf | frontend | 3 | 1 | 1 | 3 | 3 | 1.0 | 1 |
-| approx-edf | ingress | — | 2 | 1 | — | — | — | — |
+| amphiqueue | frontend | 3 | 1 | 1 | 3 | 3 | 1.0 | 1 |
+| amphiqueue | ingress | — | 2 | 1 | — | — | — | — |
+| amphiqueue-fcfs | frontend | 3 | 1 | 1 | 3 | 3 | 1.0 | 1 |
+| amphiqueue-fcfs | ingress | — | 2 | 1 | — | — | — | — |
+| amphiqueue-edf | frontend | 3 | 1 | 1 | 3 | 3 | 1.0 | 1 |
+| amphiqueue-edf | ingress | — | 2 | 1 | — | — | — | — |
 | envoy | frontend | 3 | 1 | 1 | 3 | — | — | — |
 | envoy | ingress | — | 1 | 1 | — | — | — | — |
 | rajomon | frontend | 3 | — | 1 | 3 | — | — | — |
@@ -38,9 +38,9 @@ Deploy resource comparison across generated modes (from callgraph.json).
 | p2c | 3 | 2 | 1.5 |
 | wrr | 3 | 2 | 1.5 |
 | roshanfer | 3 | 4 | 0.75 |
-| approx | 3 | 3 | 1 |
-| approx-fcfs | 3 | 3 | 1 |
-| approx-edf | 3 | 3 | 1 |
+| amphiqueue | 3 | 3 | 1 |
+| amphiqueue-fcfs | 3 | 3 | 1 |
+| amphiqueue-edf | 3 | 3 | 1 |
 | envoy | 3 | 2 | 1.5 |
 | rajomon | 7 | 0 | — |
 | rajomon-lb | 6 | 0 | — |

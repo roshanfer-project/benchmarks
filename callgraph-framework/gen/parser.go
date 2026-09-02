@@ -544,7 +544,7 @@ func (pg *ParsedGraph) SidecarCPUForService(svcName string) int {
 
 // OverCommitmentForService returns the effective over_commitment for a service.
 // Explicit callgraph values apply to both modes; when omitted, sidecar (lb=false)
-// defaults to 0 and approx* (lb=true) defaults to 1.
+// defaults to 0 and amphiqueue* (lb=true) defaults to 1.
 func (pg *ParsedGraph) OverCommitmentForService(svcName string, lb bool) float64 {
 	if nodes, ok := pg.Services[svcName]; ok && len(nodes) > 0 && nodes[0].OverCommitment != nil {
 		return *nodes[0].OverCommitment

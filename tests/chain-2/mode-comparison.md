@@ -17,15 +17,15 @@ Deploy resource comparison across generated modes (from callgraph.json).
 | roshanfer | backend | 2 | 2 | 1 | 2 | 2 | 0.0 | 1 |
 | roshanfer | frontend | 2 | 2 | 1 | 2 | 2 | 1.0 | 1 |
 | roshanfer | ingress | — | 2 | 1 | — | — | — | — |
-| approx | backend | 1 | 1 | 2 | 1 | 1 | 1.0 | 1 |
-| approx | frontend | 2 | 1 | 1 | 2 | 2 | 1.0 | 1 |
-| approx | ingress | — | 2 | 1 | — | — | — | — |
-| approx-fcfs | backend | 1 | 1 | 2 | 1 | 1 | 1.0 | 1 |
-| approx-fcfs | frontend | 2 | 1 | 1 | 2 | 2 | 1.0 | 1 |
-| approx-fcfs | ingress | — | 2 | 1 | — | — | — | — |
-| approx-edf | backend | 1 | 1 | 2 | 1 | 1 | 1.0 | 1 |
-| approx-edf | frontend | 2 | 1 | 1 | 2 | 2 | 1.0 | 1 |
-| approx-edf | ingress | — | 2 | 1 | — | — | — | — |
+| amphiqueue | backend | 1 | 1 | 2 | 1 | 1 | 1.0 | 1 |
+| amphiqueue | frontend | 2 | 1 | 1 | 2 | 2 | 1.0 | 1 |
+| amphiqueue | ingress | — | 2 | 1 | — | — | — | — |
+| amphiqueue-fcfs | backend | 1 | 1 | 2 | 1 | 1 | 1.0 | 1 |
+| amphiqueue-fcfs | frontend | 2 | 1 | 1 | 2 | 2 | 1.0 | 1 |
+| amphiqueue-fcfs | ingress | — | 2 | 1 | — | — | — | — |
+| amphiqueue-edf | backend | 1 | 1 | 2 | 1 | 1 | 1.0 | 1 |
+| amphiqueue-edf | frontend | 2 | 1 | 1 | 2 | 2 | 1.0 | 1 |
+| amphiqueue-edf | ingress | — | 2 | 1 | — | — | — | — |
 | envoy | backend | 2 | 1 | 1 | 2 | — | — | — |
 | envoy | frontend | 2 | 1 | 1 | 2 | — | — | — |
 | envoy | ingress | — | 1 | 1 | — | — | — | — |
@@ -50,9 +50,9 @@ Deploy resource comparison across generated modes (from callgraph.json).
 | p2c | 4 | 2 | 2 |
 | wrr | 4 | 2 | 2 |
 | roshanfer | 4 | 6 | 0.667 |
-| approx | 4 | 5 | 0.8 |
-| approx-fcfs | 4 | 5 | 0.8 |
-| approx-edf | 4 | 5 | 0.8 |
+| amphiqueue | 4 | 5 | 0.8 |
+| amphiqueue-fcfs | 4 | 5 | 0.8 |
+| amphiqueue-edf | 4 | 5 | 0.8 |
 | envoy | 4 | 3 | 1.33 |
 | rajomon | 7 | 0 | — |
 | rajomon-lb | 6 | 0 | — |

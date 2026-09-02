@@ -41,33 +41,33 @@ Deploy resource comparison across generated modes (from callgraph.json).
 | roshanfer | MS_64512 | 8 | 2 | 1 | 8 | 8 | 1.0 | 1 |
 | roshanfer | MS_70124 | 3 | 2 | 1 | 3 | 3 | 1.0 | 1 |
 | roshanfer | ingress | — | 2 | 1 | — | — | — | — |
-| approx | MS_25806 | 1 | 1 | 8 | 1 | 1 | 1.0 | 1 |
-| approx | MS_2687 | 1 | 1 | 4 | 1 | 1 | 1.0 | 1 |
-| approx | MS_40087 | 1 | 1 | 6 | 1 | 1 | 1.0 | 1 |
-| approx | MS_44246 | 1 | 1 | 4 | 1 | 1 | 1.0 | 1 |
-| approx | MS_51787 | 1 | 1 | 4 | 1 | 1 | 1.0 | 1 |
-| approx | MS_56113 | 1 | 1 | 8 | 1 | 1 | 1.0 | 1 |
-| approx | MS_64512 | 2.6666666666666665 | 1 | 3 | 3 | 3 | 1.0 | 1 |
-| approx | MS_70124 | 1 | 1 | 3 | 1 | 1 | 1.0 | 1 |
-| approx | ingress | — | 2 | 1 | — | — | — | — |
-| approx-fcfs | MS_25806 | 1 | 1 | 8 | 1 | 1 | 1.0 | 1 |
-| approx-fcfs | MS_2687 | 1 | 1 | 4 | 1 | 1 | 1.0 | 1 |
-| approx-fcfs | MS_40087 | 1 | 1 | 6 | 1 | 1 | 1.0 | 1 |
-| approx-fcfs | MS_44246 | 1 | 1 | 4 | 1 | 1 | 1.0 | 1 |
-| approx-fcfs | MS_51787 | 1 | 1 | 4 | 1 | 1 | 1.0 | 1 |
-| approx-fcfs | MS_56113 | 1 | 1 | 8 | 1 | 1 | 1.0 | 1 |
-| approx-fcfs | MS_64512 | 2.6666666666666665 | 1 | 3 | 3 | 3 | 1.0 | 1 |
-| approx-fcfs | MS_70124 | 1 | 1 | 3 | 1 | 1 | 1.0 | 1 |
-| approx-fcfs | ingress | — | 2 | 1 | — | — | — | — |
-| approx-edf | MS_25806 | 1 | 1 | 8 | 1 | 1 | 1.0 | 1 |
-| approx-edf | MS_2687 | 1 | 1 | 4 | 1 | 1 | 1.0 | 1 |
-| approx-edf | MS_40087 | 1 | 1 | 6 | 1 | 1 | 1.0 | 1 |
-| approx-edf | MS_44246 | 1 | 1 | 4 | 1 | 1 | 1.0 | 1 |
-| approx-edf | MS_51787 | 1 | 1 | 4 | 1 | 1 | 1.0 | 1 |
-| approx-edf | MS_56113 | 1 | 1 | 8 | 1 | 1 | 1.0 | 1 |
-| approx-edf | MS_64512 | 2.6666666666666665 | 1 | 3 | 3 | 3 | 1.0 | 1 |
-| approx-edf | MS_70124 | 1 | 1 | 3 | 1 | 1 | 1.0 | 1 |
-| approx-edf | ingress | — | 2 | 1 | — | — | — | — |
+| amphiqueue | MS_25806 | 1 | 1 | 8 | 1 | 1 | 1.0 | 1 |
+| amphiqueue | MS_2687 | 1 | 1 | 4 | 1 | 1 | 1.0 | 1 |
+| amphiqueue | MS_40087 | 1 | 1 | 6 | 1 | 1 | 1.0 | 1 |
+| amphiqueue | MS_44246 | 1 | 1 | 4 | 1 | 1 | 1.0 | 1 |
+| amphiqueue | MS_51787 | 1 | 1 | 4 | 1 | 1 | 1.0 | 1 |
+| amphiqueue | MS_56113 | 1 | 1 | 8 | 1 | 1 | 1.0 | 1 |
+| amphiqueue | MS_64512 | 2.6666666666666665 | 1 | 3 | 3 | 3 | 1.0 | 1 |
+| amphiqueue | MS_70124 | 1 | 1 | 3 | 1 | 1 | 1.0 | 1 |
+| amphiqueue | ingress | — | 2 | 1 | — | — | — | — |
+| amphiqueue-fcfs | MS_25806 | 1 | 1 | 8 | 1 | 1 | 1.0 | 1 |
+| amphiqueue-fcfs | MS_2687 | 1 | 1 | 4 | 1 | 1 | 1.0 | 1 |
+| amphiqueue-fcfs | MS_40087 | 1 | 1 | 6 | 1 | 1 | 1.0 | 1 |
+| amphiqueue-fcfs | MS_44246 | 1 | 1 | 4 | 1 | 1 | 1.0 | 1 |
+| amphiqueue-fcfs | MS_51787 | 1 | 1 | 4 | 1 | 1 | 1.0 | 1 |
+| amphiqueue-fcfs | MS_56113 | 1 | 1 | 8 | 1 | 1 | 1.0 | 1 |
+| amphiqueue-fcfs | MS_64512 | 2.6666666666666665 | 1 | 3 | 3 | 3 | 1.0 | 1 |
+| amphiqueue-fcfs | MS_70124 | 1 | 1 | 3 | 1 | 1 | 1.0 | 1 |
+| amphiqueue-fcfs | ingress | — | 2 | 1 | — | — | — | — |
+| amphiqueue-edf | MS_25806 | 1 | 1 | 8 | 1 | 1 | 1.0 | 1 |
+| amphiqueue-edf | MS_2687 | 1 | 1 | 4 | 1 | 1 | 1.0 | 1 |
+| amphiqueue-edf | MS_40087 | 1 | 1 | 6 | 1 | 1 | 1.0 | 1 |
+| amphiqueue-edf | MS_44246 | 1 | 1 | 4 | 1 | 1 | 1.0 | 1 |
+| amphiqueue-edf | MS_51787 | 1 | 1 | 4 | 1 | 1 | 1.0 | 1 |
+| amphiqueue-edf | MS_56113 | 1 | 1 | 8 | 1 | 1 | 1.0 | 1 |
+| amphiqueue-edf | MS_64512 | 2.6666666666666665 | 1 | 3 | 3 | 3 | 1.0 | 1 |
+| amphiqueue-edf | MS_70124 | 1 | 1 | 3 | 1 | 1 | 1.0 | 1 |
+| amphiqueue-edf | ingress | — | 2 | 1 | — | — | — | — |
 | envoy | MS_25806 | 8 | 1 | 1 | 8 | — | — | — |
 | envoy | MS_2687 | 4 | 1 | 1 | 4 | — | — | — |
 | envoy | MS_40087 | 6 | 1 | 1 | 6 | — | — | — |
@@ -122,9 +122,9 @@ Deploy resource comparison across generated modes (from callgraph.json).
 | p2c | 45 | 2 | 22.5 |
 | wrr | 45 | 2 | 22.5 |
 | roshanfer | 45 | 18 | 2.5 |
-| approx | 45 | 42 | 1.07 |
-| approx-fcfs | 45 | 42 | 1.07 |
-| approx-edf | 45 | 42 | 1.07 |
+| amphiqueue | 45 | 42 | 1.07 |
+| amphiqueue-fcfs | 45 | 42 | 1.07 |
+| amphiqueue-edf | 45 | 42 | 1.07 |
 | envoy | 45 | 9 | 5 |
 | rajomon | 54 | 0 | — |
 | rajomon-lb | 53 | 0 | — |

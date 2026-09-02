@@ -28,7 +28,7 @@ Generates the benchmark, `callgraph.pdf`, and mode comparison tables (`mode-comp
 
 ### Mode comparison tables
 
-At codegen time, `cmd/gen` emits deploy-resource tables comparing all supported modes (`plain`, `p2c`, `wrr`, `roshanfer`, `approx`, `approx-fcfs`, `approx-edf`, `envoy`, `rajomon`, `dagor`, and LB variants). Values use the same formulas as K8s manifest generation: per-service `app_cpu_limit`, `sidecar_cpu_limit`, `replicas`, `GOMAXPROCS`, and sidecar `cpu_count` / `over_commitment` / `num_threads`. A cluster-totals section sums app and sidecar cores per mode.
+At codegen time, `cmd/gen` emits deploy-resource tables comparing all supported modes (`plain`, `p2c`, `wrr`, `roshanfer`, `amphiqueue`, `amphiqueue-fcfs`, `amphiqueue-edf`, `envoy`, `rajomon`, `dagor`, and LB variants). Values use the same formulas as K8s manifest generation: per-service `app_cpu_limit`, `sidecar_cpu_limit`, `replicas`, `GOMAXPROCS`, and sidecar `cpu_count` / `over_commitment` / `num_threads`. A cluster-totals section sums app and sidecar cores per mode.
 
 ### Visualizer
 
@@ -60,15 +60,15 @@ With `-paper`, `viz` runs `render_service_pdf.py` using **the repository root `.
 ## Scripts
 
 - `build.sh [tag]` — build the sidecar (if present), build all workload images with `docker buildx bake` (shared compile + parallel final stages), then push every image in parallel (`REGISTRY`, `TAG`, `BENCH` env vars behave as before).
-- `deploy.sh [plain|p2c|wrr|roshanfer|approx|approx-fcfs|approx-edf|rajomon|rajomon-lb|dagor|dagor-lb|envoy]` — deploy to K8s (uses `TAG`, `REGISTRY`). `./deploy.sh roshanfer debug` or `./deploy.sh approx debug` (also `approx-fcfs` / `approx-edf`) enables workload debug (see below). `debug` is only valid with `roshanfer` or approx modes, not with plain, p2c, wrr, rajomon, rajomon-lb, dagor, dagor-lb, or envoy. **envoy** uses `envoyproxy/envoy:v1.32-latest` sidecars (no SLO queuing, no `SIDECAR_OVER_COMMIT`). For **roshanfer** and **approx\***: if **`SIDECAR_OVER_COMMIT`** is set (non-empty), every `over_commitment:` field in `sidecar-configs.yaml` / `${MODE}-configs.yaml` is rewritten to that value before apply (needs `perl` on PATH); omit it to keep values from `callgraph.json` codegen.
+- `deploy.sh [plain|p2c|wrr|roshanfer|amphiqueue|amphiqueue-fcfs|amphiqueue-edf|rajomon|rajomon-lb|dagor|dagor-lb|envoy]` — deploy to K8s (uses `TAG`, `REGISTRY`). `./deploy.sh roshanfer debug` or `./deploy.sh amphiqueue debug` (also `amphiqueue-fcfs` / `amphiqueue-edf`) enables workload debug (see below). `debug` is only valid with `roshanfer` or amphiqueue modes, not with plain, p2c, wrr, rajomon, rajomon-lb, dagor, dagor-lb, or envoy. **envoy** uses `envoyproxy/envoy:v1.32-latest` sidecars (no SLO queuing, no `SIDECAR_OVER_COMMIT`). For **roshanfer** and **amphiqueue\***: if **`SIDECAR_OVER_COMMIT`** is set (non-empty), every `over_commitment:` field in `sidecar-configs.yaml` / `${MODE}-configs.yaml` is rewritten to that value before apply (needs `perl` on PATH); omit it to keep values from `callgraph.json` codegen.
 - `destroy.sh` — tear down
-- `collect_logs.sh` — collect pod logs. If the environment variable `COLLECT_SIDECAR_NANOLOG=1` is set (done by `exec` when `--nanolog-debug` is enabled) and mode is `roshanfer` or an approx mode, the script also `kubectl cp`s `/compressedLog` from each sidecar container into `$OUTPUT_DIR` as `*-sidecar.clog` (plus ingress as `*-ingress-sidecar.clog`). Decompression uses `benchmarks/sidecar/external/NanoLog/runtime/decompressor` from the repo checkout that runs the executor.
+- `collect_logs.sh` — collect pod logs. If the environment variable `COLLECT_SIDECAR_NANOLOG=1` is set (done by `exec` when `--nanolog-debug` is enabled) and mode is `roshanfer` or an amphiqueue mode, the script also `kubectl cp`s `/compressedLog` from each sidecar container into `$OUTPUT_DIR` as `*-sidecar.clog` (plus ingress as `*-ingress-sidecar.clog`). Decompression uses `benchmarks/sidecar/external/NanoLog/runtime/decompressor` from the repo checkout that runs the executor.
 
 ### Sidecar deploy debug
 
-Use `./deploy.sh roshanfer debug` or `./deploy.sh approx debug` after `./build.sh` as usual. Requires [mikefarah yq](https://github.com/mikefarah/yq) v4 on `PATH` (the script exits with an install hint if it is missing).
+Use `./deploy.sh roshanfer debug` or `./deploy.sh amphiqueue debug` after `./build.sh` as usual. Requires [mikefarah yq](https://github.com/mikefarah/yq) v4 on `PATH` (the script exits with an install hint if it is missing).
 
-Debug mode only changes **workload** manifests under a temp copy before `kubectl apply`. For **roshanfer**: `*-sidecar.yaml` and `ingress.yaml` (Pods) get `spec.restartPolicy: Never`. For **approx\***: `*-approx.yaml` Deployments get GLOG env on the sidecar container only (Deployment pod templates cannot use `restartPolicy: Never`); `ingress-lb.yaml` (Pod) gets the same restart + GLOG behavior as roshanfer ingress. If you set `SIDECAR_GLOG_V` and/or `SIDECAR_GLOG_VMODULE` (or define them in `k8s/sidecar-debug-glog.env`), the `sidecar` container also gets `GLOG_v` / `GLOG_vmodule` (existing entries with those names are replaced). You can use debug mode for **restart behavior only** (roshanfer / approx ingress) without setting any verbosity. **Prometheus** is still applied from `k8s/manifests/prometheus.yaml` exactly like non-debug deploy.
+Debug mode only changes **workload** manifests under a temp copy before `kubectl apply`. For **roshanfer**: `*-sidecar.yaml` and `ingress.yaml` (Pods) get `spec.restartPolicy: Never`. For **amphiqueue\***: `*-amphiqueue.yaml` Deployments get GLOG env on the sidecar container only (Deployment pod templates cannot use `restartPolicy: Never`); `ingress-lb.yaml` (Pod) gets the same restart + GLOG behavior as roshanfer ingress. If you set `SIDECAR_GLOG_V` and/or `SIDECAR_GLOG_VMODULE` (or define them in `k8s/sidecar-debug-glog.env`), the `sidecar` container also gets `GLOG_v` / `GLOG_vmodule` (existing entries with those names are replaced). You can use debug mode for **restart behavior only** (roshanfer / amphiqueue ingress) without setting any verbosity. **Prometheus** is still applied from `k8s/manifests/prometheus.yaml` exactly like non-debug deploy.
 
 Set verbosity via environment (or optional file — see precedence below):
 
@@ -93,42 +93,42 @@ export SIDECAR_GLOG_VMODULE=event_loop=3
 ./deploy.sh roshanfer debug
 ```
 
-Optional `k8s/sidecar-debug-glog.env` under **this** benchmark’s `k8s/` (next to that benchmark’s `deploy.sh`). A file in another directory (e.g. `tests/one-service/k8s/...`) is not read when you deploy from `tests/fan-out-dynamic-0-9` — copy, symlink, or recreate it there. Same variable names as above, `#` comments allowed; script reads it only in the debug branch (both `roshanfer debug` and `approx* debug`). **Precedence:** values already set in the environment win; the file fills `SIDECAR_GLOG_V` / `SIDECAR_GLOG_VMODULE` only when those variables are unset, so `SIDECAR_GLOG_V=3 ./deploy.sh roshanfer debug` overrides a value from the file.
+Optional `k8s/sidecar-debug-glog.env` under **this** benchmark’s `k8s/` (next to that benchmark’s `deploy.sh`). A file in another directory (e.g. `tests/one-service/k8s/...`) is not read when you deploy from `tests/fan-out-dynamic-0-9` — copy, symlink, or recreate it there. Same variable names as above, `#` comments allowed; script reads it only in the debug branch (both `roshanfer debug` and `amphiqueue* debug`). **Precedence:** values already set in the environment win; the file fills `SIDECAR_GLOG_V` / `SIDECAR_GLOG_VMODULE` only when those variables are unset, so `SIDECAR_GLOG_V=3 ./deploy.sh roshanfer debug` overrides a value from the file.
 
 ### Over-commitment
 
-`over_commitment` is a sidecar admission parameter written into per-service snippets in `sidecar-configs.yaml` and `approx*-configs.yaml`. It must be in `[0, 1]` when set.
+`over_commitment` is a sidecar admission parameter written into per-service snippets in `sidecar-configs.yaml` and `amphiqueue*-configs.yaml`. It must be in `[0, 1]` when set.
 
-**Modes that use it:** **roshanfer**, **approx**, **approx-fcfs**, **approx-edf**. Other modes (plain, p2c, wrr, envoy, rajomon, dagor, and LB variants) do not emit or apply `over_commitment`.
+**Modes that use it:** **roshanfer**, **amphiqueue**, **amphiqueue-fcfs**, **amphiqueue-edf**. Other modes (plain, p2c, wrr, envoy, rajomon, dagor, and LB variants) do not emit or apply `over_commitment`.
 
 **Defaults when omitted from `callgraph.json`:**
 
 | Mode | Default |
 |------|---------|
 | `roshanfer` | `0` |
-| `approx` / `approx-fcfs` / `approx-edf` | `1` |
+| `amphiqueue` / `amphiqueue-fcfs` / `amphiqueue-edf` | `1` |
 
-An explicit `over_commitment` on a node applies to **both** sidecar and approx* ConfigMaps. Ingress config snippets typically do not include the field.
+An explicit `over_commitment` on a node applies to **both** sidecar and amphiqueue* ConfigMaps. Ingress config snippets typically do not include the field.
 
 **Recommendation:** Prefer `over_commitment: 1` for microservices with service-time variability — exponential service times and/or multiple endpoints on the same service.
 
-**Deploy override:** For latency-vs-throughput sweeps, set **`SIDECAR_OVER_COMMIT`** when deploying **roshanfer** or **approx\*** (e.g. `0`, `0.2`, `1`). `deploy.sh` stages `sidecar-configs.yaml` or `${MODE}-configs.yaml`, replaces each embedded `over_commitment:` value with `SIDECAR_OVER_COMMIT`, then applies the patched manifest (**requires `perl` on PATH**). After patching, the script checks every `over_commitment:` line matches **`SIDECAR_OVER_COMMIT`** and exits non‑zero otherwise. Only snippets that already contain `over_commitment` are affected. The experiment executor forwards **`deploy_env`** into the deploy environment.
+**Deploy override:** For latency-vs-throughput sweeps, set **`SIDECAR_OVER_COMMIT`** when deploying **roshanfer** or **amphiqueue\*** (e.g. `0`, `0.2`, `1`). `deploy.sh` stages `sidecar-configs.yaml` or `${MODE}-configs.yaml`, replaces each embedded `over_commitment:` value with `SIDECAR_OVER_COMMIT`, then applies the patched manifest (**requires `perl` on PATH**). After patching, the script checks every `over_commitment:` line matches **`SIDECAR_OVER_COMMIT`** and exits non‑zero otherwise. Only snippets that already contain `over_commitment` are affected. The experiment executor forwards **`deploy_env`** into the deploy environment.
 
 ### Extra limit
 
-`extra_limit` is an optional sidecar admission parameter (integer ≥ 0) written into per-service snippets in `sidecar-configs.yaml` and `approx*-configs.yaml`. It adds a fixed bump to per-endpoint / dynamic admission limits in the sidecar. Default when omitted: `0`. Applies to **roshanfer**, **approx**, **approx-fcfs**, and **approx-edf** (same ConfigMap path as `over_commitment`). Ingress snippets typically do not include the field.
+`extra_limit` is an optional sidecar admission parameter (integer ≥ 0) written into per-service snippets in `sidecar-configs.yaml` and `amphiqueue*-configs.yaml`. It adds a fixed bump to per-endpoint / dynamic admission limits in the sidecar. Default when omitted: `0`. Applies to **roshanfer**, **amphiqueue**, **amphiqueue-fcfs**, and **amphiqueue-edf** (same ConfigMap path as `over_commitment`). Ingress snippets typically do not include the field.
 
-### approx modes
+### AmphiQueue modes
 
-Sidecar admission control with **replication and sidecar-internal load balancing**. Shared proxy topology (`*-approx.yaml` Deployments, dedicated ingress pod, SLO/priority queuing). Env template: **`k8s/approx.env`** (`sidecar=true`). Three modes differ only in mesh late-binding YAML:
+Sidecar admission control with **replication and sidecar-internal load balancing**. Shared proxy topology (`*-amphiqueue.yaml` Deployments, dedicated ingress pod, SLO/priority queuing). Env template: **`k8s/amphiqueue.env`** (`sidecar=true`). Three modes differ only in mesh late-binding YAML:
 
 | Mode | Mesh config |
 |------|-------------|
-| `approx` | `mesh_late_binding: False` |
-| `approx-fcfs` | `mesh_late_binding: True`, `late_binding_type: fcfs` |
-| `approx-edf` | `mesh_late_binding: True`, `late_binding_type: edf` |
+| `amphiqueue` | `mesh_late_binding: False` |
+| `amphiqueue-fcfs` | `mesh_late_binding: True`, `late_binding_type: fcfs` |
+| `amphiqueue-edf` | `mesh_late_binding: True`, `late_binding_type: edf` |
 
-ConfigMaps: `approx-configs.yaml`, `approx-fcfs-configs.yaml`, `approx-edf-configs.yaml`. The `replicas` field in `callgraph.json` applies (Deployments, per-replica app CPU, headless internal Services). Workloads deploy **sequentially** in callgraph dependency order (leaves first, entry last), then ingress — same as **roshanfer** — so downstream headless Services have ready endpoints before upstream sidecars resolve them at startup.
+ConfigMaps: `amphiqueue-configs.yaml`, `amphiqueue-fcfs-configs.yaml`, `amphiqueue-edf-configs.yaml`. The `replicas` field in `callgraph.json` applies (Deployments, per-replica app CPU, headless internal Services). Workloads deploy **sequentially** in callgraph dependency order (leaves first, entry last), then ingress — same as **roshanfer** — so downstream headless Services have ready endpoints before upstream sidecars resolve them at startup.
 
 Load balancing across replicas uses the sidecar proxy’s Request Limit Protocol queue waiting-count selection (DNS discovery via headless Services). **`load_balancing_policy`** in `callgraph.json` does not apply.
 
@@ -136,13 +136,13 @@ CPU vs **roshanfer**: K8s sidecar CPU uses a **1×** multiplier (`1 × sidecar_c
 
 ```bash
 ./build.sh
-./deploy.sh approx
-./deploy.sh approx-fcfs
-./deploy.sh approx-edf
-./deploy.sh approx debug   # optional: GLOG verbosity via env or k8s/sidecar-debug-glog.env
+./deploy.sh amphiqueue
+./deploy.sh amphiqueue-fcfs
+./deploy.sh amphiqueue-edf
+./deploy.sh amphiqueue debug   # optional: GLOG verbosity via env or k8s/sidecar-debug-glog.env
 ```
 
-Use **`destroy.sh approx`** (or `approx-fcfs` / `approx-edf`) to tear down. Load tests use the same URLs as roshanfer (`run.sh`).
+Use **`destroy.sh amphiqueue`** (or `amphiqueue-fcfs` / `amphiqueue-edf`) to tear down. Load tests use the same URLs as roshanfer (`run.sh`).
 
 ### Rajomon mode
 
@@ -217,7 +217,7 @@ Like **plain**, but supports multiple replicas per microservice via the `replica
   - **wrr** (`k8s/wrr.env`): always **`round_robin`** (simple RR, not weighted).
   - **dagor-lb / rajomon-lb**: policy from **`load_balancing_policy`** in `callgraph.json` (default **`least_request`**). Set **`round_robin`** or **`weighted_round_robin`** (ORCA call metrics with `blackoutPeriod: 1s`; servers report QPS / EPS / CPU utilization). Weighted WRR uses EPS via the default `error_utilization_penalty` to deprioritize backends with high error rates.
 - Prometheus pushes keep `job=<serviceName>` for all modes. In replicated `plain_lb=true` modes, each pod also pushes with Pushgateway grouping label `instance=<podSuffix>` so replicas do not overwrite each other; `collector.py` writes these as per-replica keys like `backend1-<podSuffix>` in `prometheus.json`. Non-LB modes keep bare keys like `backend1`.
-- HTTP entry is a dedicated **Envoy** ingress Pod (`ingress-envoy-lb.yaml`) with NodePorts `3000+i` per user API. Upstream is the frontend headless Service on port **2000** over **HTTP/1** (`LEAST_REQUEST`, `STRICT_DNS`). Ingress CPU and `--concurrency` are `UserEntryCount() × 2` (same core budget as approx ingress). ConfigMap: `p2c-envoy-configs` (shared by p2c and wrr).
+- HTTP entry is a dedicated **Envoy** ingress Pod (`ingress-envoy-lb.yaml`) with NodePorts `3000+i` per user API. Upstream is the frontend headless Service on port **2000** over **HTTP/1** (`LEAST_REQUEST`, `STRICT_DNS`). Ingress CPU and `--concurrency` are `UserEntryCount() × 2` (same core budget as amphiqueue ingress). ConfigMap: `p2c-envoy-configs` (shared by p2c and wrr).
 
 ## Call Graph Format
 
@@ -240,7 +240,7 @@ Like **plain**, but supports multiple replicas per microservice via the `replica
 
 - `load_balancing_policy` (optional, default `least_request`, **dagor-lb and rajomon-lb**): gRPC client load balancer — `least_request` (P2C over active RPC counts), `round_robin`, or `weighted_round_robin` (enables ORCA server metrics). Modes **p2c** and **wrr** pin policy in their env files and ignore this field.
 - `dagor` (optional, **dagor and dagor-lb**): per-benchmark DAGOR defaults written to `dagor_init/dagor-config.go` — `queuing_thresh_ms` (default `2`), `alpha` (default `0.45`), `beta` (default `0.01`). All fields optional; omitted fields use framework defaults. Runtime env `Alpha` / `Beta` still override at deploy time.
-- `nodes`: one per microservice; `id`, `interfaces` (see **service time** below), `cpu` (optional, default 1, used for cpu_count in sidecar config and app resources), `replicas` (optional, default 1, **p2c, wrr, dagor-lb, rajomon-lb, and approx\***), `sidecar_cpu` (optional, default 1, used for num_threads in sidecar config; k8s sidecar gets 2× this in **roshanfer**, 1× in **approx\***), `over_commitment` (optional, must be in [0,1]; written to **sidecar** / **approx\*** configs — see **Over-commitment** for per-mode defaults when omitted), `extra_limit` (optional integer ≥ 0, default 0; written to **sidecar** / **approx\*** configs — see **Extra limit**), `connection_pool_size` (optional, default 200; **entry service only**) — sets both `frontend_pool_connections` and `ingress_pool_connections` in **sidecar** / **approx\*** ConfigMaps
+- `nodes`: one per microservice; `id`, `interfaces` (see **service time** below), `cpu` (optional, default 1, used for cpu_count in sidecar config and app resources), `replicas` (optional, default 1, **p2c, wrr, dagor-lb, rajomon-lb, and amphiqueue\***), `sidecar_cpu` (optional, default 1, used for num_threads in sidecar config; k8s sidecar gets 2× this in **roshanfer**, 1× in **amphiqueue\***), `over_commitment` (optional, must be in [0,1]; written to **sidecar** / **amphiqueue\*** configs — see **Over-commitment** for per-mode defaults when omitted), `extra_limit` (optional integer ≥ 0, default 0; written to **sidecar** / **amphiqueue\*** configs — see **Extra limit**), `connection_pool_size` (optional, default 200; **entry service only**) — sets both `frontend_pool_connections` and `ingress_pool_connections` in **sidecar** / **amphiqueue\*** ConfigMaps
 
 ### Service time per interface
 

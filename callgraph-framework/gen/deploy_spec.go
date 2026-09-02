@@ -189,7 +189,7 @@ func DeploySpecForMode(pg *ParsedGraph, mode string) []ServiceDeploySpec {
 			specs = append(specs, sidecarWorkloadSpec(pg, mode, svc, false))
 		}
 		specs = append(specs, ingressSidecarSpec(pg, mode, false))
-	case "approx", "approx-fcfs", "approx-edf":
+	case "amphiqueue", "amphiqueue-fcfs", "amphiqueue-edf":
 		for _, svc := range svcNames {
 			specs = append(specs, sidecarWorkloadSpec(pg, mode, svc, true))
 		}
@@ -214,7 +214,7 @@ func DeploySpecForMode(pg *ParsedGraph, mode string) []ServiceDeploySpec {
 }
 
 var allDeployModes = []string{
-	"plain", "p2c", "wrr", "roshanfer", "approx", "approx-fcfs", "approx-edf", "envoy",
+	"plain", "p2c", "wrr", "roshanfer", "amphiqueue", "amphiqueue-fcfs", "amphiqueue-edf", "envoy",
 	"rajomon", "rajomon-lb", "dagor", "dagor-lb",
 }
 

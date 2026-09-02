@@ -21,18 +21,18 @@ Deploy resource comparison across generated modes (from callgraph.json).
 | roshanfer | backend2 | 3 | 2 | 1 | 3 | 3 | 0.0 | 1 |
 | roshanfer | frontend | 2 | 2 | 1 | 2 | 2 | 1.0 | 1 |
 | roshanfer | ingress | — | 2 | 1 | — | — | — | — |
-| approx | backend1 | 3 | 1 | 1 | 3 | 3 | 1.0 | 1 |
-| approx | backend2 | 3 | 1 | 1 | 3 | 3 | 1.0 | 1 |
-| approx | frontend | 2 | 1 | 1 | 2 | 2 | 1.0 | 1 |
-| approx | ingress | — | 2 | 1 | — | — | — | — |
-| approx-fcfs | backend1 | 3 | 1 | 1 | 3 | 3 | 1.0 | 1 |
-| approx-fcfs | backend2 | 3 | 1 | 1 | 3 | 3 | 1.0 | 1 |
-| approx-fcfs | frontend | 2 | 1 | 1 | 2 | 2 | 1.0 | 1 |
-| approx-fcfs | ingress | — | 2 | 1 | — | — | — | — |
-| approx-edf | backend1 | 3 | 1 | 1 | 3 | 3 | 1.0 | 1 |
-| approx-edf | backend2 | 3 | 1 | 1 | 3 | 3 | 1.0 | 1 |
-| approx-edf | frontend | 2 | 1 | 1 | 2 | 2 | 1.0 | 1 |
-| approx-edf | ingress | — | 2 | 1 | — | — | — | — |
+| amphiqueue | backend1 | 3 | 1 | 1 | 3 | 3 | 1.0 | 1 |
+| amphiqueue | backend2 | 3 | 1 | 1 | 3 | 3 | 1.0 | 1 |
+| amphiqueue | frontend | 2 | 1 | 1 | 2 | 2 | 1.0 | 1 |
+| amphiqueue | ingress | — | 2 | 1 | — | — | — | — |
+| amphiqueue-fcfs | backend1 | 3 | 1 | 1 | 3 | 3 | 1.0 | 1 |
+| amphiqueue-fcfs | backend2 | 3 | 1 | 1 | 3 | 3 | 1.0 | 1 |
+| amphiqueue-fcfs | frontend | 2 | 1 | 1 | 2 | 2 | 1.0 | 1 |
+| amphiqueue-fcfs | ingress | — | 2 | 1 | — | — | — | — |
+| amphiqueue-edf | backend1 | 3 | 1 | 1 | 3 | 3 | 1.0 | 1 |
+| amphiqueue-edf | backend2 | 3 | 1 | 1 | 3 | 3 | 1.0 | 1 |
+| amphiqueue-edf | frontend | 2 | 1 | 1 | 2 | 2 | 1.0 | 1 |
+| amphiqueue-edf | ingress | — | 2 | 1 | — | — | — | — |
 | envoy | backend1 | 3 | 1 | 1 | 3 | — | — | — |
 | envoy | backend2 | 3 | 1 | 1 | 3 | — | — | — |
 | envoy | frontend | 2 | 1 | 1 | 2 | — | — | — |
@@ -62,9 +62,9 @@ Deploy resource comparison across generated modes (from callgraph.json).
 | p2c | 8 | 2 | 4 |
 | wrr | 8 | 2 | 4 |
 | roshanfer | 8 | 8 | 1 |
-| approx | 8 | 5 | 1.6 |
-| approx-fcfs | 8 | 5 | 1.6 |
-| approx-edf | 8 | 5 | 1.6 |
+| amphiqueue | 8 | 5 | 1.6 |
+| amphiqueue-fcfs | 8 | 5 | 1.6 |
+| amphiqueue-edf | 8 | 5 | 1.6 |
 | envoy | 8 | 4 | 2 |
 | rajomon | 11 | 0 | — |
 | rajomon-lb | 10 | 0 | — |

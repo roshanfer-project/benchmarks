@@ -7,7 +7,7 @@ for svc in backend1 backend2 frontend frontend-grpc rajomon-client; do
   for pod in $(kubectl get pods -l app=$svc -o jsonpath='{.items[*].metadata.name}'); do
     (
       kubectl logs "$pod" > "$OUTPUT_DIR/${pod}.log" 2>&1
-      if [ "$MODE" = "roshanfer" ] || [ "$MODE" = "approx" ] || [ "$MODE" = "approx-fcfs" ] || [ "$MODE" = "approx-edf" ]; then
+      if [ "$MODE" = "roshanfer" ] || [ "$MODE" = "amphiqueue" ] || [ "$MODE" = "amphiqueue-fcfs" ] || [ "$MODE" = "amphiqueue-edf" ]; then
         kubectl logs "$pod" -c sidecar > "$OUTPUT_DIR/${pod}-sidecar.log" 2>&1
       fi
       if [ "$MODE" = "envoy" ]; then
@@ -19,7 +19,7 @@ for svc in backend1 backend2 frontend frontend-grpc rajomon-client; do
 done
 for pid in "${log_pids[@]}"; do wait "$pid" || true; done
 
-if [ "$MODE" = "roshanfer" ] || [ "$MODE" = "approx" ] || [ "$MODE" = "approx-fcfs" ] || [ "$MODE" = "approx-edf" ]; then
+if [ "$MODE" = "roshanfer" ] || [ "$MODE" = "amphiqueue" ] || [ "$MODE" = "amphiqueue-fcfs" ] || [ "$MODE" = "amphiqueue-edf" ]; then
   declare -a ing_pids=()
   for pod in $(kubectl get pods -l app=ingress -o jsonpath='{.items[*].metadata.name}'); do
     (
@@ -57,7 +57,7 @@ if [ "$MODE" = "envoy" ]; then
   for pid in "${stats_pids[@]}"; do wait "$pid" || true; done
 fi
 
-if { [ "$MODE" = "roshanfer" ] || [ "$MODE" = "approx" ] || [ "$MODE" = "approx-fcfs" ] || [ "$MODE" = "approx-edf" ]; } && [ "${COLLECT_SIDECAR_NANOLOG:-}" = "1" ]; then
+if { [ "$MODE" = "roshanfer" ] || [ "$MODE" = "amphiqueue" ] || [ "$MODE" = "amphiqueue-fcfs" ] || [ "$MODE" = "amphiqueue-edf" ]; } && [ "${COLLECT_SIDECAR_NANOLOG:-}" = "1" ]; then
   declare -a cp_pids=()
   for svc in backend1 backend2 frontend frontend-grpc rajomon-client; do
     for pod in $(kubectl get pods -l app=$svc -o jsonpath='{.items[*].metadata.name}' 2>/dev/null); do

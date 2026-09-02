@@ -1,0 +1,91 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend2
+  labels:
+    app: backend2
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend2
+  template:
+    metadata:
+      labels:
+        app: backend2
+    spec:
+      containers:
+      - name: app
+        image: fan-out-dynamic-0-9-backend2:latest
+        resources:
+          requests:
+            cpu: "1"
+          limits:
+            cpu: "1"
+        env:
+        - name: GOMAXPROCS
+          value: "1"
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        envFrom:
+        - configMapRef:
+            name: fan-out-dynamic-0-9-config
+        ports:
+        - containerPort: 2000
+      - name: sidecar
+        image: sidecar-sidecar:latest
+        env:
+        - name: PROC_NAME
+          value: "backend2-sidecar"
+        - name: GLOG_logtostderr
+          value: "1"
+        resources:
+          requests:
+            cpu: "1"
+          limits:
+            cpu: "1"
+        volumeMounts:
+        - name: config-volume
+          mountPath: /config.yaml
+          subPath: backend2.yaml
+        ports:
+        - containerPort: 3000
+        - containerPort: 4000
+        - containerPort: 3000
+          protocol: UDP
+        - containerPort: 4000
+          protocol: UDP
+      volumes:
+      - name: config-volume
+        configMap:
+          name: amphiqueue-configs
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fan-out-dynamic-0-9-backend2
+  labels:
+    app: backend2
+spec:
+  clusterIP: None
+  selector:
+    app: backend2
+  ports:
+  - name: sidecar-ingress-tcp
+    port: 3000
+    targetPort: 3000
+    protocol: TCP
+  - name: sidecar-ingress-udp
+    port: 3000
+    targetPort: 3000
+    protocol: UDP
+  - name: sidecar-egress-tcp
+    port: 4000
+    targetPort: 4000
+    protocol: TCP
+  - name: sidecar-egress-udp
+    port: 4000
+    targetPort: 4000
+    protocol: UDP

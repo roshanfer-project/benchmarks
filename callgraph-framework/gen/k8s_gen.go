@@ -151,13 +151,13 @@ func GenerateK8s(pg *ParsedGraph, benchmarkName string, registry string, outDir 
 	if err := generateIngressYaml(pg, benchmarkName, outDir); err != nil {
 		return err
 	}
-	if err := generateApproxConfigs(pg, benchmarkName, svcNames, outDir); err != nil {
+	if err := generateAmphiQueueConfigs(pg, benchmarkName, svcNames, outDir); err != nil {
 		return err
 	}
-	if err := generateApproxEnv(pg, benchmarkName, svcNames, outDir); err != nil {
+	if err := generateAmphiQueueEnv(pg, benchmarkName, svcNames, outDir); err != nil {
 		return err
 	}
-	if err := generateAppApproxYaml(pg, benchmarkName, svcNames, outDir); err != nil {
+	if err := generateAppAmphiQueueYaml(pg, benchmarkName, svcNames, outDir); err != nil {
 		return err
 	}
 	if err := generateIngressLbYaml(pg, benchmarkName, outDir); err != nil {
@@ -850,7 +850,7 @@ func indent(s string, n int) string {
 	return strings.Join(lines, "\n")
 }
 
-func buildSidecarServiceConfig(pg *ParsedGraph, prefix, svcName, kn, entrySvc string, lb bool, approxMode string) string {
+func buildSidecarServiceConfig(pg *ParsedGraph, prefix, svcName, kn, entrySvc string, lb bool, amphiMode string) string {
 	var b strings.Builder
 	var ringSize, bufCount, bufSize int
 	isEntry := svcName == entrySvc
@@ -929,18 +929,18 @@ func buildSidecarServiceConfig(pg *ParsedGraph, prefix, svcName, kn, entrySvc st
 		b.WriteString(fmt.Sprintf("is_frontend: True\nfrontend_pool_connections: %d\n", pg.EffectiveConnectionPoolSize()))
 	}
 	b.WriteString(fmt.Sprintf("cpu_count: %d\nover_commitment: %.1f\nextra_limit: %d\n", int(cpuCount), overCommitment, extraLimit))
-	switch approxMode {
-	case "approx":
+	switch amphiMode {
+	case "amphiqueue":
 		b.WriteString("mesh_late_binding: False\n")
-	case "approx-fcfs":
+	case "amphiqueue-fcfs":
 		b.WriteString("mesh_late_binding: True\nlate_binding_type: fcfs\n")
-	case "approx-edf":
+	case "amphiqueue-edf":
 		b.WriteString("mesh_late_binding: True\nlate_binding_type: edf\n")
 	}
 	return b.String()
 }
 
-func generateApproxConfigs(pg *ParsedGraph, benchmarkName string, svcNames []string, outDir string) error {
+func generateAmphiQueueConfigs(pg *ParsedGraph, benchmarkName string, svcNames []string, outDir string) error {
 	prefix := benchmarkName + "-"
 	entrySvc := pg.EntryMicroservice()
 	manifestsDir := filepath.Join(outDir, "k8s", "manifests")
@@ -948,7 +948,7 @@ func generateApproxConfigs(pg *ParsedGraph, benchmarkName string, svcNames []str
 		return err
 	}
 
-	for _, mode := range []string{"approx", "approx-fcfs", "approx-edf"} {
+	for _, mode := range []string{"amphiqueue", "amphiqueue-fcfs", "amphiqueue-edf"} {
 		var configs []string
 		for _, name := range svcNames {
 			kn := k8sName(name)
@@ -972,14 +972,14 @@ data:
 	return nil
 }
 
-func generateApproxEnv(pg *ParsedGraph, benchmarkName string, svcNames []string, outDir string) error {
+func generateAmphiQueueEnv(pg *ParsedGraph, benchmarkName string, svcNames []string, outDir string) error {
 	lines := []string{"sidecar=true", "", "PORT=2000"}
 	for _, name := range svcNames {
 		lines = append(lines, name+"_PORT=2000", name+"_EGRESS=localhost:4000")
 	}
 	lines = append(lines, "", "PROM_ADDR=prometheus-pushgateway:9091")
 	k8sDir := filepath.Join(outDir, "k8s")
-	return os.WriteFile(filepath.Join(k8sDir, "approx.env"), []byte(strings.Join(lines, "\n")), 0644)
+	return os.WriteFile(filepath.Join(k8sDir, "amphiqueue.env"), []byte(strings.Join(lines, "\n")), 0644)
 }
 
 const sidecarIngressBasePort = 3000
@@ -1242,7 +1242,7 @@ spec:
 	return os.WriteFile(filepath.Join(manifestsDir, "ingress.yaml"), []byte(yaml), 0644)
 }
 
-func generateAppApproxYaml(pg *ParsedGraph, benchmarkName string, svcNames []string, outDir string) error {
+func generateAppAmphiQueueYaml(pg *ParsedGraph, benchmarkName string, svcNames []string, outDir string) error {
 	prefix := benchmarkName + "-"
 	manifestsDir := filepath.Join(outDir, "k8s", "manifests")
 	if err := os.MkdirAll(manifestsDir, 0755); err != nil {
@@ -1320,7 +1320,7 @@ spec:
       volumes:
       - name: config-volume
         configMap:
-          name: approx-configs
+          name: amphiqueue-configs
 ---
 apiVersion: v1
 kind: Service
@@ -1356,7 +1356,7 @@ spec:
 			prefix, kn, kn, kn,
 			sidecarIngressPort, sidecarIngressPort, sidecarIngressPort, sidecarIngressPort,
 			sidecarEgressPort, sidecarEgressPort, sidecarEgressPort, sidecarEgressPort)
-		outPath := filepath.Join(manifestsDir, kn+"-approx.yaml")
+		outPath := filepath.Join(manifestsDir, kn+"-amphiqueue.yaml")
 		if err := os.WriteFile(outPath, []byte(svcYaml), 0644); err != nil {
 			return err
 		}
@@ -1427,7 +1427,7 @@ spec:
   volumes:
   - name: config-volume
     configMap:
-      name: approx-configs
+      name: amphiqueue-configs
 ---
 apiVersion: v1
 kind: Service
@@ -1698,7 +1698,7 @@ BENCH={{.BenchmarkName}}
 WAIT_TIMEOUT=${WAIT_TIMEOUT:-120}
 
 if [ "$MODE" = "plain" ] && [ "$ARG2" = "debug" ]; then
-  echo "deploy.sh: debug only with roshanfer or approx*; use ./deploy.sh roshanfer debug or ./deploy.sh approx debug" >&2
+  echo "deploy.sh: debug only with roshanfer or amphiqueue*; use ./deploy.sh roshanfer debug or ./deploy.sh amphiqueue debug" >&2
   exit 1
 fi
 if { [ "$MODE" = "p2c" ] || [ "$MODE" = "wrr" ]; } && [ -n "$ARG2" ]; then
@@ -1709,7 +1709,7 @@ if [ "$MODE" = "roshanfer" ] && [ -n "$ARG2" ] && [ "$ARG2" != "debug" ]; then
   echo "deploy.sh: unknown second argument: $ARG2 (expected: debug)" >&2
   exit 1
 fi
-if { [ "$MODE" = "approx" ] || [ "$MODE" = "approx-fcfs" ] || [ "$MODE" = "approx-edf" ]; } && [ -n "$ARG2" ] && [ "$ARG2" != "debug" ]; then
+if { [ "$MODE" = "amphiqueue" ] || [ "$MODE" = "amphiqueue-fcfs" ] || [ "$MODE" = "amphiqueue-edf" ]; } && [ -n "$ARG2" ] && [ "$ARG2" != "debug" ]; then
   echo "deploy.sh: unknown second argument: $ARG2 (expected: debug)" >&2
   exit 1
 fi
@@ -1718,7 +1718,7 @@ if { [ "$MODE" = "rajomon" ] || [ "$MODE" = "dagor" ] || [ "$MODE" = "dagor-lb" 
   exit 1
 fi
 SIDECAR_DEBUG=0
-if { [ "$MODE" = "roshanfer" ] || [ "$MODE" = "approx" ] || [ "$MODE" = "approx-fcfs" ] || [ "$MODE" = "approx-edf" ]; } && [ "$ARG2" = "debug" ]; then
+if { [ "$MODE" = "roshanfer" ] || [ "$MODE" = "amphiqueue" ] || [ "$MODE" = "amphiqueue-fcfs" ] || [ "$MODE" = "amphiqueue-edf" ]; } && [ "$ARG2" = "debug" ]; then
   SIDECAR_DEBUG=1
 fi
 
@@ -1762,7 +1762,7 @@ kubectl_wait_ready_or_fail() {
 
 sidecar_debug_require_yq() {
   command -v yq >/dev/null 2>&1 || {
-    echo "deploy.sh roshanfer/approx* debug needs mikefarah yq v4: https://github.com/mikefarah/yq" >&2
+    echo "deploy.sh roshanfer/amphiqueue* debug needs mikefarah yq v4: https://github.com/mikefarah/yq" >&2
     exit 1
   }
 }
@@ -1854,16 +1854,16 @@ if [ "$MODE" = "roshanfer" ]; then
   fi
   kubectl apply -f "$TMP_DIR/ingress.yaml"
   kubectl_wait_ready_or_fail ingress 30
-elif [ "$MODE" = "approx" ] || [ "$MODE" = "approx-fcfs" ] || [ "$MODE" = "approx-edf" ]; then
+elif [ "$MODE" = "amphiqueue" ] || [ "$MODE" = "amphiqueue-fcfs" ] || [ "$MODE" = "amphiqueue-edf" ]; then
   if [ "$SIDECAR_DEBUG" = "1" ]; then
     sidecar_debug_require_yq
     sidecar_debug_merge_glog_file
   fi
   CM_NAME="${MODE}-configs"
-  cat k8s/approx.env > "$TMP_DIR/approx_merged.env"
-  echo "" >> "$TMP_DIR/approx_merged.env"
-  echo "queuing_export=${queuing_export}" >> "$TMP_DIR/approx_merged.env"
-  kubectl create configmap {{.BenchmarkName}}-config --from-env-file="$TMP_DIR/approx_merged.env" --dry-run=client -o yaml > "$TMP_DIR/configmap.yaml"
+  cat k8s/amphiqueue.env > "$TMP_DIR/amphiqueue_merged.env"
+  echo "" >> "$TMP_DIR/amphiqueue_merged.env"
+  echo "queuing_export=${queuing_export}" >> "$TMP_DIR/amphiqueue_merged.env"
+  kubectl create configmap {{.BenchmarkName}}-config --from-env-file="$TMP_DIR/amphiqueue_merged.env" --dry-run=client -o yaml > "$TMP_DIR/configmap.yaml"
   kubectl apply -f "$TMP_DIR/configmap.yaml"
   cp "k8s/manifests/${CM_NAME}.yaml" "$TMP_DIR/${CM_NAME}.yaml"
   if [ -n "${SIDECAR_OVER_COMMIT:-}" ]; then
@@ -1886,18 +1886,18 @@ elif [ "$MODE" = "approx" ] || [ "$MODE" = "approx-fcfs" ] || [ "$MODE" = "appro
   kubectl_wait_ready_or_fail prometheus 60
 
   for SVC in {{range $i, $e := .K8sOrder}}{{if $i}} {{end}}{{$e}}{{end}}; do
-    sed "s|sidecar-sidecar:latest|${REGISTRY}/sidecar-sidecar:${TAG}|g" "k8s/manifests/${SVC}-approx.yaml" | \
+    sed "s|sidecar-sidecar:latest|${REGISTRY}/sidecar-sidecar:${TAG}|g" "k8s/manifests/${SVC}-amphiqueue.yaml" | \
     sed "s|${BENCH}-${SVC}:latest|${REGISTRY}/${BENCH}-${SVC}:${TAG}|g" | \
-    sed "s|name: approx-configs|name: ${CM_NAME}|g" > "$TMP_DIR/${SVC}-approx.yaml"
+    sed "s|name: amphiqueue-configs|name: ${CM_NAME}|g" > "$TMP_DIR/${SVC}-amphiqueue.yaml"
     if [ "$SIDECAR_DEBUG" = "1" ]; then
-      sidecar_debug_patch_workload_yaml "$TMP_DIR/${SVC}-approx.yaml"
+      sidecar_debug_patch_workload_yaml "$TMP_DIR/${SVC}-amphiqueue.yaml"
     fi
-    kubectl apply -f "$TMP_DIR/${SVC}-approx.yaml"
+    kubectl apply -f "$TMP_DIR/${SVC}-amphiqueue.yaml"
     kubectl_wait_ready_or_fail "${SVC}" "${WAIT_TIMEOUT}"
   done
 
   sed "s|sidecar-sidecar:latest|${REGISTRY}/sidecar-sidecar:${TAG}|g" k8s/manifests/ingress-lb.yaml | \
-  sed "s|name: approx-configs|name: ${CM_NAME}|g" > "$TMP_DIR/ingress-lb.yaml"
+  sed "s|name: amphiqueue-configs|name: ${CM_NAME}|g" > "$TMP_DIR/ingress-lb.yaml"
   if [ "$SIDECAR_DEBUG" = "1" ]; then
     sidecar_debug_patch_workload_yaml "$TMP_DIR/ingress-lb.yaml"
   fi
@@ -2221,10 +2221,10 @@ if [ "$MODE" = "roshanfer" ]; then
   kubectl delete service -l app=ingress --ignore-not-found
   kubectl delete configmap sidecar-configs --ignore-not-found
 fi
-if [ "$MODE" = "approx" ] || [ "$MODE" = "approx-fcfs" ] || [ "$MODE" = "approx-edf" ]; then
+if [ "$MODE" = "amphiqueue" ] || [ "$MODE" = "amphiqueue-fcfs" ] || [ "$MODE" = "amphiqueue-edf" ]; then
   kubectl delete pod -l app=ingress --ignore-not-found --wait=true
   kubectl delete service -l app=ingress --ignore-not-found
-  kubectl delete configmap approx-configs approx-fcfs-configs approx-edf-configs --ignore-not-found
+  kubectl delete configmap amphiqueue-configs amphiqueue-fcfs-configs amphiqueue-edf-configs --ignore-not-found
 fi
 if [ "$MODE" = "envoy" ]; then
   kubectl delete pod -l app=ingress --ignore-not-found --wait=true
@@ -2267,7 +2267,7 @@ for svc in ` + trimmed + `; do
   for pod in $(kubectl get pods -l app=$svc -o jsonpath='{.items[*].metadata.name}'); do
     (
       kubectl logs "$pod" > "$OUTPUT_DIR/${pod}.log" 2>&1
-      if [ "$MODE" = "roshanfer" ] || [ "$MODE" = "approx" ] || [ "$MODE" = "approx-fcfs" ] || [ "$MODE" = "approx-edf" ]; then
+      if [ "$MODE" = "roshanfer" ] || [ "$MODE" = "amphiqueue" ] || [ "$MODE" = "amphiqueue-fcfs" ] || [ "$MODE" = "amphiqueue-edf" ]; then
         kubectl logs "$pod" -c sidecar > "$OUTPUT_DIR/${pod}-sidecar.log" 2>&1
       fi
       if [ "$MODE" = "envoy" ]; then
@@ -2279,7 +2279,7 @@ for svc in ` + trimmed + `; do
 done
 for pid in "${log_pids[@]}"; do wait "$pid" || true; done
 
-if [ "$MODE" = "roshanfer" ] || [ "$MODE" = "approx" ] || [ "$MODE" = "approx-fcfs" ] || [ "$MODE" = "approx-edf" ]; then
+if [ "$MODE" = "roshanfer" ] || [ "$MODE" = "amphiqueue" ] || [ "$MODE" = "amphiqueue-fcfs" ] || [ "$MODE" = "amphiqueue-edf" ]; then
   declare -a ing_pids=()
   for pod in $(kubectl get pods -l app=ingress -o jsonpath='{.items[*].metadata.name}'); do
     (
@@ -2317,7 +2317,7 @@ if [ "$MODE" = "envoy" ]; then
   for pid in "${stats_pids[@]}"; do wait "$pid" || true; done
 fi
 
-if { [ "$MODE" = "roshanfer" ] || [ "$MODE" = "approx" ] || [ "$MODE" = "approx-fcfs" ] || [ "$MODE" = "approx-edf" ]; } && [ "${COLLECT_SIDECAR_NANOLOG:-}" = "1" ]; then
+if { [ "$MODE" = "roshanfer" ] || [ "$MODE" = "amphiqueue" ] || [ "$MODE" = "amphiqueue-fcfs" ] || [ "$MODE" = "amphiqueue-edf" ]; } && [ "${COLLECT_SIDECAR_NANOLOG:-}" = "1" ]; then
   declare -a cp_pids=()
   for svc in ` + trimmed + `; do
     for pod in $(kubectl get pods -l app=$svc -o jsonpath='{.items[*].metadata.name}' 2>/dev/null); do

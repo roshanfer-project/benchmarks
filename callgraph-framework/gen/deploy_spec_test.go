@@ -28,11 +28,11 @@ func TestDeploySpecChain2SidecarModes(t *testing.T) {
 		t.Fatalf("roshanfer backend: %+v", backendSidecar)
 	}
 
-	backendLb := byService("approx", "backend")
+	backendLb := byService("amphiqueue", "backend")
 	if backendLb.AppCPULimit != 1 || backendLb.SidecarCPULimit != 1 ||
 		backendLb.Replicas != 2 || backendLb.GOMAXPROCS != 1 ||
 		backendLb.CPUCount != 1 {
-		t.Fatalf("approx backend: %+v", backendLb)
+		t.Fatalf("amphiqueue backend: %+v", backendLb)
 	}
 
 	for _, mode := range []string{"p2c", "wrr"} {
@@ -53,8 +53,8 @@ func TestDeploySpecChain2SidecarModes(t *testing.T) {
 	if ingressSidecar.SidecarCPULimit != 2 {
 		t.Fatalf("roshanfer ingress: %+v", ingressSidecar)
 	}
-	ingressLb := byService("approx", "ingress")
+	ingressLb := byService("amphiqueue", "ingress")
 	if ingressLb.SidecarCPULimit != 2 {
-		t.Fatalf("approx ingress: %+v", ingressLb)
+		t.Fatalf("amphiqueue ingress: %+v", ingressLb)
 	}
 }

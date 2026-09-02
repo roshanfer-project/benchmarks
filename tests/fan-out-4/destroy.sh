@@ -26,10 +26,10 @@ if [ "$MODE" = "roshanfer" ]; then
   kubectl delete service -l app=ingress --ignore-not-found
   kubectl delete configmap sidecar-configs --ignore-not-found
 fi
-if [ "$MODE" = "approx" ] || [ "$MODE" = "approx-fcfs" ] || [ "$MODE" = "approx-edf" ]; then
+if [ "$MODE" = "amphiqueue" ] || [ "$MODE" = "amphiqueue-fcfs" ] || [ "$MODE" = "amphiqueue-edf" ]; then
   kubectl delete pod -l app=ingress --ignore-not-found --wait=true
   kubectl delete service -l app=ingress --ignore-not-found
-  kubectl delete configmap approx-configs approx-fcfs-configs approx-edf-configs --ignore-not-found
+  kubectl delete configmap amphiqueue-configs amphiqueue-fcfs-configs amphiqueue-edf-configs --ignore-not-found
 fi
 if [ "$MODE" = "envoy" ]; then
   kubectl delete pod -l app=ingress --ignore-not-found --wait=true

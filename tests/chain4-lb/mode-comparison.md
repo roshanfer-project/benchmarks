@@ -25,21 +25,21 @@ Deploy resource comparison across generated modes (from callgraph.json).
 | roshanfer | backend3 | 3 | 2 | 1 | 3 | 3 | 0.0 | 1 |
 | roshanfer | frontend | 2 | 2 | 1 | 2 | 2 | 1.0 | 1 |
 | roshanfer | ingress | — | 2 | 1 | — | — | — | — |
-| approx | backend1 | 1 | 1 | 3 | 1 | 1 | 1.0 | 1 |
-| approx | backend2 | 1 | 1 | 3 | 1 | 1 | 1.0 | 1 |
-| approx | backend3 | 1 | 1 | 3 | 1 | 1 | 1.0 | 1 |
-| approx | frontend | 2 | 1 | 1 | 2 | 2 | 1.0 | 1 |
-| approx | ingress | — | 2 | 1 | — | — | — | — |
-| approx-fcfs | backend1 | 1 | 1 | 3 | 1 | 1 | 1.0 | 1 |
-| approx-fcfs | backend2 | 1 | 1 | 3 | 1 | 1 | 1.0 | 1 |
-| approx-fcfs | backend3 | 1 | 1 | 3 | 1 | 1 | 1.0 | 1 |
-| approx-fcfs | frontend | 2 | 1 | 1 | 2 | 2 | 1.0 | 1 |
-| approx-fcfs | ingress | — | 2 | 1 | — | — | — | — |
-| approx-edf | backend1 | 1 | 1 | 3 | 1 | 1 | 1.0 | 1 |
-| approx-edf | backend2 | 1 | 1 | 3 | 1 | 1 | 1.0 | 1 |
-| approx-edf | backend3 | 1 | 1 | 3 | 1 | 1 | 1.0 | 1 |
-| approx-edf | frontend | 2 | 1 | 1 | 2 | 2 | 1.0 | 1 |
-| approx-edf | ingress | — | 2 | 1 | — | — | — | — |
+| amphiqueue | backend1 | 1 | 1 | 3 | 1 | 1 | 1.0 | 1 |
+| amphiqueue | backend2 | 1 | 1 | 3 | 1 | 1 | 1.0 | 1 |
+| amphiqueue | backend3 | 1 | 1 | 3 | 1 | 1 | 1.0 | 1 |
+| amphiqueue | frontend | 2 | 1 | 1 | 2 | 2 | 1.0 | 1 |
+| amphiqueue | ingress | — | 2 | 1 | — | — | — | — |
+| amphiqueue-fcfs | backend1 | 1 | 1 | 3 | 1 | 1 | 1.0 | 1 |
+| amphiqueue-fcfs | backend2 | 1 | 1 | 3 | 1 | 1 | 1.0 | 1 |
+| amphiqueue-fcfs | backend3 | 1 | 1 | 3 | 1 | 1 | 1.0 | 1 |
+| amphiqueue-fcfs | frontend | 2 | 1 | 1 | 2 | 2 | 1.0 | 1 |
+| amphiqueue-fcfs | ingress | — | 2 | 1 | — | — | — | — |
+| amphiqueue-edf | backend1 | 1 | 1 | 3 | 1 | 1 | 1.0 | 1 |
+| amphiqueue-edf | backend2 | 1 | 1 | 3 | 1 | 1 | 1.0 | 1 |
+| amphiqueue-edf | backend3 | 1 | 1 | 3 | 1 | 1 | 1.0 | 1 |
+| amphiqueue-edf | frontend | 2 | 1 | 1 | 2 | 2 | 1.0 | 1 |
+| amphiqueue-edf | ingress | — | 2 | 1 | — | — | — | — |
 | envoy | backend1 | 3 | 1 | 1 | 3 | — | — | — |
 | envoy | backend2 | 3 | 1 | 1 | 3 | — | — | — |
 | envoy | backend3 | 3 | 1 | 1 | 3 | — | — | — |
@@ -74,9 +74,9 @@ Deploy resource comparison across generated modes (from callgraph.json).
 | p2c | 11 | 2 | 5.5 |
 | wrr | 11 | 2 | 5.5 |
 | roshanfer | 11 | 10 | 1.1 |
-| approx | 11 | 12 | 0.917 |
-| approx-fcfs | 11 | 12 | 0.917 |
-| approx-edf | 11 | 12 | 0.917 |
+| amphiqueue | 11 | 12 | 0.917 |
+| amphiqueue-fcfs | 11 | 12 | 0.917 |
+| amphiqueue-edf | 11 | 12 | 0.917 |
 | envoy | 11 | 5 | 2.2 |
 | rajomon | 14 | 0 | — |
 | rajomon-lb | 13 | 0 | — |

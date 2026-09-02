@@ -8,7 +8,7 @@ BENCH=chain2-lb
 WAIT_TIMEOUT=${WAIT_TIMEOUT:-120}
 
 if [ "$MODE" = "plain" ] && [ "$ARG2" = "debug" ]; then
-  echo "deploy.sh: debug only with roshanfer or approx*; use ./deploy.sh roshanfer debug or ./deploy.sh approx debug" >&2
+  echo "deploy.sh: debug only with roshanfer or amphiqueue*; use ./deploy.sh roshanfer debug or ./deploy.sh amphiqueue debug" >&2
   exit 1
 fi
 if { [ "$MODE" = "p2c" ] || [ "$MODE" = "wrr" ]; } && [ -n "$ARG2" ]; then
@@ -19,7 +19,7 @@ if [ "$MODE" = "roshanfer" ] && [ -n "$ARG2" ] && [ "$ARG2" != "debug" ]; then
   echo "deploy.sh: unknown second argument: $ARG2 (expected: debug)" >&2
   exit 1
 fi
-if { [ "$MODE" = "approx" ] || [ "$MODE" = "approx-fcfs" ] || [ "$MODE" = "approx-edf" ]; } && [ -n "$ARG2" ] && [ "$ARG2" != "debug" ]; then
+if { [ "$MODE" = "amphiqueue" ] || [ "$MODE" = "amphiqueue-fcfs" ] || [ "$MODE" = "amphiqueue-edf" ]; } && [ -n "$ARG2" ] && [ "$ARG2" != "debug" ]; then
   echo "deploy.sh: unknown second argument: $ARG2 (expected: debug)" >&2
   exit 1
 fi
@@ -28,7 +28,7 @@ if { [ "$MODE" = "rajomon" ] || [ "$MODE" = "dagor" ] || [ "$MODE" = "dagor-lb" 
   exit 1
 fi
 SIDECAR_DEBUG=0
-if { [ "$MODE" = "roshanfer" ] || [ "$MODE" = "approx" ] || [ "$MODE" = "approx-fcfs" ] || [ "$MODE" = "approx-edf" ]; } && [ "$ARG2" = "debug" ]; then
+if { [ "$MODE" = "roshanfer" ] || [ "$MODE" = "amphiqueue" ] || [ "$MODE" = "amphiqueue-fcfs" ] || [ "$MODE" = "amphiqueue-edf" ]; } && [ "$ARG2" = "debug" ]; then
   SIDECAR_DEBUG=1
 fi
 
@@ -72,7 +72,7 @@ kubectl_wait_ready_or_fail() {
 
 sidecar_debug_require_yq() {
   command -v yq >/dev/null 2>&1 || {
-    echo "deploy.sh roshanfer/approx* debug needs mikefarah yq v4: https://github.com/mikefarah/yq" >&2
+    echo "deploy.sh roshanfer/amphiqueue* debug needs mikefarah yq v4: https://github.com/mikefarah/yq" >&2
     exit 1
   }
 }
@@ -164,16 +164,16 @@ if [ "$MODE" = "roshanfer" ]; then
   fi
   kubectl apply -f "$TMP_DIR/ingress.yaml"
   kubectl_wait_ready_or_fail ingress 30
-elif [ "$MODE" = "approx" ] || [ "$MODE" = "approx-fcfs" ] || [ "$MODE" = "approx-edf" ]; then
+elif [ "$MODE" = "amphiqueue" ] || [ "$MODE" = "amphiqueue-fcfs" ] || [ "$MODE" = "amphiqueue-edf" ]; then
   if [ "$SIDECAR_DEBUG" = "1" ]; then
     sidecar_debug_require_yq
     sidecar_debug_merge_glog_file
   fi
   CM_NAME="${MODE}-configs"
-  cat k8s/approx.env > "$TMP_DIR/approx_merged.env"
-  echo "" >> "$TMP_DIR/approx_merged.env"
-  echo "queuing_export=${queuing_export}" >> "$TMP_DIR/approx_merged.env"
-  kubectl create configmap chain2-lb-config --from-env-file="$TMP_DIR/approx_merged.env" --dry-run=client -o yaml > "$TMP_DIR/configmap.yaml"
+  cat k8s/amphiqueue.env > "$TMP_DIR/amphiqueue_merged.env"
+  echo "" >> "$TMP_DIR/amphiqueue_merged.env"
+  echo "queuing_export=${queuing_export}" >> "$TMP_DIR/amphiqueue_merged.env"
+  kubectl create configmap chain2-lb-config --from-env-file="$TMP_DIR/amphiqueue_merged.env" --dry-run=client -o yaml > "$TMP_DIR/configmap.yaml"
   kubectl apply -f "$TMP_DIR/configmap.yaml"
   cp "k8s/manifests/${CM_NAME}.yaml" "$TMP_DIR/${CM_NAME}.yaml"
   if [ -n "${SIDECAR_OVER_COMMIT:-}" ]; then
@@ -196,18 +196,18 @@ elif [ "$MODE" = "approx" ] || [ "$MODE" = "approx-fcfs" ] || [ "$MODE" = "appro
   kubectl_wait_ready_or_fail prometheus 60
 
   for SVC in backend frontend; do
-    sed "s|sidecar-sidecar:latest|${REGISTRY}/sidecar-sidecar:${TAG}|g" "k8s/manifests/${SVC}-approx.yaml" | \
+    sed "s|sidecar-sidecar:latest|${REGISTRY}/sidecar-sidecar:${TAG}|g" "k8s/manifests/${SVC}-amphiqueue.yaml" | \
     sed "s|${BENCH}-${SVC}:latest|${REGISTRY}/${BENCH}-${SVC}:${TAG}|g" | \
-    sed "s|name: approx-configs|name: ${CM_NAME}|g" > "$TMP_DIR/${SVC}-approx.yaml"
+    sed "s|name: amphiqueue-configs|name: ${CM_NAME}|g" > "$TMP_DIR/${SVC}-amphiqueue.yaml"
     if [ "$SIDECAR_DEBUG" = "1" ]; then
-      sidecar_debug_patch_workload_yaml "$TMP_DIR/${SVC}-approx.yaml"
+      sidecar_debug_patch_workload_yaml "$TMP_DIR/${SVC}-amphiqueue.yaml"
     fi
-    kubectl apply -f "$TMP_DIR/${SVC}-approx.yaml"
+    kubectl apply -f "$TMP_DIR/${SVC}-amphiqueue.yaml"
     kubectl_wait_ready_or_fail "${SVC}" "${WAIT_TIMEOUT}"
   done
 
   sed "s|sidecar-sidecar:latest|${REGISTRY}/sidecar-sidecar:${TAG}|g" k8s/manifests/ingress-lb.yaml | \
-  sed "s|name: approx-configs|name: ${CM_NAME}|g" > "$TMP_DIR/ingress-lb.yaml"
+  sed "s|name: amphiqueue-configs|name: ${CM_NAME}|g" > "$TMP_DIR/ingress-lb.yaml"
   if [ "$SIDECAR_DEBUG" = "1" ]; then
     sidecar_debug_patch_workload_yaml "$TMP_DIR/ingress-lb.yaml"
   fi
