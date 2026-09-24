@@ -47,6 +47,13 @@ Requires [graphviz](https://graphviz.org/) (`dot` on PATH): `apt install graphvi
 go run ./cmd/viz -paper path/to/callgraph.json [-o callgraph-service.pdf]
 ```
 
+Multiple callgraphs share one legend in a 1xN ACM half-column figure (`-o` required). Optional `--titles` via the Python script:
+
+```bash
+go run ./cmd/viz -paper a.json b.json -o combined.pdf
+.venv/bin/python benchmarks/callgraph-framework/viz/render_service_pdf.py a.json b.json --titles '$(\mathbf{a})$ Synthetic' '$(\mathbf{b})$ Based on Alibaba traces' -o combined.pdf
+```
+
 With `-paper`, `viz` runs `render_service_pdf.py` using **the repository root `.venv` only** (`$REPO_ROOT/.venv/bin/python3`). Missing venv is an error with install hints. Create at repo root: `python3 -m venv .venv` then `.venv/bin/pip install -r requirements.txt` (see repo root [`requirements.txt`](../../requirements.txt)).
 
 ## Requirements

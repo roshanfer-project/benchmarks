@@ -8,7 +8,7 @@ Reads callgraph JSON, emits unlabeled endpoint circles grouped in per-service
 clusters + USER, lays out with Graphviz dot -Tjson (xdot format). Edges and
 arrowheads are drawn from Graphviz's pre-computed xdot commands. Endpoints
 with weighted (dynamic) fan-out get distinct fill colors; other nodes stay
-neutral. No node or edge text.
+neutral. No node or edge text. Multiple JSONs share one legend in a 1xN grid.
 """
 from __future__ import annotations
 
@@ -18,6 +18,7 @@ import subprocess
 import sys
 import tempfile
 from collections import defaultdict
+from dataclasses import replace
 from pathlib import Path
 
 from matplotlib.lines import Line2D
@@ -29,7 +30,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[3]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from exec.plots.plotting_primitives import ACM_QUARTER, SubplotGrid
+from exec.plots.plotting_primitives import ACM_COMPACT_HALF, ACM_QUARTER, SubplotGrid
 
 _CLUSTER_FILL = "#f1f3f5"
 
@@ -142,22 +143,24 @@ def _add_legend(grid: SubplotGrid, style, lw: float) -> None:
     )
 
 
-def _draw(gj: dict, facecolors: dict[str, str], out: Path) -> None:
-    style = ACM_QUARTER
-    grid = SubplotGrid(style, layout="1x1")
-    ax = grid.get_ax(0, 0)
+def _panel_caption(letter: str, text: str) -> str:
+    return rf"$(\mathbf{{{letter}}})$ {text}"
+
+
+def _prepare_ax(ax, style, caption: str | None) -> None:
     ax.set_aspect("equal")
     for spine in ax.spines.values():
         spine.set_visible(False)
     ax.set_xticks([])
     ax.set_yticks([])
-    lw = max(0.8, style.line_width * 0.55)
+    if caption:
+        ax.set_xlabel(caption, fontsize=style.font_size, labelpad=2)
+        ax.xaxis.label.set_clip_on(False)
 
+
+def _draw_on_ax(ax, gj: dict, facecolors: dict[str, str], lw: float) -> None:
     if not gj.get("objects"):
-        _add_legend(grid, style, lw)
-        grid.save(out)
         return
-
     bb = list(map(float, gj["bb"].split(",")))  # x0, y0, x1, y1 in points
     pad = 8.0
     ax.set_xlim(bb[0] - pad, bb[2] + pad)
@@ -202,8 +205,55 @@ def _draw(gj: dict, facecolors: dict[str, str], out: Path) -> None:
                     facecolor=fill, edgecolor="0.2", linewidth=lw, zorder=3,
                 ))
 
+
+def _layout_for(n: int):
+    if n == 1:
+        return ACM_QUARTER, "1x1"
+    return ACM_COMPACT_HALF, f"1x{n}"
+
+
+def _graphviz_json(callgraph_json: Path, palette: list[str]) -> tuple[dict, dict[str, str]]:
+    with open(callgraph_json, encoding="utf-8") as f:
+        data = json.load(f)
+    fc_map = _fanout_facecolors(data, palette)
+    clusters, pairs = _build_endpoint_graph(data)
+    rankdir = "TB" if len(clusters) >= 6 else "LR"
+    gj = _run_dot(_emit_dot(clusters, pairs, fc_map, rankdir))
+    return gj, fc_map
+
+
+def render_many(
+    callgraph_jsons: list[Path],
+    pdf_out: Path,
+    titles: list[str] | None = None,
+) -> None:
+    n = len(callgraph_jsons)
+    if n < 1:
+        raise ValueError("need at least one callgraph JSON")
+    if titles is not None and len(titles) != n:
+        raise ValueError(f"--titles has {len(titles)} values, expected {n}")
+    style, layout = _layout_for(n)
+    style = replace(style, font_size=8, title_size=8, legend_size=8)
+    grid = SubplotGrid(style, layout=layout)
+    lw = max(0.8, style.line_width * 0.55)
+    for i, path in enumerate(callgraph_jsons):
+        ax = grid.get_ax(0, i)
+        caption = titles[i] if titles else None
+        _prepare_ax(ax, style, caption)
+        gj, fc_map = _graphviz_json(path, style.colors)
+        _draw_on_ax(ax, gj, fc_map, lw)
     _add_legend(grid, style, lw)
-    grid.save(out)
+    if n == 1:
+        grid.save(pdf_out)
+        return
+    import matplotlib.pyplot as plt
+    pdf_out.parent.mkdir(parents=True, exist_ok=True)
+    grid.fig.savefig(pdf_out, dpi=style.dpi)
+    plt.close(grid.fig)
+
+
+def render(callgraph_json: Path, pdf_out: Path, title: str | None = None) -> None:
+    render_many([callgraph_json], pdf_out, titles=[title] if title else None)
 
 
 def _run_dot(dot_src: str) -> dict:
@@ -227,26 +277,19 @@ def _run_dot(dot_src: str) -> dict:
         Path(dot_path).unlink(missing_ok=True)
 
 
-def render(callgraph_json: Path, pdf_out: Path) -> None:
-    with open(callgraph_json, encoding="utf-8") as f:
-        data = json.load(f)
-    style = ACM_QUARTER
-    fc_map = _fanout_facecolors(data, style.colors)
-    clusters, pairs = _build_endpoint_graph(data)
-    rankdir = "TB" if len(clusters) >= 6 else "LR"
-    gj = _run_dot(_emit_dot(clusters, pairs, fc_map, rankdir))
-    _draw(gj, fc_map, pdf_out)
-
-
 def main() -> None:
-    p = argparse.ArgumentParser(description="ACM_QUARTER endpoint-level call graph PDF")
-    p.add_argument("callgraph_json", type=Path)
+    p = argparse.ArgumentParser(description="ACM endpoint-level call graph PDF")
+    p.add_argument("callgraph_json", type=Path, nargs="+")
     p.add_argument("-o", "--output", type=Path, help="output PDF path")
+    p.add_argument("--titles", nargs="+", help="subplot captions, one per JSON")
     args = p.parse_args()
+    paths = args.callgraph_json
     out = args.output
     if out is None:
-        out = args.callgraph_json.parent / "callgraph-service.pdf"
-    render(args.callgraph_json, out)
+        if len(paths) > 1:
+            p.error("multiple callgraphs require -o")
+        out = paths[0].parent / "callgraph-service.pdf"
+    render_many(paths, out, titles=args.titles)
     print(f"Wrote {out}", file=sys.stderr)
 
 

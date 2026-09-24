@@ -79,12 +79,32 @@ func outPathFromTrailingFlags() string {
 	return ""
 }
 
-func runPaperViz(callgraphPath, outPath string) error {
-	cg, err := filepath.Abs(callgraphPath)
-	if err != nil {
-		return err
+func paperJSONArgs() []string {
+	args := flag.Args()
+	var jsons []string
+	for i := 0; i < len(args); i++ {
+		if args[i] == "-o" || args[i] == "--output" {
+			i++
+			continue
+		}
+		jsons = append(jsons, args[i])
 	}
-	root, err := findRepoRoot(filepath.Dir(cg))
+	return jsons
+}
+
+func runPaperViz(callgraphPaths []string, outPath string) error {
+	if len(callgraphPaths) == 0 {
+		return errors.New("no callgraph JSON")
+	}
+	absPaths := make([]string, 0, len(callgraphPaths))
+	for _, p := range callgraphPaths {
+		cg, err := filepath.Abs(p)
+		if err != nil {
+			return err
+		}
+		absPaths = append(absPaths, cg)
+	}
+	root, err := findRepoRoot(filepath.Dir(absPaths[0]))
 	if err != nil {
 		return err
 	}
@@ -96,7 +116,9 @@ func runPaperViz(callgraphPath, outPath string) error {
 	if err != nil {
 		return err
 	}
-	cmd := exec.Command(py, script, cg, "-o", outPath)
+	args := append([]string{script}, absPaths...)
+	args = append(args, "-o", outPath)
+	cmd := exec.Command(py, args...)
 	cmd.Dir = root
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -108,32 +130,35 @@ func runPaperViz(callgraphPath, outPath string) error {
 }
 
 func main() {
-	paper := flag.Bool("paper", false, "endpoint-level ACM quarter-column PDF with service clusters (requires repo .venv/bin/python3)")
+	paper := flag.Bool("paper", false, "endpoint-level ACM PDF with service clusters (requires repo .venv/bin/python3)")
 	out := flag.String("o", "", "output PDF path")
 	flag.Parse()
 	if flag.NArg() < 1 {
-		log.Fatal("usage: viz [-paper] <callgraph.json> [-o out.pdf]")
+		log.Fatal("usage: viz [-paper] <callgraph.json> [callgraph.json ...] [-o out.pdf]")
 	}
 	callgraphPath := flag.Arg(0)
 	outPath := *out
 	if outPath == "" {
 		outPath = outPathFromTrailingFlags()
 	}
-	if outPath == "" {
-		if *paper {
+	if *paper {
+		jsons := paperJSONArgs()
+		if outPath == "" {
+			if len(jsons) > 1 {
+				log.Fatal("multi-graph paper viz requires -o")
+			}
 			outPath = filepath.Join(filepath.Dir(callgraphPath), "callgraph-service.pdf")
-		} else {
+		}
+		if err := runPaperViz(jsons, outPath); err != nil {
+			log.Fatalf("viz: %v", err)
+		}
+	} else {
+		if outPath == "" {
 			outPath = filepath.Join(filepath.Dir(callgraphPath), "callgraph.pdf")
 		}
-	}
-	var err error
-	if *paper {
-		err = runPaperViz(callgraphPath, outPath)
-	} else {
-		err = viz.Visualize(callgraphPath, outPath)
-	}
-	if err != nil {
-		log.Fatalf("viz: %v", err)
+		if err := viz.Visualize(callgraphPath, outPath); err != nil {
+			log.Fatalf("viz: %v", err)
+		}
 	}
 	fmt.Printf("Generated %s\n", outPath)
 }
